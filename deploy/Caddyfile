@@ -24,6 +24,18 @@
         reverse_proxy backend:3333
     }
 
+    # Caminho com segmento oculto (/.env, /.git/config, /assets/.algo)
+    # responde 404 em vez de cair no fallback da SPA com 200: nada disso
+    # existe no build, e o 200 confunde varreduras de segurança. Exceção:
+    # /.well-known/, reservado a padrões como security.txt e ACME.
+    @oculto {
+        path_regexp oculto /\.
+        not path /.well-known/*
+    }
+    handle @oculto {
+        respond 404
+    }
+
     # Exposto de propósito para monitor externo de disponibilidade
     # (ADR-0015) — sem autenticação, sem dado pessoal no payload
     # (`{"status","timestamp"}`) e sem log de acesso (`app.ts` ignora
@@ -60,4 +72,14 @@
         X-Content-Type-Options "nosniff"
         -Server
     }
+
+    # Cada cabeçalho com `?` fica na sua própria diretiva `header`: num mesmo
+    # bloco, os campos com `?` viram uma condição conjunta e nenhum é aplicado
+    # se qualquer um já existir. `?` só define quando a resposta ainda não traz
+    # o cabeçalho: a API envia o próprio Referrer-Policy (helmet, no-referrer)
+    # e ele vence, sem impedir o Permissions-Policy.
+    header ?Referrer-Policy "strict-origin-when-cross-origin"
+    # A aplicação não usa câmera, microfone, localização, pagamento nem
+    # periféricos; a área de transferência continua liberada (códigos de MFA).
+    header ?Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=(), usb=(), serial=(), bluetooth=(), hid=()"
 }

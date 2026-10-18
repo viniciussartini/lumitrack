@@ -10,6 +10,8 @@ import type { Paginated } from "@/types/pagination.types"
 import {
     REPORT_GRANULARITIES,
     type ConsumptionBucket,
+    type GroupABreakdown,
+    type GroupBWhiteBreakdown,
     type Granularity,
 } from "@/types/consumption.types"
 
@@ -195,5 +197,172 @@ describe("ConsumptionSection — seletor de janela de hora", () => {
         expect(
             await screen.findByText("Consumo da hora corrente, minuto a minuto"),
         ).toBeInTheDocument()
+    })
+})
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Grupo A — ramifica antes de qualquer dado ser buscado
+// ─────────────────────────────────────────────────────────────────────────────
+
+const mockGroupABreakdown: GroupABreakdown = {
+    contractedDemandKw: 200,
+    demandByPost: [
+        {
+            post: null,
+            contractedDemandKw: 200,
+            measuredDemandKw: 190,
+            demandBrl: 3600,
+            ultrapassagemBrl: 0,
+        },
+    ],
+    demandBrl: 3600,
+    ultrapassagemBrl: 0,
+    energyByPost: [
+        { post: "PEAK", kwhConsumed: 800, brl: 1040 },
+        { post: "OFF_PEAK", kwhConsumed: 28_000, brl: 11_200 },
+    ],
+    ereByWindow: [],
+    ereBrl: 0,
+    flagBrl: 542.88,
+    taxesBrl: 5831.87,
+    publicLightingFeeBrl: 250,
+}
+
+describe("ConsumptionSection — Grupo A", () => {
+    it("Propriedade Grupo A mostra a conta do mês, sem abas de granularidade", async () => {
+        vi.mocked(consumptionService.list).mockResolvedValue(
+            paginated([
+                {
+                    bucketStart: "2026-08-01T03:00:00.000Z",
+                    kwhConsumed: 28_800,
+                    costBrl: 22_464.07,
+                    avgPowerW: 100_000,
+                    groupA: mockGroupABreakdown,
+                },
+            ]),
+        )
+        const queryClient = createTestQueryClient()
+
+        render(
+            <ConsumptionSection targetType="PROPERTY" targetId="prop-1" tariffGroup="GROUP_A" />,
+            {
+                wrapper: ({ children }) => (
+                    <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+                ),
+            },
+        )
+
+        expect(await screen.findByText("Conta do mês")).toBeInTheDocument()
+        expect(await screen.findByTestId("group-a-bill-card")).toBeInTheDocument()
+        expect(screen.getByText("200 kW")).toBeInTheDocument() // demanda contratada
+        expect(screen.queryByTestId("granularity-tabs")).not.toBeInTheDocument()
+    })
+
+    it("Área de propriedade Grupo A mostra aviso, sem consultar o backend", async () => {
+        const queryClient = createTestQueryClient()
+
+        render(<ConsumptionSection targetType="AREA" targetId="area-1" tariffGroup="GROUP_A" />, {
+            wrapper: ({ children }) => (
+                <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+            ),
+        })
+
+        expect(
+            await screen.findByText("Detalhamento não disponível para o Grupo A"),
+        ).toBeInTheDocument()
+        expect(meterService.byTarget).not.toHaveBeenCalled()
+        expect(consumptionService.list).not.toHaveBeenCalled()
+    })
+})
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Grupo B — Tarifa Branca — mesma disciplina de falha fechada do Grupo A
+// ─────────────────────────────────────────────────────────────────────────────
+
+const mockGroupBWhiteBreakdown: GroupBWhiteBreakdown = {
+    belowAvailabilityFloor: false,
+    energyByPost: [
+        { post: "PEAK", kwhConsumed: 30, brl: 36 },
+        { post: "INTERMEDIATE", kwhConsumed: 50, brl: 37.5 },
+        { post: "OFF_PEAK", kwhConsumed: 370, brl: 166.5 },
+    ],
+    energyBrl: 240,
+    flagBrl: 8.4825,
+    taxesBrl: 101.0742,
+    publicLightingFeeBrl: 18,
+}
+
+describe("ConsumptionSection — Tarifa Branca (Grupo B)", () => {
+    it("Propriedade na Branca mostra a conta do mês, sem abas de granularidade", async () => {
+        vi.mocked(consumptionService.list).mockResolvedValue(
+            paginated([
+                {
+                    bucketStart: "2026-08-01T03:00:00.000Z",
+                    kwhConsumed: 450,
+                    costBrl: 359.5567,
+                    avgPowerW: 10_000,
+                    groupBWhite: mockGroupBWhiteBreakdown,
+                },
+            ]),
+        )
+        const queryClient = createTestQueryClient()
+
+        render(
+            <ConsumptionSection
+                targetType="PROPERTY"
+                targetId="prop-1"
+                tariffGroup="GROUP_B"
+                groupBModality="WHITE"
+            />,
+            {
+                wrapper: ({ children }) => (
+                    <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+                ),
+            },
+        )
+
+        expect(await screen.findByText("Conta do mês")).toBeInTheDocument()
+        expect(await screen.findByTestId("group-b-white-bill-card")).toBeInTheDocument()
+        expect(screen.getByText("Intermediário")).toBeInTheDocument()
+        expect(screen.queryByTestId("granularity-tabs")).not.toBeInTheDocument()
+    })
+
+    it("Área de propriedade na Branca mostra aviso, sem consultar o backend", async () => {
+        const queryClient = createTestQueryClient()
+
+        render(
+            <ConsumptionSection
+                targetType="AREA"
+                targetId="area-1"
+                tariffGroup="GROUP_B"
+                groupBModality="WHITE"
+            />,
+            {
+                wrapper: ({ children }) => (
+                    <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+                ),
+            },
+        )
+
+        expect(
+            await screen.findByText("Detalhamento não disponível para a Tarifa Branca"),
+        ).toBeInTheDocument()
+        expect(meterService.byTarget).not.toHaveBeenCalled()
+        expect(consumptionService.list).not.toHaveBeenCalled()
+    })
+
+    it("Propriedade Convencional (groupBModality ausente) continua no caminho de sempre, com abas", async () => {
+        const queryClient = createTestQueryClient()
+
+        render(
+            <ConsumptionSection targetType="PROPERTY" targetId="prop-1" tariffGroup="GROUP_B" />,
+            {
+                wrapper: ({ children }) => (
+                    <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+                ),
+            },
+        )
+
+        expect(await screen.findByTestId("granularity-tabs")).toBeInTheDocument()
     })
 })

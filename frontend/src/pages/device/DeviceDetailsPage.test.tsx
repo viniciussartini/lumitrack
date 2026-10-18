@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from "vitest"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { MemoryRouter, Routes, Route } from "react-router"
+import userEvent from "@testing-library/user-event"
 import { render, screen, waitFor } from "@testing-library/react"
 import { DeviceDetailsPage } from "@/pages/device/DeviceDetailsPage"
 import { deviceService } from "@/services/device.service"
@@ -15,10 +16,13 @@ import type { Area } from "@/types/area.types"
 import type { Property } from "@/types/property.types"
 import type { Meter } from "@/types/meter.types"
 import type { ReadingPayload } from "@/lib/sse/appStream"
+import { toLocalDateKey, toLocalMonthKey } from "@/lib/dashboardKpis"
+import type { ConsumptionSummaryItem } from "@/types/consumption.types"
 
 vi.mock("@/services/consumption.service", () => ({
     consumptionService: {
         list: vi.fn(),
+        summary: vi.fn(),
     },
 }))
 
@@ -109,6 +113,15 @@ const mockProperty: Property = {
     zipCode: null,
     electricalSystem: "MONOPHASIC",
     billingClass: "B1",
+    groupBModality: "CONVENTIONAL",
+    receivesBillingDiscount: false,
+    tariffGroup: "GROUP_B",
+    contractingEnvironment: "ACR",
+    tariffSubgroup: null,
+    tariffModality: null,
+    contractedDemandKw: null,
+    contractedDemandPeakKw: null,
+    contractedDemandOffPeakKw: null,
     publicLightingFeeBrl: null,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
@@ -139,6 +152,32 @@ const mockReading = (powerW: number): ReadingPayload => ({
     powerFactor: 0.98,
     receivedAt: new Date().toISOString(),
 })
+
+const TODAY = `${toLocalDateKey(new Date())}T00:00:00.000Z`
+const THIS_MONTH = `${toLocalMonthKey(new Date())}-01T00:00:00.000Z`
+
+const summaryItem = (
+    bucketStart: string,
+    kwhConsumed: number,
+    costBrl?: number,
+): ConsumptionSummaryItem => ({
+    id: "device-1",
+    targetType: "DEVICE",
+    bucketStart,
+    kwhConsumed,
+    avgPowerW: 300,
+    ...(costBrl !== undefined && { costBrl }),
+})
+
+/** Resumo do dispositivo por granularidade — o que a página pede ao endpoint em lote. */
+const mockSummaryBy = (byGranularity: {
+    day?: ConsumptionSummaryItem
+    month?: ConsumptionSummaryItem
+}) =>
+    vi.mocked(consumptionService.summary).mockImplementation(async ({ granularity }) => {
+        const item = byGranularity[granularity === "day" ? "day" : "month"]
+        return { items: item ? [item] : [] }
+    })
 
 const renderPage = () => {
     const queryClient = new QueryClient({
@@ -172,6 +211,7 @@ beforeEach(() => {
     vi.mocked(meterService.byTarget).mockResolvedValue(null)
     vi.mocked(meterReadingService.list).mockResolvedValue({ items: [], granularity: "minute" })
     vi.mocked(useRealtimeReadings).mockReturnValue({ readingsByMeterId: {} })
+    vi.mocked(consumptionService.summary).mockResolvedValue({ items: [] })
 })
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -184,8 +224,7 @@ describe("DeviceDetailsPage — loading", () => {
 
         renderPage()
 
-        // link de breadcrumb aparece mesmo em loading
-        expect(screen.getByRole("link", { name: /voltar para área/i })).toBeInTheDocument()
+        expect(screen.getByLabelText(/carregando dados do dispositivo/i)).toBeInTheDocument()
     })
 })
 
@@ -196,6 +235,10 @@ describe("DeviceDetailsPage — erro no device", () => {
         renderPage()
 
         expect(await screen.findByText(/dispositivo não encontrado/i)).toBeInTheDocument()
+        expect(screen.getByRole("link", { name: /voltar para a área/i })).toHaveAttribute(
+            "href",
+            "/propriedades/prop-1/areas/area-1",
+        )
     })
 })
 
@@ -210,12 +253,12 @@ describe("DeviceDetailsPage — header do device", () => {
         vi.mocked(propertyService.getById).mockResolvedValue(mockProperty)
     })
 
-    it("renderiza o nome do device como heading h1", async () => {
+    it("renderiza o nome do device como heading do detalhe", async () => {
         renderPage()
 
         expect(
             await screen.findByRole("heading", {
-                level: 1,
+                level: 2,
                 name: /ar-condicionado/i,
             }),
         ).toBeInTheDocument()
@@ -224,7 +267,7 @@ describe("DeviceDetailsPage — header do device", () => {
     it("renderiza chips de marca, modelo e potência", async () => {
         renderPage()
 
-        await screen.findByRole("heading", { level: 1 })
+        await screen.findByRole("heading", { level: 2, name: /ar-condicionado/i })
         expect(screen.getByText(/daikin/i)).toBeInTheDocument()
         expect(screen.getByText(/split 12000 btu/i)).toBeInTheDocument()
         expect(screen.getByText(/1\s*200\s*W/i)).toBeInTheDocument()
@@ -233,14 +276,14 @@ describe("DeviceDetailsPage — header do device", () => {
     it("renderiza chip da área pai com nome correto", async () => {
         renderPage()
 
-        await screen.findByRole("heading", { level: 1 })
+        await screen.findByRole("heading", { level: 2, name: /ar-condicionado/i })
         expect(screen.getByText(/sala/i)).toBeInTheDocument()
     })
 
     it("renderiza chip da propriedade avó com nome correto", async () => {
         renderPage()
 
-        await screen.findByRole("heading", { level: 1 })
+        await screen.findByRole("heading", { level: 2, name: /ar-condicionado/i })
         expect(screen.getByText(/casa principal/i)).toBeInTheDocument()
     })
 })
@@ -256,7 +299,7 @@ describe("DeviceDetailsPage — fallbacks de chips", () => {
 
         renderPage()
 
-        await screen.findByRole("heading", { level: 1 })
+        await screen.findByRole("heading", { level: 2, name: /ar-condicionado/i })
 
         await waitFor(() => expect(screen.getByText(/área não disponível/i)).toBeInTheDocument())
     })
@@ -268,11 +311,43 @@ describe("DeviceDetailsPage — fallbacks de chips", () => {
 
         renderPage()
 
-        await screen.findByRole("heading", { level: 1 })
+        await screen.findByRole("heading", { level: 2, name: /ar-condicionado/i })
 
         await waitFor(() =>
             expect(screen.getByText(/propriedade não disponível/i)).toBeInTheDocument(),
         )
+    })
+})
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Editar — e sem excluir
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe("DeviceDetailsPage — editar", () => {
+    beforeEach(() => {
+        vi.mocked(deviceService.getById).mockResolvedValue(mockDevice)
+        vi.mocked(areaService.getById).mockResolvedValue(mockArea)
+        vi.mocked(propertyService.getById).mockResolvedValue(mockProperty)
+    })
+
+    it("abre o modal de edição ao clicar em 'Editar dispositivo'", async () => {
+        const user = userEvent.setup()
+        renderPage()
+
+        await user.click(await screen.findByRole("button", { name: /editar dispositivo/i }))
+
+        expect(
+            await screen.findByRole("dialog", { name: /editar dispositivo/i }),
+        ).toBeInTheDocument()
+    })
+
+    it("não oferece excluir — criar e excluir vivem em Configurações → Cadastro", async () => {
+        renderPage()
+
+        await screen.findByRole("heading", { level: 2, name: /ar-condicionado/i })
+
+        expect(screen.queryByRole("button", { name: /opções de/i })).not.toBeInTheDocument()
+        expect(screen.queryByRole("button", { name: /excluir/i })).not.toBeInTheDocument()
     })
 })
 
@@ -332,6 +407,55 @@ describe("DeviceDetailsPage — seções", () => {
 })
 
 // ─────────────────────────────────────────────────────────────────────────────
+// KPIs do medidor do dispositivo
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe("DeviceDetailsPage — KPIs de consumo", () => {
+    beforeEach(() => {
+        vi.mocked(deviceService.getById).mockResolvedValue(mockDevice)
+        vi.mocked(areaService.getById).mockResolvedValue(mockArea)
+        vi.mocked(propertyService.getById).mockResolvedValue(mockProperty)
+        vi.mocked(meterService.byTarget).mockResolvedValue(mockMeter)
+    })
+
+    it("mostra o consumo de hoje e o custo do mês reais", async () => {
+        mockSummaryBy({
+            day: summaryItem(TODAY, 3.2, 2.5),
+            month: summaryItem(THIS_MONTH, 60, 48),
+        })
+
+        renderPage()
+
+        expect(await screen.findByText("Consumo hoje")).toBeInTheDocument()
+        expect(await screen.findByText("3,20")).toBeInTheDocument()
+        expect(screen.getByText("Custo do mês")).toBeInTheDocument()
+        expect(screen.getByText(/R\$\s?48,00/)).toBeInTheDocument()
+        expect(consumptionService.summary).toHaveBeenCalledWith(
+            expect.objectContaining({ targetType: "DEVICE", ids: ["device-1"] }),
+        )
+    })
+
+    it("em Grupo A ou Branca, o custo do mês é traço explicado, nunca zero", async () => {
+        mockSummaryBy({ day: summaryItem(TODAY, 3.2), month: summaryItem(THIS_MONTH, 60) })
+
+        renderPage()
+
+        expect(await screen.findByText("Custo indisponível para esta tarifa.")).toBeInTheDocument()
+        expect(screen.getByText("3,20")).toBeInTheDocument()
+    })
+
+    it("sem medidor, não mostra os KPIs nem consulta o resumo", async () => {
+        vi.mocked(meterService.byTarget).mockResolvedValue(null)
+
+        renderPage()
+
+        await screen.findByRole("heading", { level: 2, name: /ar-condicionado/i })
+        expect(screen.queryByText("Consumo hoje")).not.toBeInTheDocument()
+        expect(consumptionService.summary).not.toHaveBeenCalled()
+    })
+})
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Seção de Consumo — integração
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -359,24 +483,34 @@ describe("DeviceDetailsPage — seção de consumo (integração)", () => {
     })
 })
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Navegação
-// ─────────────────────────────────────────────────────────────────────────────
-
-describe("DeviceDetailsPage — navegação", () => {
+describe("DeviceDetailsPage — aba Grandezas Elétricas", () => {
     beforeEach(() => {
         vi.mocked(deviceService.getById).mockResolvedValue(mockDevice)
         vi.mocked(areaService.getById).mockResolvedValue(mockArea)
         vi.mocked(propertyService.getById).mockResolvedValue(mockProperty)
     })
 
-    it("link de voltar aponta para a área pai", async () => {
+    it("clicar em Grandezas Elétricas troca o conteúdo pela grade de cards, com leitura SSE", async () => {
+        vi.mocked(meterService.byTarget).mockResolvedValue(mockMeter)
+        vi.mocked(useRealtimeReadings).mockReturnValue({
+            readingsByMeterId: {
+                "meter-1": {
+                    ...mockReading(1500),
+                    voltagePhaseA: 219,
+                    voltagePhaseB: 221,
+                    voltagePhaseC: 220,
+                },
+            },
+        })
+        const user = userEvent.setup()
         renderPage()
 
-        const backLink = await screen.findByRole("link", {
-            name: /voltar para área/i,
-        })
+        await screen.findByRole("heading", { level: 2, name: mockDevice.name })
+        await user.click(screen.getByRole("tab", { name: /Grandezas Elétricas/i }))
 
-        expect(backLink).toHaveAttribute("href", "/propriedades/prop-1/areas/area-1")
+        expect(await screen.findByTestId("electrical-quantity-card-voltage")).toBeInTheDocument()
+        expect(
+            screen.queryByRole("heading", { level: 2, name: mockDevice.name }),
+        ).not.toBeInTheDocument()
     })
 })

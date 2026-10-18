@@ -7,6 +7,7 @@ import { Pagination } from "@/components/ui/Pagination"
 import { AlertTable } from "@/components/alert/AlertTable"
 import { AlertEventTable } from "@/components/alert/AlertEventTable"
 import { AlertFormDialog } from "@/components/alert/AlertFormDialog"
+import { GoalAlertsSection } from "@/components/alert/GoalAlertsSection"
 import { useAlerts, useAlertsStats, useFiringAlerts } from "@/hooks/queries/useAlerts"
 import { useAlertEvents } from "@/hooks/queries/useAlertEvents"
 import { useMeters } from "@/hooks/queries/useMeters"
@@ -108,6 +109,8 @@ export const AlertsPage = () => {
                 onEdit={(alert) => setDialogMode({ kind: "edit", alert })}
                 onPageChange={setPage}
             />
+
+            <GoalAlertsSection />
 
             <AlertHistorySection
                 alerts={alerts}

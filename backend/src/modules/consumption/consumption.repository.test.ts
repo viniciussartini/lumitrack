@@ -1,0 +1,562 @@
+import { describe, it, expect, beforeEach, afterAll } from "vitest"
+import { ConsumptionRepository } from "@/modules/consumption/consumption.repository.js"
+import { UserService } from "@/modules/user/user.service.js"
+import { UserRepository } from "@/modules/user/user.repository.js"
+import { prismaTest } from "@/shared/test/prisma-test.js"
+import { cleanDatabase } from "@/shared/test/clean-database.js"
+import { classifyPost, type PeakWindowConfig } from "@/shared/tariff/tariffPost.js"
+import { getNationalHolidays } from "@/shared/time/holidays.js"
+
+const consumptionRepository = new ConsumptionRepository(prismaTest)
+const userRepository = new UserRepository(prismaTest)
+const userService = new UserService(userRepository)
+
+const PEAK_WINDOW: PeakWindowConfig = { peakWindowStartHour: 18, peakWindowEndHour: 21 }
+const HOLIDAYS_2026 = getNationalHolidays(2026)
+
+// São Paulo é UTC-3 o ano inteiro (sem horário de verão desde 2019).
+// `minuteStart` é persistido em UTC (é isso que `localTsExpr()` converte na
+// consulta) — estes helpers evitam confundir "hora local pretendida" com
+// "hora UTC bruta" ao montar as fixtures do teste, o mesmo tipo de erro que
+// motiva o teste de "virada de dia" abaixo.
+const SP_OFFSET_HOURS = 3
+
+/** Instante local (ano, mês 0-indexado, dia, hora, minuto) como se fosse UTC — usado como entrada de `classifyPost`, que já espera os campos UTC do `Date` representando a hora local. */
+function localWallClock(year: number, month: number, day: number, hour: number, minute = 0): Date {
+    return new Date(Date.UTC(year, month, day, hour, minute))
+}
+
+/** Converte um "instante local" (ver `localWallClock`) no timestamp UTC real gravado em `minuteStart`. */
+function toStoredUtc(local: Date): Date {
+    return new Date(local.getTime() + SP_OFFSET_HOURS * 60 * 60 * 1000)
+}
+
+async function setupMeter(): Promise<string> {
+    const user = await userService.createUser({
+        email: "joao@example.com",
+        password: "Senha@123",
+        userType: "INDIVIDUAL",
+        acceptedTerms: true,
+        firstName: "João",
+        lastName: "Silva",
+        cpf: "529.982.247-25",
+    })
+
+    const distributor = await prismaTest.energyDistributor.create({
+        data: {
+            name: "Celesc Distribuição",
+            cnpj: "08.336.783/0001-90",
+            state: "SC",
+            tusdPerKwh: 0.3,
+            tePerKwh: 0.3,
+            icmsRate: 0.17,
+            pisRate: 0.0165,
+            cofinsRate: 0.076,
+            peakWindowStartHour: PEAK_WINDOW.peakWindowStartHour,
+            peakWindowEndHour: PEAK_WINDOW.peakWindowEndHour,
+        },
+    })
+
+    const property = await prismaTest.property.create({
+        data: {
+            userId: user.id,
+            distributorId: distributor.id,
+            name: "Metalúrgica",
+            electricalSystem: "TRIPHASIC",
+            tariffGroup: "GROUP_A",
+            tariffSubgroup: "A4",
+            tariffModality: "GREEN",
+            billingClass: null,
+        },
+    })
+
+    const meter = await prismaTest.meter.create({
+        data: {
+            name: "Medidor",
+            targetType: "PROPERTY",
+            propertyId: property.id,
+            protocol: "MQTT",
+            host: "localhost",
+            port: 1883,
+            topic: "lumitrack/meter",
+        },
+    })
+
+    return meter.id
+}
+
+// Cria uma leitura de 1 minuto com um consumo (kWh) fácil de somar no
+// esperado do teste — os outros campos são irrelevantes para a classificação
+// por posto.
+async function createReading(meterId: string, minuteStart: Date, kwhConsumed: number) {
+    await prismaTest.meterReading.create({
+        data: {
+            meterId,
+            minuteStart,
+            kwhConsumed,
+            avgVoltage: 220,
+            avgCurrent: 10,
+            avgPowerW: 2200,
+            avgPowerFactor: 0.98,
+            sampleCount: 60,
+            secondsCovered: 60,
+        },
+    })
+}
+
+beforeEach(async () => {
+    await cleanDatabase()
+})
+
+afterAll(async () => {
+    await prismaTest.$disconnect()
+})
+
+describe("ConsumptionRepository.findKwhByPost", () => {
+    it("classifica leituras em PEAK/OFF_PEAK conforme dia da semana, feriado e janela de ponta", async () => {
+        const meterId = await setupMeter()
+
+        // 2026-09-08 (terça, dia útil): 19h dentro da ponta, 10h fora dela.
+        await createReading(meterId, toStoredUtc(localWallClock(2026, 8, 8, 19)), 5)
+        await createReading(meterId, toStoredUtc(localWallClock(2026, 8, 8, 10)), 7)
+        // 2026-09-05 (sábado): mesmo dentro do horário de ponta, é OFF_PEAK.
+        await createReading(meterId, toStoredUtc(localWallClock(2026, 8, 5, 19)), 3)
+        // Carnaval 2026 (2026-02-17, terça): seria PEAK se não fosse feriado móvel.
+        await createReading(meterId, toStoredUtc(localWallClock(2026, 1, 17, 19)), 11)
+
+        const from = new Date(Date.UTC(2026, 0, 1))
+        const to = new Date(Date.UTC(2027, 0, 1))
+
+        const result = await consumptionRepository.findKwhByPost(
+            meterId,
+            from,
+            to,
+            PEAK_WINDOW,
+            HOLIDAYS_2026,
+        )
+
+        const byPost = Object.fromEntries(result.map((r) => [r.post, r.kwhConsumed]))
+        // PEAK: só a leitura de terça às 19h fora do feriado (5). As outras 3
+        // (fora da janela, fim de semana, feriado móvel) são todas OFF_PEAK.
+        expect(byPost["PEAK"]).toBe(5)
+        expect(byPost["OFF_PEAK"]).toBe(7 + 3 + 11)
+    })
+
+    it("não confunde a virada de dia local com a data UTC bruta (armadilha de fuso)", async () => {
+        const meterId = await setupMeter()
+
+        // 2026-09-04 22h em São Paulo (sexta-feira, dia útil) vira
+        // 2026-09-05 01h em UTC (sábado) na coluna `minuteStart`. Uma janela
+        // de ponta que alcança 22h-24h expõe a armadilha: se o dia da semana
+        // fosse extraído do timestamp UTC bruto em vez de `localTsExpr()`, a
+        // leitura viraria "sábado" (fim de semana) e seria classificada
+        // OFF_PEAK por engano — a leitura é, na verdade, sexta-feira às 22h,
+        // dentro da ponta.
+        const LATE_PEAK_WINDOW: PeakWindowConfig = {
+            peakWindowStartHour: 22,
+            peakWindowEndHour: 24,
+        }
+        const fridayTenPmLocal = localWallClock(2026, 8, 4, 22)
+
+        await createReading(meterId, toStoredUtc(fridayTenPmLocal), 9)
+
+        const result = await consumptionRepository.findKwhByPost(
+            meterId,
+            new Date(Date.UTC(2026, 8, 1)),
+            new Date(Date.UTC(2026, 8, 10)),
+            LATE_PEAK_WINDOW,
+            HOLIDAYS_2026,
+        )
+
+        expect(result).toEqual([{ post: "PEAK", kwhConsumed: 9 }])
+    })
+
+    it("usa classifyPost (mesma regra pura) como oráculo para um conjunto maior de leituras", async () => {
+        const meterId = await setupMeter()
+
+        const localTimestamps = [
+            localWallClock(2026, 8, 8, 18), // terça, início exato da ponta
+            localWallClock(2026, 8, 8, 20, 59), // terça, ainda dentro
+            localWallClock(2026, 8, 8, 21), // terça, fim exato (exclusivo) — OFF_PEAK
+            localWallClock(2026, 8, 6, 19), // domingo — OFF_PEAK
+            localWallClock(2026, 8, 7, 19), // segunda, Independência — OFF_PEAK
+        ]
+
+        const expectedTotals: Record<string, number> = { PEAK: 0, OFF_PEAK: 0 }
+        for (const [index, localTimestamp] of localTimestamps.entries()) {
+            const kwh = index + 1
+            await createReading(meterId, toStoredUtc(localTimestamp), kwh)
+            const expectedPost = classifyPost(localTimestamp, PEAK_WINDOW, HOLIDAYS_2026)
+            expectedTotals[expectedPost] = (expectedTotals[expectedPost] ?? 0) + kwh
+        }
+
+        const result = await consumptionRepository.findKwhByPost(
+            meterId,
+            new Date(Date.UTC(2026, 8, 1)),
+            new Date(Date.UTC(2026, 8, 10)),
+            PEAK_WINDOW,
+            HOLIDAYS_2026,
+        )
+
+        const byPost = Object.fromEntries(result.map((r) => [r.post, r.kwhConsumed]))
+        expect(byPost["PEAK"] ?? 0).toBe(expectedTotals["PEAK"])
+        expect(byPost["OFF_PEAK"] ?? 0).toBe(expectedTotals["OFF_PEAK"])
+    })
+
+    it("retorna lista vazia quando não há leituras no período", async () => {
+        const meterId = await setupMeter()
+
+        const result = await consumptionRepository.findKwhByPost(
+            meterId,
+            new Date(Date.UTC(2026, 0, 1)),
+            new Date(Date.UTC(2026, 0, 2)),
+            PEAK_WINDOW,
+            HOLIDAYS_2026,
+        )
+
+        expect(result).toEqual([])
+    })
+
+    it("sem includeIntermediate (default), leituras na 1h antes/depois da ponta contam como OFF_PEAK — Grupo A intocado", async () => {
+        const meterId = await setupMeter()
+
+        // Terça, dia útil: 17h (1h antes) e 21h (1h depois) da ponta 18h–21h.
+        await createReading(meterId, toStoredUtc(localWallClock(2026, 8, 8, 17)), 4)
+        await createReading(meterId, toStoredUtc(localWallClock(2026, 8, 8, 21)), 6)
+
+        const result = await consumptionRepository.findKwhByPost(
+            meterId,
+            new Date(Date.UTC(2026, 8, 1)),
+            new Date(Date.UTC(2026, 8, 10)),
+            PEAK_WINDOW,
+            HOLIDAYS_2026,
+        )
+
+        const byPost = Object.fromEntries(result.map((r) => [r.post, r.kwhConsumed]))
+        expect(byPost["OFF_PEAK"]).toBe(10)
+        expect(byPost["INTERMEDIATE"]).toBeUndefined()
+    })
+
+    it("com includeIntermediate=true, classifica a 1h antes/depois da ponta como INTERMEDIATE (Tarifa Branca)", async () => {
+        const meterId = await setupMeter()
+
+        // Terça, dia útil: 17h (1h antes), 21h (1h depois) e 10h (fora de qualquer janela).
+        await createReading(meterId, toStoredUtc(localWallClock(2026, 8, 8, 17)), 4)
+        await createReading(meterId, toStoredUtc(localWallClock(2026, 8, 8, 21)), 6)
+        await createReading(meterId, toStoredUtc(localWallClock(2026, 8, 8, 10)), 2)
+
+        const result = await consumptionRepository.findKwhByPost(
+            meterId,
+            new Date(Date.UTC(2026, 8, 1)),
+            new Date(Date.UTC(2026, 8, 10)),
+            PEAK_WINDOW,
+            HOLIDAYS_2026,
+            true,
+        )
+
+        const byPost = Object.fromEntries(result.map((r) => [r.post, r.kwhConsumed]))
+        expect(byPost["INTERMEDIATE"]).toBe(10)
+        expect(byPost["OFF_PEAK"]).toBe(2)
+        expect(byPost["PEAK"]).toBeUndefined()
+    })
+
+    it("com includeIntermediate=true, devolve os três postos em ordem canônica (Ponta, Intermediário, Fora de Ponta)", async () => {
+        const meterId = await setupMeter()
+
+        // Leituras inseridas fora da ordem canônica de propósito — a ordem
+        // de retorno não pode depender da ordem de inserção nem do plano de
+        // agregação escolhido pelo Postgres.
+        await createReading(meterId, toStoredUtc(localWallClock(2026, 8, 8, 10)), 2) // OFF_PEAK
+        await createReading(meterId, toStoredUtc(localWallClock(2026, 8, 8, 17)), 4) // INTERMEDIATE
+        await createReading(meterId, toStoredUtc(localWallClock(2026, 8, 8, 19)), 6) // PEAK
+
+        const result = await consumptionRepository.findKwhByPost(
+            meterId,
+            new Date(Date.UTC(2026, 8, 1)),
+            new Date(Date.UTC(2026, 8, 10)),
+            PEAK_WINDOW,
+            HOLIDAYS_2026,
+            true,
+        )
+
+        expect(result.map((r) => r.post)).toEqual(["PEAK", "INTERMEDIATE", "OFF_PEAK"])
+    })
+
+    it("com includeIntermediate=true, fim de semana na hora intermediária continua OFF_PEAK", async () => {
+        const meterId = await setupMeter()
+
+        // 2026-09-05 é sábado, 17h — seria INTERMEDIATE se fosse dia útil.
+        await createReading(meterId, toStoredUtc(localWallClock(2026, 8, 5, 17)), 8)
+
+        const result = await consumptionRepository.findKwhByPost(
+            meterId,
+            new Date(Date.UTC(2026, 8, 1)),
+            new Date(Date.UTC(2026, 8, 10)),
+            PEAK_WINDOW,
+            HOLIDAYS_2026,
+            true,
+        )
+
+        expect(result).toEqual([{ post: "OFF_PEAK", kwhConsumed: 8 }])
+    })
+
+    it("com includeIntermediate=true, usa classifyPost como oráculo (função pura) para um conjunto maior de leituras", async () => {
+        const meterId = await setupMeter()
+
+        const localTimestamps = [
+            localWallClock(2026, 8, 8, 17), // terça, 1h antes da ponta — INTERMEDIATE
+            localWallClock(2026, 8, 8, 18), // terça, início da ponta — PEAK
+            localWallClock(2026, 8, 8, 21), // terça, 1h depois da ponta — INTERMEDIATE
+            localWallClock(2026, 8, 8, 10), // terça, fora de qualquer janela — OFF_PEAK
+            localWallClock(2026, 8, 5, 17), // sábado — OFF_PEAK mesmo na hora intermediária
+        ]
+
+        const expectedTotals: Record<string, number> = {}
+        for (const [index, localTimestamp] of localTimestamps.entries()) {
+            const kwh = index + 1
+            await createReading(meterId, toStoredUtc(localTimestamp), kwh)
+            const expectedPost = classifyPost(localTimestamp, PEAK_WINDOW, HOLIDAYS_2026, true)
+            expectedTotals[expectedPost] = (expectedTotals[expectedPost] ?? 0) + kwh
+        }
+
+        const result = await consumptionRepository.findKwhByPost(
+            meterId,
+            new Date(Date.UTC(2026, 8, 1)),
+            new Date(Date.UTC(2026, 8, 10)),
+            PEAK_WINDOW,
+            HOLIDAYS_2026,
+            true,
+        )
+
+        const byPost = Object.fromEntries(result.map((r) => [r.post, r.kwhConsumed]))
+        for (const [post, total] of Object.entries(expectedTotals)) {
+            expect(byPost[post]).toBe(total)
+        }
+    })
+})
+
+describe("ConsumptionRepository.findKwhByPostGroupedByMonth", () => {
+    it("agrupa por mês × posto num intervalo de vários meses, numa única consulta", async () => {
+        const meterId = await setupMeter()
+
+        // Setembro/2026: terça 19h (PEAK) + sábado 19h (OFF_PEAK).
+        await createReading(meterId, toStoredUtc(localWallClock(2026, 8, 8, 19)), 5)
+        await createReading(meterId, toStoredUtc(localWallClock(2026, 8, 5, 19)), 3)
+        // Outubro/2026: quinta 19h (PEAK).
+        await createReading(meterId, toStoredUtc(localWallClock(2026, 9, 1, 19)), 8)
+
+        const result = await consumptionRepository.findKwhByPostGroupedByMonth(
+            meterId,
+            new Date(Date.UTC(2026, 0, 1)),
+            new Date(Date.UTC(2027, 0, 1)),
+            PEAK_WINDOW,
+            HOLIDAYS_2026,
+        )
+
+        const byMonthPost = Object.fromEntries(
+            result.map((r) => [
+                `${r.monthBucket.toISOString().slice(0, 7)}-${r.post}`,
+                r.kwhConsumed,
+            ]),
+        )
+        expect(byMonthPost["2026-09-PEAK"]).toBe(5)
+        expect(byMonthPost["2026-09-OFF_PEAK"]).toBe(3)
+        expect(byMonthPost["2026-10-PEAK"]).toBe(8)
+        expect(byMonthPost["2026-10-OFF_PEAK"]).toBeUndefined()
+    })
+
+    it("bate com a soma de findKwhByPost mês a mês (mesma regra de classificação)", async () => {
+        const meterId = await setupMeter()
+
+        await createReading(meterId, toStoredUtc(localWallClock(2026, 8, 8, 19)), 5)
+        await createReading(meterId, toStoredUtc(localWallClock(2026, 8, 8, 10)), 7)
+        await createReading(meterId, toStoredUtc(localWallClock(2026, 9, 1, 19)), 8)
+
+        const from = new Date(Date.UTC(2026, 8, 1))
+        const to = new Date(Date.UTC(2026, 10, 1))
+
+        const grouped = await consumptionRepository.findKwhByPostGroupedByMonth(
+            meterId,
+            from,
+            to,
+            PEAK_WINDOW,
+            HOLIDAYS_2026,
+        )
+        const flat = await consumptionRepository.findKwhByPost(
+            meterId,
+            from,
+            to,
+            PEAK_WINDOW,
+            HOLIDAYS_2026,
+        )
+
+        const groupedTotalByPost = new Map<string, number>()
+        for (const row of grouped) {
+            groupedTotalByPost.set(
+                row.post,
+                (groupedTotalByPost.get(row.post) ?? 0) + row.kwhConsumed,
+            )
+        }
+        for (const row of flat) {
+            expect(groupedTotalByPost.get(row.post)).toBe(row.kwhConsumed)
+        }
+    })
+
+    it("retorna lista vazia quando não há leituras no período", async () => {
+        const meterId = await setupMeter()
+
+        const result = await consumptionRepository.findKwhByPostGroupedByMonth(
+            meterId,
+            new Date(Date.UTC(2026, 0, 1)),
+            new Date(Date.UTC(2026, 0, 2)),
+            PEAK_WINDOW,
+            HOLIDAYS_2026,
+        )
+
+        expect(result).toEqual([])
+    })
+
+    it("sem includeIntermediate (default), leitura na hora intermediária conta como OFF_PEAK — Grupo A intocado", async () => {
+        const meterId = await setupMeter()
+
+        await createReading(meterId, toStoredUtc(localWallClock(2026, 8, 8, 17)), 4)
+
+        const result = await consumptionRepository.findKwhByPostGroupedByMonth(
+            meterId,
+            new Date(Date.UTC(2026, 8, 1)),
+            new Date(Date.UTC(2026, 8, 10)),
+            PEAK_WINDOW,
+            HOLIDAYS_2026,
+        )
+
+        expect(result).toEqual([
+            { monthBucket: new Date(Date.UTC(2026, 8, 1)), post: "OFF_PEAK", kwhConsumed: 4 },
+        ])
+    })
+
+    it("com includeIntermediate=true, agrupa a hora intermediária por mês × posto", async () => {
+        const meterId = await setupMeter()
+
+        // Setembro/2026: terça 17h (INTERMEDIATE). Outubro/2026: quinta 21h (INTERMEDIATE).
+        await createReading(meterId, toStoredUtc(localWallClock(2026, 8, 8, 17)), 4)
+        await createReading(meterId, toStoredUtc(localWallClock(2026, 9, 1, 21)), 6)
+
+        const result = await consumptionRepository.findKwhByPostGroupedByMonth(
+            meterId,
+            new Date(Date.UTC(2026, 0, 1)),
+            new Date(Date.UTC(2027, 0, 1)),
+            PEAK_WINDOW,
+            HOLIDAYS_2026,
+            true,
+        )
+
+        const byMonthPost = Object.fromEntries(
+            result.map((r) => [
+                `${r.monthBucket.toISOString().slice(0, 7)}-${r.post}`,
+                r.kwhConsumed,
+            ]),
+        )
+        expect(byMonthPost["2026-09-INTERMEDIATE"]).toBe(4)
+        expect(byMonthPost["2026-10-INTERMEDIATE"]).toBe(6)
+    })
+
+    it("com includeIntermediate=true, devolve os postos em ordem canônica dentro de cada mês", async () => {
+        const meterId = await setupMeter()
+
+        await createReading(meterId, toStoredUtc(localWallClock(2026, 8, 8, 10)), 2) // OFF_PEAK
+        await createReading(meterId, toStoredUtc(localWallClock(2026, 8, 8, 17)), 4) // INTERMEDIATE
+        await createReading(meterId, toStoredUtc(localWallClock(2026, 8, 8, 19)), 6) // PEAK
+
+        const result = await consumptionRepository.findKwhByPostGroupedByMonth(
+            meterId,
+            new Date(Date.UTC(2026, 8, 1)),
+            new Date(Date.UTC(2026, 8, 10)),
+            PEAK_WINDOW,
+            HOLIDAYS_2026,
+            true,
+        )
+
+        expect(result.map((r) => r.post)).toEqual(["PEAK", "INTERMEDIATE", "OFF_PEAK"])
+    })
+})
+
+describe("ConsumptionRepository.findKwhTotalsByMeter", () => {
+    it("soma o consumo de cada medidor só dentro da janela [from, to)", async () => {
+        const meterId = await setupMeter()
+        const from = new Date(Date.UTC(2026, 8, 8, 3))
+        const to = new Date(Date.UTC(2026, 8, 9, 3))
+
+        await createReading(meterId, from, 2) // no limite inferior: entra
+        await createReading(meterId, new Date(from.getTime() + 60_000), 3)
+        await createReading(meterId, to, 100) // limite superior é exclusivo
+        await createReading(meterId, new Date(from.getTime() - 60_000), 100) // antes da janela
+
+        const totals = await consumptionRepository.findKwhTotalsByMeter([meterId], from, to)
+
+        expect(totals.get(meterId)).toBe(5)
+    })
+
+    it("deixa de fora o medidor sem leitura na janela", async () => {
+        const meterId = await setupMeter()
+        const from = new Date(Date.UTC(2026, 8, 8, 3))
+        const to = new Date(Date.UTC(2026, 8, 9, 3))
+
+        const totals = await consumptionRepository.findKwhTotalsByMeter([meterId], from, to)
+
+        expect(totals.has(meterId)).toBe(false)
+    })
+
+    it("não consulta o banco com lista vazia", async () => {
+        const totals = await consumptionRepository.findKwhTotalsByMeter(
+            [],
+            new Date(0),
+            new Date(1),
+        )
+
+        expect(totals.size).toBe(0)
+    })
+})
+
+describe("ConsumptionRepository.findMonthlyKwhForYears", () => {
+    // Bucket de ano como o `findAggregated` o devolve: meia-noite local do dia 1º,
+    // com os dígitos locais nos getters UTC.
+    const yearBucket = (year: number) => new Date(Date.UTC(year, 0, 1))
+
+    it("soma por mês só dos anos pedidos, com as bordas do ano em hora local", async () => {
+        const meterId = await setupMeter()
+
+        await createReading(meterId, new Date(Date.UTC(2026, 0, 1, 2, 59)), 100) // 31/12/2025 23:59 local: fora
+        await createReading(meterId, new Date(Date.UTC(2026, 0, 1, 3, 0)), 1) // 01/01 00:00 local: entra
+        await createReading(meterId, new Date(Date.UTC(2026, 0, 20, 12)), 2)
+        await createReading(meterId, new Date(Date.UTC(2026, 5, 10, 12)), 4)
+        await createReading(meterId, new Date(Date.UTC(2027, 0, 1, 2, 59)), 8) // 31/12 23:59 local: entra
+        await createReading(meterId, new Date(Date.UTC(2027, 0, 1, 3, 0)), 100) // 01/01/2027 local: fora
+
+        const rows = await consumptionRepository.findMonthlyKwhForYears(meterId, [yearBucket(2026)])
+
+        const kwhByMonth = new Map(rows.map((r) => [r.monthBucket.getTime(), r.kwhConsumed]))
+        expect(kwhByMonth.size).toBe(3)
+        expect(kwhByMonth.get(Date.UTC(2026, 0, 1))).toBe(3)
+        expect(kwhByMonth.get(Date.UTC(2026, 5, 1))).toBe(4)
+        expect(kwhByMonth.get(Date.UTC(2026, 11, 1))).toBe(8)
+    })
+
+    it("com anos não contíguos, o ano do meio fica de fora", async () => {
+        const meterId = await setupMeter()
+
+        await createReading(meterId, new Date(Date.UTC(2024, 3, 10, 12)), 1)
+        await createReading(meterId, new Date(Date.UTC(2025, 3, 10, 12)), 100)
+        await createReading(meterId, new Date(Date.UTC(2026, 3, 10, 12)), 2)
+
+        const rows = await consumptionRepository.findMonthlyKwhForYears(meterId, [
+            yearBucket(2024),
+            yearBucket(2026),
+        ])
+
+        expect(rows.map((r) => r.kwhConsumed).sort()).toEqual([1, 2])
+    })
+
+    it("não consulta o banco com lista vazia", async () => {
+        expect(await consumptionRepository.findMonthlyKwhForYears("qualquer", [])).toEqual([])
+    })
+})

@@ -9,6 +9,7 @@ import { UnauthorizedError } from "@/shared/errors/AppError.js"
 import { env } from "@/config/env.js"
 import { generateBlindIndex } from "@/shared/crypto/blindIndex.js"
 import { parseJwtExpiry } from "@/shared/time/parseJwtExpiry.js"
+import { clearSessionCookies } from "@/shared/security/sessionCookies.js"
 import {
     generateCsrfToken,
     getAuthCookieOptions,
@@ -44,7 +45,7 @@ export class AuthController {
      */
     async login(req: Request, res: Response, next: NextFunction): Promise<void> {
         try {
-            const result = await this.authService.login(req.body)
+            const result = await this.authService.login(req.body, getRequestContext(req))
 
             if (result.mfaRequired) {
                 // Senha já validada, mas a sessão real ainda não existe —
@@ -108,7 +109,7 @@ export class AuthController {
      */
     async demoLogin(req: Request, res: Response, next: NextFunction): Promise<void> {
         try {
-            const result = await this.authService.demoLogin(req.body)
+            const result = await this.authService.demoLogin(req.body, getRequestContext(req))
 
             if (result.mfaRequired) {
                 res.status(200).json({
@@ -147,7 +148,7 @@ export class AuthController {
     async verifyMfaLogin(req: Request, res: Response, next: NextFunction): Promise<void> {
         try {
             const { token, refreshToken, channel, userId } =
-                await this.authService.completeMfaLogin(req.body)
+                await this.authService.completeMfaLogin(req.body, getRequestContext(req))
 
             await this.auditService.record({
                 userId,
@@ -217,17 +218,7 @@ export class AuthController {
                 ...getRequestContext(req),
             })
 
-            if (authSource === "cookie") {
-                // `clearCookie` exige os mesmos atributos usados em `res.cookie`
-                // (path/secure/sameSite) — senão o browser ignora a remoção.
-                res.clearCookie(env.AUTH_COOKIE_NAME, getAuthCookieOptions(env.NODE_ENV, 0))
-                res.clearCookie(env.CSRF_COOKIE_NAME, getCsrfCookieOptions(env.NODE_ENV, 0))
-                res.clearCookie(env.REFRESH_COOKIE_NAME, getRefreshCookieOptions(env.NODE_ENV, 0))
-                res.clearCookie(
-                    env.REFRESH_CSRF_COOKIE_NAME,
-                    getRefreshCsrfCookieOptions(env.NODE_ENV, 0),
-                )
-            }
+            if (authSource === "cookie") clearSessionCookies(res)
 
             res.status(200).json({ status: "success", message: "Logout realizado com sucesso" })
         } catch (error) {
@@ -257,22 +248,24 @@ export class AuthController {
 
             if (!validateCsrf(csrfCookie, csrfHeader)) {
                 // Limpa cookies inválidos antes de rejeitar — evita retry inútil.
-                this.clearAllCookies(res)
+                clearSessionCookies(res)
                 throw new UnauthorizedError("Token CSRF de refresh inválido")
             }
 
             const { token, refreshToken, channel, userId } = await this.authService.refresh(
                 rawRefreshToken,
-                async (affectedUserId) => {
+                async (affectedUserId, kind) => {
                     await this.auditService.record({
                         userId: affectedUserId,
-                        action: "REFRESH_TOKEN_REUSE_DETECTED",
+                        action:
+                            kind === "REUSE" ? "REFRESH_TOKEN_REUSE_DETECTED" : "REVOKED_TOKEN_USE",
                         outcome: "FAILURE",
                         resourceType: "User",
                         resourceId: affectedUserId,
                         ...getRequestContext(req),
                     })
                 },
+                getRequestContext(req),
             )
 
             await this.auditService.record({
@@ -289,7 +282,7 @@ export class AuthController {
         } catch (error) {
             // Em qualquer falha de refresh, limpa todos os cookies para forçar
             // novo login — evita loop de retentativas fadadas no frontend.
-            this.clearAllCookies(res)
+            clearSessionCookies(res)
             next(error)
         }
     }
@@ -489,12 +482,5 @@ export class AuthController {
 
         // MOBILE — comportamento inalterado.
         res.status(200).json({ status: "success", data: { token } })
-    }
-
-    private clearAllCookies(res: Response): void {
-        res.clearCookie(env.AUTH_COOKIE_NAME, getAuthCookieOptions(env.NODE_ENV, 0))
-        res.clearCookie(env.CSRF_COOKIE_NAME, getCsrfCookieOptions(env.NODE_ENV, 0))
-        res.clearCookie(env.REFRESH_COOKIE_NAME, getRefreshCookieOptions(env.NODE_ENV, 0))
-        res.clearCookie(env.REFRESH_CSRF_COOKIE_NAME, getRefreshCsrfCookieOptions(env.NODE_ENV, 0))
     }
 }

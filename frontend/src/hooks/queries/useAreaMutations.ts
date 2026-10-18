@@ -20,7 +20,7 @@ import type { Area, CreateAreaInput, UpdateAreaInput } from "@/types/area.types"
  *   O backend remove devices/consumption_records/alerts vinculados via
  *   ON DELETE CASCADE no Prisma. O hook não precisa fazer nada especial
  *   pra isso — é o usuário que confirma a ação ciente do impacto (vide
- *   AreaMenu, que mostra esse aviso explicitamente no ConfirmDialog).
+ *   TreeActionDialogs, que mostra esse aviso explicitamente no ConfirmDialog).
  */
 
 interface CreateAreaVariables {
@@ -37,6 +37,7 @@ export const useCreateArea = () => {
             void queryClient.invalidateQueries({
                 queryKey: [...queryKeys.areas.all, "list", created.propertyId],
             })
+            void queryClient.invalidateQueries({ queryKey: queryKeys.propertyTree.all })
             toast.success("Área criada", {
                 description: `${created.name} foi adicionada com sucesso.`,
             })
@@ -62,6 +63,7 @@ export const useUpdateArea = () => {
             void queryClient.invalidateQueries({
                 queryKey: [...queryKeys.areas.all, "list", updated.propertyId],
             })
+            void queryClient.invalidateQueries({ queryKey: queryKeys.propertyTree.all })
             void queryClient.invalidateQueries({
                 queryKey: queryKeys.areas.detail(updated.propertyId, updated.id),
             })
@@ -86,6 +88,7 @@ export const useDeleteArea = () => {
             void queryClient.invalidateQueries({
                 queryKey: [...queryKeys.areas.all, "list", propertyId],
             })
+            void queryClient.invalidateQueries({ queryKey: queryKeys.propertyTree.all })
             // Remove o detalhe do cache — não vai mais existir
             queryClient.removeQueries({
                 queryKey: queryKeys.areas.detail(propertyId, areaId),

@@ -717,6 +717,14 @@ Rate limit estrito (`AUTH_RATE_LIMIT_*`, default 10 req/15min por IP) se aplica 
 | POST | `/mfa/verify-setup` | `authenticate` | `{secret, code}` — confirma e habilita; recusa se MFA já está ativo (step-up: precisa desabilitar antes de reconfigurar) |
 | POST | `/mfa/disable` | `authenticate` | `{password, code}` — exige senha **e** código válido |
 
+### Sessões — `/api/sessions`
+
+| Método | Rota | Auth | Descrição |
+| --- | --- | --- | --- |
+| GET | `/` | `authenticate` | Sessões ativas do próprio usuário (web e mobile): `{id, channel, deviceLabel, origin, lastAccessAt, isCurrent}`, a atual primeiro. `deviceLabel` é só navegador e sistema (`Chrome · Windows`) e `origin` o IP mascarado (`189.45.xx.xx`), ambos `null` em sessão aberta antes do registro. Nunca devolve token nem hash. Conta de demonstração recebe uma lista fixa representativa |
+| DELETE | `/:id` | `authenticate` + `blockDemoWrite` | Encerra uma sessão do usuário: revoga o refresh token e os JWTs de acesso dela na hora. `{endedCurrent}`; com o id da própria sessão funciona como logout (limpa os cookies). 404 para sessão inexistente, de outro usuário ou já encerrada; 422 para id que não é uuid; 403 na conta de demonstração. Grava `SESSION_REVOKE` |
+| POST | `/revoke-others` | `authenticate` + `blockDemoWrite` | Encerra todas as outras sessões do usuário, poupando a atual. `{revoked}`; 403 na conta de demonstração. Grava `SESSION_REVOKE` |
+
 ### Usuários — `/api/users`
 
 | Método | Rota | Auth | Descrição |
@@ -725,7 +733,7 @@ Rate limit estrito (`AUTH_RATE_LIMIT_*`, default 10 req/15min por IP) se aplica 
 | GET | `/:id` | dono | — |
 | PUT | `/:id` | dono | Campos opcionais; se `email` mudar, exige `currentPassword` e dispara confirmação por link em vez de aplicar na hora |
 | DELETE | `/:id` | dono | 204 |
-| GET | `/me/data-export?format=json\|pdf` | `authenticate` | Export DSAR — agrega Propriedades/Distribuidoras/Alertas/Áreas/Aparelhos/Audit log; `pdf` baixa um arquivo gerado |
+| GET | `/me/data-export?format=json\|pdf` | `authenticate` | Export DSAR — agrega Propriedades/Distribuidoras/Alertas/Áreas/Aparelhos/Sessões/Audit log; `pdf` baixa um arquivo gerado |
 
 ### Admin — `/api/admin`
 
@@ -752,6 +760,7 @@ Rate limit estrito (`AUTH_RATE_LIMIT_*`, default 10 req/15min por IP) se aplica 
 | Método | Rota | Descrição |
 | --- | --- | --- |
 | POST/GET | `/api/properties` | Criar / listar |
+| GET | `/api/properties/tree` | Árvore imóvel → área → dispositivo do usuário numa única resposta (só id, nome e potência; até 100 imóveis, `total` traz o número real) |
 | GET/PUT/DELETE | `/api/properties/:id` | — |
 | POST/GET | `/api/properties/:propertyId/areas` | — |
 | GET/PUT/DELETE | `/api/properties/:propertyId/areas/:areaId` | — |
@@ -782,6 +791,22 @@ Vinculado a exatamente um alvo (`targetType: PROPERTY|AREA|DEVICE` + o respectiv
 | GET | `/` | `targetType`, `targetId` (obrigatórios), `granularity: minute\|hour\|day\|month\|year` (obrigatório), `from`/`to` opcionais, `order: asc\|desc` (default `desc`), paginação (máx. 31 por página) |
 
 `granularity` é o **tamanho do bucket**, não a janela consultada — quem recorta a janela é `from`/`to`. A UI monta o par: a aba "Hora" pede `granularity=minute` dentro da hora corrente, a aba "Dia" pede `granularity=hour` dentro do dia. `order=asc` pagina do começo da janela para o fim; `desc` (default) serve as consultas do tipo "os últimos N buckets".
+
+`costBrl` é **opcional** em cada bucket: o consumo (`kwhConsumed`) sempre volta, o custo só quando é calculável para o alvo, a tarifa e a granularidade. Propriedade do Grupo A e da Tarifa Branca só têm custo no bucket **mensal** da propriedade (e no anual); em hora, dia e minuto, e em área e dispositivo, o bucket volta sem `costBrl` — ausência quer dizer "não calculável", nunca zero.
+
+### Demanda — `/api/demand` (somente leitura, Grupo A)
+
+| Método | Rota | Query |
+| --- | --- | --- |
+| GET | `/overview` | `propertyId` (obrigatório, uuid) |
+
+Demanda medida contra a contratada de uma propriedade do Grupo A, para o Painel: a contratada (uma na Verde, ponta e fora de ponta na Azul), a janela atual de 15 minutos, a máxima do mês (do rollup, com o posto), a ultrapassagem (pior estouro sobre a contratada, em %) e as 96 janelas do dia com demanda, posto e a contratada de cada uma. Janela incompleta ou sem medição é `null`, nunca 0 kW.
+
+| Status | Quando |
+| --- | --- |
+| 403 | A propriedade não é do usuário |
+| 404 | Propriedade inexistente ou sem medidor vinculado |
+| 422 | `propertyId` inválido; propriedade do Grupo B; modalidade sem cálculo (Convencional Binômia); distribuidora sem janela de ponta configurada; contratada não cadastrada |
 
 ### Alertas — `/api/alerts` e histórico — `/api/alert-events`
 

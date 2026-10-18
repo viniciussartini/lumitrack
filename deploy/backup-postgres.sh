@@ -15,6 +15,10 @@
 
 set -euo pipefail
 
+# Backup e pasta de backups só legíveis pelo usuário de serviço (600 e 700),
+# mesmo cifrados: um dump não é dado para outros usuários da máquina listarem.
+umask 077
+
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$REPO_DIR"
 
@@ -38,6 +42,12 @@ BACKUP_FILE="$BACKUP_DIR/lumitrack-$TIMESTAMP.sql.gz.age"
 TMP_FILE="$BACKUP_FILE.tmp"
 
 mkdir -p "$BACKUP_DIR"
+# `mkdir -p` e o umask não mudam o que já existe: pasta criada por uma versão
+# anterior do script (umask 022) e dumps antigos continuam abertos. Estas duas
+# linhas são idempotentes e fazem a afirmação "700 e 600" valer em qualquer
+# servidor, não só nos novos.
+chmod 700 "$BACKUP_DIR"
+find "$BACKUP_DIR" -maxdepth 1 -type f -name 'lumitrack-*' ! -perm 600 -exec chmod 600 {} +
 
 echo "==> Fazendo dump de $POSTGRES_DB, cifrando para $BACKUP_FILE..."
 # Escreve em .tmp e só promove para o nome final se o pipe inteiro

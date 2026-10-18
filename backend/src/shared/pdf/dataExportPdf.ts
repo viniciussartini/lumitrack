@@ -1,7 +1,32 @@
 import PDFDocument from "pdfkit"
 import { BRAND, ZAP_ICON_PATH, ZAP_ICON_VIEWBOX_SIZE } from "@/shared/pdf/brand.js"
-import type { DataExportPayload } from "@/modules/export/export.service.js"
+import { MAX_EXPORT_ROWS_PER_CHANNEL } from "@/modules/session/session-export.js"
+import { formatInstantDateTime, formatPeriodLabel } from "@/modules/report/generators/format.js"
+import {
+    AUDIT_LOG_MAX_ROWS,
+    AUDIT_LOG_WINDOW_MONTHS,
+    type DataExportPayload,
+} from "@/modules/export/export.service.js"
+import { yearlyTarget } from "@/modules/goal/goal-progress.js"
+import type { GoalPublicRecord } from "@/modules/goal/goal.repository.js"
 import type { UserWithoutPassword } from "@/modules/user/user.repository.js"
+import type { AclSubmarket, AclEnergySource } from "@/generated/prisma/client.js"
+
+// O PDF é lido por pessoa (Art. 18 LGPD), não por máquina — mostrar o valor
+// bruto do enum (`SOUTHEAST_CENTER_WEST`) no documento voltado ao titular é
+// pior do que o rótulo em português que o resto do produto já usa.
+const ACL_SUBMARKET_LABELS: Record<AclSubmarket, string> = {
+    NORTH: "Norte",
+    NORTHEAST: "Nordeste",
+    SOUTHEAST_CENTER_WEST: "Sudeste / Centro-Oeste",
+    SOUTH: "Sul",
+}
+
+const ACL_ENERGY_SOURCE_LABELS: Record<AclEnergySource, string> = {
+    CONVENTIONAL: "Convencional",
+    INCENTIVIZED_50: "Incentivada 50%",
+    INCENTIVIZED_100: "Incentivada 100%",
+}
 
 function userDisplayName(user: UserWithoutPassword): string {
     if (user.userType === "COMPANY") {
@@ -168,8 +193,209 @@ function drawAlertsSection(doc: PDFKit.PDFDocument, payload: DataExportPayload):
     }
 }
 
+function drawDemandAlertsSection(doc: PDFKit.PDFDocument, payload: DataExportPayload): void {
+    sectionTitle(doc, "Alertas de ultrapassagem de demanda")
+
+    if (payload.demandAlerts.length === 0) {
+        emptyNote(doc, "Nenhum alerta de ultrapassagem de demanda cadastrado.")
+        return
+    }
+
+    for (const alert of payload.demandAlerts) {
+        doc.text(
+            `• ${alert.name} — limiar ${alert.thresholdPercent}% da demanda contratada — ` +
+                (alert.enabled ? "habilitado" : "desabilitado"),
+        )
+    }
+}
+
+function drawAclContractsSection(doc: PDFKit.PDFDocument, payload: DataExportPayload): void {
+    sectionTitle(doc, "Contratos de energia — Mercado Livre (ACL)")
+
+    if (payload.aclContracts.length === 0) {
+        emptyNote(doc, "Nenhum contrato de energia do Mercado Livre cadastrado.")
+        return
+    }
+
+    for (const contract of payload.aclContracts) {
+        const validity = contract.validTo
+            ? `${contract.validFrom.toLocaleDateString("pt-BR")} a ${contract.validTo.toLocaleDateString("pt-BR")}`
+            : `desde ${contract.validFrom.toLocaleDateString("pt-BR")}`
+        doc.text(
+            `• ${contract.retailerName} — ${ACL_SUBMARKET_LABELS[contract.submarket]}/${ACL_ENERGY_SOURCE_LABELS[contract.energySource]} — ` +
+                `R$ ${contract.energyPricePerMwh.toFixed(2)}/MWh, ${contract.contractedVolumeMwh} MWh — ` +
+                `vigência ${validity}`,
+        )
+    }
+}
+
+const REPORT_TYPE_LABELS = {
+    MONTHLY: "Mensal",
+    CONSUMPTION: "Consumo",
+    ALERTS: "Alertas",
+    POWER_QUALITY: "Qualidade de energia",
+    DEMAND: "Demanda",
+} as const
+
+function drawReportsSection(doc: PDFKit.PDFDocument, payload: DataExportPayload): void {
+    sectionTitle(doc, "Relatórios emitidos")
+
+    if (payload.reports.length === 0) {
+        emptyNote(doc, "Nenhum relatório emitido.")
+        return
+    }
+
+    for (const report of payload.reports) doc.text(describeExportedReport(report))
+}
+
+/**
+ * Linha de um relatório emitido no PDF do titular. O fim do período é
+ * exclusivo (é a meia-noite do dia seguinte) e as datas são lidas no fuso de
+ * São Paulo, para o relatório de fevereiro não aparecer como "01/02 a 01/03" nem
+ * mudar com o fuso do servidor.
+ *
+ * @param report - Metadados do relatório (nunca o arquivo).
+ */
+export function describeExportedReport(
+    report: Pick<
+        DataExportPayload["reports"][number],
+        "type" | "format" | "periodStart" | "periodEnd" | "createdAt"
+    >,
+): string {
+    return (
+        `• ${REPORT_TYPE_LABELS[report.type]} (${report.format}) — ` +
+        `${formatPeriodLabel(report.periodStart, report.periodEnd)} — ` +
+        `emitido em ${formatInstantDateTime(report.createdAt)}`
+    )
+}
+
+const FREQUENCY_LABELS = {
+    DAILY: "diária",
+    WEEKLY: "semanal",
+    MONTHLY: "mensal",
+    QUARTERLY: "trimestral",
+    SEMIANNUAL: "semestral",
+    ANNUAL: "anual",
+} as const
+
+function drawReportSchedulesSection(doc: PDFKit.PDFDocument, payload: DataExportPayload): void {
+    sectionTitle(doc, "Envio automático de relatórios")
+
+    if (payload.reportSchedules.length === 0) {
+        emptyNote(doc, "Nenhuma configuração de envio automático cadastrada.")
+        return
+    }
+
+    for (const schedule of payload.reportSchedules) {
+        doc.text(
+            `• ${REPORT_TYPE_LABELS[schedule.type]} (${schedule.format}) — ` +
+                `frequência ${FREQUENCY_LABELS[schedule.frequency]} — ` +
+                (schedule.active ? "ativa" : "pausada") +
+                ` — destinatários: ${schedule.recipients.join(", ")}`,
+        )
+    }
+}
+
+function describeYearlyTarget(goal: GoalPublicRecord): string {
+    const formatted = Math.round(yearlyTarget(goal.unit, goal.monthlyTargets)).toLocaleString(
+        "pt-BR",
+    )
+    if (goal.unit === "KW") return `meta até ${formatted} kW`
+    return goal.unit === "BRL" ? `meta de R$ ${formatted}` : `meta de ${formatted} kWh`
+}
+
+/**
+ * Linha de uma meta no PDF do titular: propriedade, ano, a meta do ano na
+ * unidade dela (kWh ou reais), a referência e o percentual de alerta.
+ *
+ * @param goal - Meta exportada.
+ * @param propertyName - Nome da propriedade, quando conhecido.
+ * @returns O texto da linha.
+ */
+export function describeExportedGoal(goal: GoalPublicRecord, propertyName?: string): string {
+    const target = describeYearlyTarget(goal)
+    return (
+        `• ${propertyName ? `${propertyName} — ` : ""}${goal.year} — ` +
+        `${target} — ` +
+        `referência ${goal.referenceYear} — alerta ao atingir ${goal.alertPercent}%`
+    )
+}
+
+function drawGoalsSection(doc: PDFKit.PDFDocument, payload: DataExportPayload): void {
+    sectionTitle(doc, "Metas de consumo, de custo e de demanda")
+
+    if (payload.goals.length === 0) {
+        emptyNote(doc, "Nenhuma meta cadastrada.")
+        return
+    }
+
+    for (const goal of payload.goals) {
+        const property = payload.properties.find((p) => p.id === goal.propertyId)
+        doc.text(describeExportedGoal(goal, property?.name))
+    }
+}
+
+const SESSION_CHANNEL_LABELS = { WEB: "Web", MOBILE: "Mobile" } as const
+
+/**
+ * Linha de uma sessão no PDF do titular: canal, dispositivo reduzido, origem
+ * mascarada e quando começou (e foi encerrada, se for o caso). Dispositivo ou
+ * origem ausentes em sessão aberta antes do registro nunca são preenchidos.
+ *
+ * @param session - Sessão exportada (nunca token, hash nem IP bruto).
+ * @returns O texto da linha.
+ */
+export function describeExportedSession(session: DataExportPayload["sessions"][number]): string {
+    return (
+        `• ${SESSION_CHANNEL_LABELS[session.channel]} — ` +
+        `${session.deviceLabel ?? "dispositivo não registrado"} — ` +
+        `${session.origin ?? "origem não registrada"} — ` +
+        `iniciada em ${formatInstantDateTime(session.createdAt)}` +
+        (session.revokedAt ? ` — encerrada em ${formatInstantDateTime(session.revokedAt)}` : "")
+    )
+}
+
+/**
+ * Nota da seção de sessões: a exportação lê no máximo um número fixo de tokens
+ * por canal, então um histórico muito longo pode vir cortado nas mais antigas.
+ *
+ * @returns O texto da nota.
+ */
+export function describeSessionsCap(): string {
+    return (
+        `Sessões a partir dos ${MAX_EXPORT_ROWS_PER_CHANNEL.toLocaleString("pt-BR")} tokens mais ` +
+        "recentes de cada canal; histórico mais antigo que isso pode não constar."
+    )
+}
+
+/**
+ * Nota da seção de auditoria: o período e o teto do que foi exportado.
+ *
+ * @param since - Início da janela do log de auditoria.
+ * @returns O texto da nota.
+ */
+export function describeAuditLogWindow(since: Date): string {
+    return (
+        `Registros desde ${formatInstantDateTime(since)} (janela de ${AUDIT_LOG_WINDOW_MONTHS} meses, ` +
+        `até ${AUDIT_LOG_MAX_ROWS.toLocaleString("pt-BR")} registros, os mais recentes).`
+    )
+}
+
+function drawSessionsSection(doc: PDFKit.PDFDocument, payload: DataExportPayload): void {
+    sectionTitle(doc, "Sessões (dispositivo e origem)")
+    emptyNote(doc, describeSessionsCap())
+
+    if (payload.sessions.length === 0) {
+        emptyNote(doc, "Nenhuma sessão registrada.")
+        return
+    }
+
+    for (const session of payload.sessions) doc.text(describeExportedSession(session))
+}
+
 function drawAuditLogSection(doc: PDFKit.PDFDocument, payload: DataExportPayload): void {
     sectionTitle(doc, "Histórico de acesso e segurança (audit log)")
+    emptyNote(doc, describeAuditLogWindow(payload.auditLogsSince))
 
     if (payload.auditLogs.length === 0) {
         emptyNote(doc, "Nenhum registro de auditoria encontrado.")
@@ -223,6 +449,12 @@ export async function generateDataExportPdf(payload: DataExportPayload): Promise
     drawPropertiesSection(doc, payload)
     drawAreasAndDevicesSection(doc, payload)
     drawAlertsSection(doc, payload)
+    drawDemandAlertsSection(doc, payload)
+    drawAclContractsSection(doc, payload)
+    drawReportsSection(doc, payload)
+    drawReportSchedulesSection(doc, payload)
+    drawGoalsSection(doc, payload)
+    drawSessionsSection(doc, payload)
     drawAuditLogSection(doc, payload)
     drawFooterOnAllPages(doc)
 

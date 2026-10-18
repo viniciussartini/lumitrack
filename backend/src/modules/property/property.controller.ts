@@ -1,5 +1,6 @@
 import type { Request, Response, NextFunction } from "express"
 import type { PropertyService } from "@/modules/property/property.service.js"
+import type { PropertyTreeService } from "@/modules/property/property-tree.service.js"
 import type { AuthenticatedRequest } from "@/shared/middlewares/authenticate.js"
 import type { AuditService } from "@/shared/audit/audit.service.js"
 import { getRequestContext } from "@/shared/audit/requestContext.js"
@@ -8,10 +9,12 @@ import { getRequestContext } from "@/shared/audit/requestContext.js"
 export class PropertyController {
     /**
      * @param propertyService - Serviço de imóveis, composto manualmente nas rotas do módulo.
+     * @param propertyTreeService - Leitura agregada imóvel → área → dispositivo.
      * @param auditService - Registro de eventos de auditoria das escritas do módulo.
      */
     constructor(
         private readonly propertyService: PropertyService,
+        private readonly propertyTreeService: PropertyTreeService,
         private readonly auditService: AuditService,
     ) {}
 
@@ -55,6 +58,24 @@ export class PropertyController {
             const { id: userId } = (req as AuthenticatedRequest).user
             const result = await this.propertyService.findAll(userId, req.query)
             res.status(200).json({ status: "success", data: result })
+        } catch (error) {
+            next(error)
+        }
+    }
+
+    /**
+     * `GET /api/properties/tree` — árvore imóvel → área → dispositivo do
+     * usuário autenticado, numa única requisição.
+     *
+     * @param req - Requisição HTTP Express.
+     * @param res - Resposta HTTP Express.
+     * @param next - Encaminha erros ao middleware central de tratamento.
+     */
+    async findTree(req: Request, res: Response, next: NextFunction): Promise<void> {
+        try {
+            const { id: userId } = (req as AuthenticatedRequest).user
+            const tree = await this.propertyTreeService.findTree(userId)
+            res.status(200).json({ status: "success", data: tree })
         } catch (error) {
             next(error)
         }

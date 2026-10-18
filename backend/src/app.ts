@@ -29,12 +29,20 @@ import {
 } from "@/modules/auth/email.service.js"
 import { userRoutes } from "@/modules/user/user.routes.js"
 import { exportRoutes } from "@/modules/export/export.routes.js"
+import { reportRoutes } from "@/modules/report/report.routes.js"
+import { reportScheduleRoutes } from "@/modules/report-schedule/report-schedule.routes.js"
+import { demandRoutes } from "@/modules/demand/demand.routes.js"
+import { goalRoutes } from "@/modules/goal/goal.routes.js"
+import { sessionRoutes } from "@/modules/session/session.routes.js"
 import { adminRoutes } from "@/modules/admin/admin.routes.js"
 import { authRoutes } from "@/modules/auth/auth.routes.js"
 import { distributorRoutes } from "./modules/distributor/distributor.routes.js"
 import { tariffFlagRoutes } from "./modules/tariff-flag/tariff-flag.routes.js"
 import { propertyRoutes } from "./modules/property/property.routes.js"
 import { alertRoutes } from "./modules/alert/alert.routes.js"
+import { demandAlertRoutes } from "./modules/demand-alert/demand-alert.routes.js"
+import { aclContractRoutes } from "./modules/acl-contract/acl-contract.routes.js"
+import { pldQuoteRoutes } from "./modules/pld-quote/pld-quote.routes.js"
 import { alertEventRoutes } from "./modules/alert-event/alert-event.routes.js"
 import { notificationRoutes } from "./modules/notification/notification.routes.js"
 import { meterRoutes } from "./modules/meter/meter.routes.js"
@@ -59,7 +67,7 @@ export interface AppDependencies {
     authRateLimiter?: RequestHandler
     // Injeção só usada em teste — permite capturar o stream do pino com
     // `level` habilitado (o logger singleton fica "silent" em NODE_ENV=test)
-    // para asserção de não-vazamento de dado sensível (RNF05).
+    // para asserção de não-vazamento de dado sensível no log estruturado.
     logger?: Logger
 }
 
@@ -241,17 +249,25 @@ export function createApp(deps: AppDependencies = {}) {
     app.use("/api/tariff-flag", tariffFlagRoutes(authenticate, prismaClient))
     app.use("/api/properties", propertyRoutes(authenticate, prismaClient, auditService))
     app.use("/api/alerts", alertRoutes(authenticate, prismaClient, alertEvaluator))
+    app.use("/api/demand-alerts", demandAlertRoutes(authenticate, prismaClient))
+    app.use("/api/acl-contracts", aclContractRoutes(authenticate, prismaClient))
+    app.use("/api/pld-quotes", pldQuoteRoutes(authenticate, prismaClient))
     app.use("/api/alert-events", alertEventRoutes(authenticate, prismaClient))
     app.use("/api/notifications", notificationRoutes(authenticate, notificationStore))
     app.use("/api/meters", meterRoutes(authenticate, prismaClient))
     app.use("/api/meter-readings", meterReadingRoutes(authenticate, prismaClient))
     app.use("/api/consumption", consumptionRoutes(authenticate, prismaClient))
+    app.use("/api/reports", reportRoutes(authenticate, prismaClient, auditService))
+    app.use("/api/report-schedules", reportScheduleRoutes(authenticate, prismaClient))
+    app.use("/api/goals", goalRoutes(authenticate, prismaClient))
+    app.use("/api/sessions", sessionRoutes(authenticate, prismaClient, auditService))
+    app.use("/api/demand", demandRoutes(authenticate, prismaClient))
 
     if (processor && userEventHub) {
         app.use("/api/iot", iotStreamRoutes(authenticate, prismaClient, processor, userEventHub))
     }
 
-    app.use(createErrorHandler(auditService))
+    app.use(createErrorHandler(auditService, appLogger))
 
     return app
 }

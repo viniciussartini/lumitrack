@@ -18,6 +18,7 @@ const auditActionValues = [
     "MFA_DISABLED",
     "REFRESH_TOKEN_REUSE_DETECTED",
     "ADMIN_AUDIT_LOG_VIEW",
+    "REPORT_GENERATE",
 ] as const
 
 const auditOutcomeValues = ["SUCCESS", "FAILURE"] as const

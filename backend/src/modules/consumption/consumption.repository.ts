@@ -1,6 +1,9 @@
-import { Prisma, PrismaClient } from "@/generated/prisma/client.js"
+import { Prisma, PrismaClient, type TariffPost } from "@/generated/prisma/client.js"
 import type { BucketOrder, Granularity } from "@/modules/consumption/consumption.schema.js"
 import { localTsExpr, rangeFilter } from "@/shared/database/timeBucket.js"
+import { getIntermediateHours, type PeakWindowConfig } from "@/shared/tariff/tariffPost.js"
+import { REFERENCE_REACTIVE_RATIO } from "@/shared/tariff/tariff.service.js"
+import { fromSaoPauloLocal } from "@/shared/time/localTime.js"
 
 // Whitelist explícita do argumento de date_trunc — o valor já vem validado
 // pelo zod (enum fechado), mas mapear em vez de interpolar a string do
@@ -20,6 +23,15 @@ const ORDER_DIRECTION: Record<BucketOrder, Prisma.Sql> = {
     desc: Prisma.sql`DESC`,
 }
 
+// Ordem canônica de exibição do posto (Ponta → Intermediário → Fora de
+// Ponta) — sem isto, o `GROUP BY post` das duas queries abaixo devolve a
+// ordem que o HashAggregate do Postgres escolher, que pode variar entre
+// execuções (e não coincide com a ordem do enum `tariff_post` no banco,
+// que tem INTERMEDIATE anexado no fim por ter sido adicionado depois via
+// `ALTER TYPE ... ADD VALUE`). A UI (tabela e gráfico por posto) depende
+// dessa ordem ser estável.
+const POST_ORDER = Prisma.sql`CASE post WHEN 'PEAK' THEN 0 WHEN 'INTERMEDIATE' THEN 1 ELSE 2 END`
+
 export type ConsumptionBucket = {
     bucketStart: Date
     kwhConsumed: number
@@ -33,6 +45,30 @@ export type MonthlyKwhForYear = {
 }
 
 export type LatestBucketForMeter = ConsumptionBucket & { meterId: string }
+
+export type ConsumptionByPost = {
+    post: TariffPost
+    kwhConsumed: number
+}
+
+export type MonthlyConsumptionByPost = ConsumptionByPost & {
+    monthBucket: Date
+}
+
+// Janela horária de apuração de energia reativa excedente — indutivo medido
+// das 6h às 24h, capacitivo das 0h às 6h. Diferente da classificação de posto
+// ponta/fora-ponta: fixo por hora do dia, sem exceção de fim de semana ou
+// feriado.
+export type ReactiveWindow = "INDUCTIVE" | "CAPACITIVE"
+
+export type ReactiveEnergyByWindow = {
+    window: ReactiveWindow
+    excessKvarh: number
+}
+
+export type MonthlyReactiveEnergyByWindow = ReactiveEnergyByWindow & {
+    monthBucket: Date
+}
 
 /**
  * Recorte comum das duas agregações: qual medidor, que bucket, que janela.
@@ -117,6 +153,32 @@ export class ConsumptionRepository {
     }
 
     /**
+     * Consumo total (kWh) de cada medidor numa janela, numa única consulta —
+     * insumo dos relatórios, que precisam do total de cada filho (ambiente ou
+     * dispositivo) sem uma agregação por filho.
+     *
+     * @param meterIds - Medidores a somar.
+     * @param from - Início da janela (inclusive).
+     * @param to - Fim da janela (exclusive).
+     * @returns Mapa medidor → kWh; medidor sem nenhuma leitura na janela fica de fora (ausência, não zero).
+     */
+    async findKwhTotalsByMeter(
+        meterIds: string[],
+        from: Date,
+        to: Date,
+    ): Promise<Map<string, number>> {
+        if (meterIds.length === 0) return new Map()
+
+        const rows = await this.prisma.meterReading.groupBy({
+            by: ["meterId"],
+            where: { meterId: { in: meterIds }, minuteStart: { gte: from, lt: to } },
+            _sum: { kwhConsumed: true },
+        })
+
+        return new Map(rows.map((r) => [r.meterId, r._sum.kwhConsumed ?? 0]))
+    }
+
+    /**
      * Conta o total de baldes de uma janela, numa varredura própria.
      *
      * Privado de propósito: só existe como fallback de `findAggregated` para
@@ -163,6 +225,16 @@ export class ConsumptionRepository {
     ): Promise<MonthlyKwhForYear[]> {
         if (yearBucketStarts.length === 0) return []
 
+        // O filtro por `date_trunc` sobre a coluna convertida não usa índice e
+        // leria o histórico inteiro do medidor. A faixa em `minuteStart`, do
+        // primeiro ao último ano pedido, delimita a leitura; o `date_trunc`
+        // continua para excluir os anos de fora quando a lista não é contígua.
+        const yearStarts = yearBucketStarts.map((d) => d.getTime())
+        const from = fromSaoPauloLocal(new Date(Math.min(...yearStarts)))
+        const to = fromSaoPauloLocal(
+            new Date(Date.UTC(new Date(Math.max(...yearStarts)).getUTCFullYear() + 1, 0, 1)),
+        )
+
         const rows = await this.prisma.$queryRaw<
             { yearbucket: Date; monthbucket: Date; kwh: number }[]
         >(
@@ -173,6 +245,7 @@ export class ConsumptionRepository {
                     SUM("kwhConsumed") AS kwh
                 FROM "meter_readings"
                 WHERE "meterId" = ${meterId}
+                    ${rangeFilter(from, to)}
                     AND date_trunc('year', ${localTsExpr()}) = ANY(${yearBucketStarts}::timestamp[])
                 GROUP BY yearbucket, monthbucket
             `,
@@ -236,6 +309,209 @@ export class ConsumptionRepository {
             bucketStart: r.bucket,
             kwhConsumed: Number(r.kwh),
             avgPowerW: Number(r.avgpower ?? 0),
+        }))
+    }
+
+    /**
+     * Consumo agregado por posto tarifário — fundação da tarifação binômia
+     * do Grupo A e da Tarifa Branca do Grupo B, que somam o consumo de cada
+     * posto pela tarifa daquele posto. `INTERMEDIATE` (1h antes + 1h depois
+     * da ponta, `getIntermediateHours`) só entra na classificação com
+     * `includeIntermediate: true` — sem isso, a mesma hora-relógio conta
+     * como `OFF_PEAK`, mesmo comportamento de antes deste posto existir.
+     * O Grupo A nunca passa esse parâmetro (nenhuma de suas modalidades tem
+     * tarifa cadastrada para `INTERMEDIATE`). Classificação inteira em SQL
+     * (fim de semana, feriado e janela de ponta), nunca em JS:
+     * `meter_readings` é a maior tabela do sistema, e puxar linha por linha
+     * para classificar no Node inflaria exatamente a consulta que o laudo
+     * de desempenho já identifica como a mais cara do produto.
+     *
+     * `holidayDates` é calculado fora daqui (`shared/time/holidays.ts`) —
+     * datas móveis (Carnaval, Sexta-Feira Santa, Corpus Christi) são cálculo,
+     * não uma tabela no banco.
+     *
+     * @param meterId - Id do medidor.
+     * @param from - Início da janela (inclusive).
+     * @param to - Fim da janela (exclusive).
+     * @param peakWindow - Janela de ponta da distribuidora.
+     * @param holidayDates - Feriados nacionais que caem dentro da janela.
+     * @param includeIntermediate - Habilita o posto `INTERMEDIATE` (Tarifa Branca). Default `false` — sem isso, a mesma hora-relógio cai em `OFF_PEAK`, preservando o Grupo A intocado.
+     * @returns O consumo (kWh) somado por posto — só os postos com alguma leitura aparecem.
+     */
+    async findKwhByPost(
+        meterId: string,
+        from: Date,
+        to: Date,
+        peakWindow: PeakWindowConfig,
+        holidayDates: Date[],
+        includeIntermediate = false,
+    ): Promise<ConsumptionByPost[]> {
+        const { peakWindowStartHour, peakWindowEndHour } = peakWindow
+        const { hourBeforePeak, hourAfterPeak } = getIntermediateHours(peakWindow)
+        const intermediateBranch = includeIntermediate
+            ? Prisma.sql`
+                            WHEN EXTRACT(HOUR FROM ${localTsExpr()}) = ${hourBeforePeak}
+                                OR EXTRACT(HOUR FROM ${localTsExpr()}) = ${hourAfterPeak}
+                                THEN 'INTERMEDIATE'`
+            : Prisma.empty
+
+        const rows = await this.prisma.$queryRaw<{ post: TariffPost; kwh: number }[]>(
+            Prisma.sql`
+                SELECT post, SUM(kwh) AS kwh
+                FROM (
+                    SELECT
+                        CASE
+                            WHEN EXTRACT(DOW FROM ${localTsExpr()}) IN (0, 6) THEN 'OFF_PEAK'
+                            WHEN (${localTsExpr()})::date = ANY(${holidayDates}::date[]) THEN 'OFF_PEAK'
+                            WHEN EXTRACT(HOUR FROM ${localTsExpr()}) >= ${peakWindowStartHour}
+                                AND EXTRACT(HOUR FROM ${localTsExpr()}) < ${peakWindowEndHour}
+                                THEN 'PEAK'${intermediateBranch}
+                            ELSE 'OFF_PEAK'
+                        END AS post,
+                        "kwhConsumed" AS kwh
+                    FROM "meter_readings"
+                    WHERE "meterId" = ${meterId}
+                    ${rangeFilter(from, to)}
+                ) classified
+                GROUP BY post
+                ORDER BY ${POST_ORDER}
+            `,
+        )
+
+        return rows.map((r) => ({ post: r.post, kwhConsumed: Number(r.kwh) }))
+    }
+
+    /**
+     * Mesma classificação por posto de `findKwhByPost`, agrupada também por
+     * mês (hora local) — usada para calcular o custo anual do Grupo A com
+     * 1 query para o intervalo inteiro, em vez de 1 chamada de
+     * `findKwhByPost` por mês (o que inflaria a mesma leitura linha-a-linha
+     * de `meter_readings` que este módulo evita em todo o resto).
+     *
+     * @param meterId - Id do medidor.
+     * @param from - Início da janela (inclusive).
+     * @param to - Fim da janela (exclusive).
+     * @param peakWindow - Janela de ponta da distribuidora.
+     * @param holidayDates - Feriados nacionais que caem dentro da janela.
+     * @param includeIntermediate - Habilita o posto `INTERMEDIATE` (Tarifa Branca). Default `false` — sem isso, a mesma hora-relógio cai em `OFF_PEAK`, preservando o Grupo A intocado.
+     * @returns O consumo (kWh) somado por mês × posto — só combinações com alguma leitura aparecem.
+     */
+    async findKwhByPostGroupedByMonth(
+        meterId: string,
+        from: Date,
+        to: Date,
+        peakWindow: PeakWindowConfig,
+        holidayDates: Date[],
+        includeIntermediate = false,
+    ): Promise<MonthlyConsumptionByPost[]> {
+        const { peakWindowStartHour, peakWindowEndHour } = peakWindow
+        const { hourBeforePeak, hourAfterPeak } = getIntermediateHours(peakWindow)
+        const intermediateBranch = includeIntermediate
+            ? Prisma.sql`
+                            WHEN EXTRACT(HOUR FROM ${localTsExpr()}) = ${hourBeforePeak}
+                                OR EXTRACT(HOUR FROM ${localTsExpr()}) = ${hourAfterPeak}
+                                THEN 'INTERMEDIATE'`
+            : Prisma.empty
+
+        const rows = await this.prisma.$queryRaw<
+            { monthbucket: Date; post: TariffPost; kwh: number }[]
+        >(
+            Prisma.sql`
+                SELECT monthbucket, post, SUM(kwh) AS kwh
+                FROM (
+                    SELECT
+                        date_trunc('month', ${localTsExpr()}) AS monthbucket,
+                        CASE
+                            WHEN EXTRACT(DOW FROM ${localTsExpr()}) IN (0, 6) THEN 'OFF_PEAK'
+                            WHEN (${localTsExpr()})::date = ANY(${holidayDates}::date[]) THEN 'OFF_PEAK'
+                            WHEN EXTRACT(HOUR FROM ${localTsExpr()}) >= ${peakWindowStartHour}
+                                AND EXTRACT(HOUR FROM ${localTsExpr()}) < ${peakWindowEndHour}
+                                THEN 'PEAK'${intermediateBranch}
+                            ELSE 'OFF_PEAK'
+                        END AS post,
+                        "kwhConsumed" AS kwh
+                    FROM "meter_readings"
+                    WHERE "meterId" = ${meterId}
+                    ${rangeFilter(from, to)}
+                ) classified
+                GROUP BY monthbucket, post
+                ORDER BY monthbucket, ${POST_ORDER}
+            `,
+        )
+
+        return rows.map((r) => ({
+            monthBucket: r.monthbucket,
+            post: r.post,
+            kwhConsumed: Number(r.kwh),
+        }))
+    }
+
+    /**
+     * Excedente de energia reativa por janela horária (indutivo 6h-24h,
+     * capacitivo 0h-6h) e por mês, somado inteiramente em SQL — mesmo padrão
+     * de `findKwhByPostGroupedByMonth` (1 query para o intervalo inteiro, em
+     * vez de 1 por mês). A energia reativa de cada minuto é derivada de
+     * `kwhConsumed` e `avgPowerFactor` (o medidor não persiste reativa
+     * direto): tratando o minuto como um triângulo de potência,
+     * `reativa = ativa × tan(acos(FP))`. `avgPowerFactor` é limitado a
+     * [0,01; 1] antes do `ACOS` — a ingestão já garante a faixa [0,1], a
+     * cláusula aqui é só defesa contra o polo (FP=0 tornaria a tangente
+     * infinita) sem descartar a linha.
+     *
+     * O excedente é apurado por HORA, não sobre o total do mês: cada hora
+     * que exceder a razão de referência (`REFERENCE_REACTIVE_RATIO`) soma seu
+     * próprio excedente; uma hora com fator de potência bom nunca compensa
+     * uma hora ruim (a norma apura por intervalo, não pela média do mês —
+     * apurar só no total do mês subestimaria o excedente sempre que houvesse
+     * qualquer variação de FP ao longo do período).
+     *
+     * @param meterId - Id do medidor.
+     * @param from - Início da janela (inclusive).
+     * @param to - Fim da janela (exclusive).
+     * @returns Excedente de energia reativa (kVArh) somado por mês × janela — só combinações com alguma leitura aparecem.
+     */
+    async findReactiveEnergyByWindowGroupedByMonth(
+        meterId: string,
+        from: Date,
+        to: Date,
+    ): Promise<MonthlyReactiveEnergyByWindow[]> {
+        // Alias "reactive_window", não "window" — palavra reservada do
+        // Postgres (cláusula OVER/WINDOW), quebraria o SQL.
+        const rows = await this.prisma.$queryRaw<
+            {
+                monthbucket: Date
+                reactive_window: ReactiveWindow
+                excesskvarh: number
+            }[]
+        >(
+            Prisma.sql`
+                SELECT
+                    monthbucket,
+                    reactive_window,
+                    SUM(GREATEST(0, kvarh - kwh * ${REFERENCE_REACTIVE_RATIO})) AS excesskvarh
+                FROM (
+                    SELECT
+                        date_trunc('hour', ${localTsExpr()}) AS hourbucket,
+                        date_trunc('month', ${localTsExpr()}) AS monthbucket,
+                        CASE
+                            WHEN EXTRACT(HOUR FROM ${localTsExpr()}) >= 6 THEN 'INDUCTIVE'
+                            ELSE 'CAPACITIVE'
+                        END AS reactive_window,
+                        SUM("kwhConsumed") AS kwh,
+                        SUM("kwhConsumed" * TAN(ACOS(LEAST(GREATEST("avgPowerFactor", 0.01), 1)))) AS kvarh
+                    FROM "meter_readings"
+                    WHERE "meterId" = ${meterId}
+                    ${rangeFilter(from, to)}
+                    GROUP BY hourbucket, monthbucket, reactive_window
+                ) hourly
+                GROUP BY monthbucket, reactive_window
+            `,
+        )
+
+        return rows.map((r) => ({
+            monthBucket: r.monthbucket,
+            window: r.reactive_window,
+            excessKvarh: Number(r.excesskvarh),
         }))
     }
 }

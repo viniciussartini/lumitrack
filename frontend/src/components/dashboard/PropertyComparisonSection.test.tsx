@@ -22,6 +22,15 @@ const property = (id: string, name: string): Property => ({
     zipCode: null,
     electricalSystem: "TRIPHASIC",
     billingClass: "B1",
+    groupBModality: "CONVENTIONAL",
+    receivesBillingDiscount: false,
+    tariffGroup: "GROUP_B",
+    contractingEnvironment: "ACR",
+    tariffSubgroup: null,
+    tariffModality: null,
+    contractedDemandKw: null,
+    contractedDemandPeakKw: null,
+    contractedDemandOffPeakKw: null,
     publicLightingFeeBrl: null,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
@@ -110,5 +119,22 @@ describe("PropertyComparisonSection", () => {
         await user.click(screen.getByRole("button", { name: "R$" }))
 
         expect(screen.getByText(/R\$\s?80,00/)).toBeInTheDocument()
+    })
+
+    it("desabilita R$ com a explicação quando nenhuma propriedade tem custo calculável", async () => {
+        const semCusto: ConsumptionSummaryItem = {
+            id: "prop-a",
+            targetType: "PROPERTY",
+            bucketStart: new Date().toISOString(),
+            kwhConsumed: 100,
+            avgPowerW: 500,
+        }
+        vi.mocked(consumptionService.summary).mockResolvedValue({ items: [semCusto] })
+
+        renderSection([propA])
+
+        expect(await screen.findByText("100,00 kWh")).toBeInTheDocument()
+        expect(screen.getByRole("button", { name: "R$" })).toBeDisabled()
+        expect(screen.getByText("Custo em R$ indisponível para esta tarifa.")).toBeInTheDocument()
     })
 })

@@ -20,7 +20,7 @@ import type { Device, CreateDeviceInput, UpdateDeviceInput } from "@/types/devic
  *   O backend remove consumption_records, alerts e iot_config vinculados
  *   via ON DELETE CASCADE no Prisma. O hook não precisa fazer nada
  *   especial — é o usuário que confirma a ação ciente do impacto (vide
- *   DeviceMenu, que mostra esse aviso explicitamente no ConfirmDialog).
+ *   TreeActionDialogs, que mostra esse aviso explicitamente no ConfirmDialog).
  */
 
 interface CreateDeviceVariables {
@@ -39,6 +39,7 @@ export const useCreateDevice = () => {
             void queryClient.invalidateQueries({
                 queryKey: [...queryKeys.devices.all, "list", propertyId, areaId],
             })
+            void queryClient.invalidateQueries({ queryKey: queryKeys.propertyTree.all })
             toast.success("Dispositivo criado", {
                 description: `${created.name} foi adicionado com sucesso.`,
             })
@@ -65,6 +66,7 @@ export const useUpdateDevice = () => {
             void queryClient.invalidateQueries({
                 queryKey: [...queryKeys.devices.all, "list", propertyId, areaId],
             })
+            void queryClient.invalidateQueries({ queryKey: queryKeys.propertyTree.all })
             void queryClient.invalidateQueries({
                 queryKey: queryKeys.devices.detail(propertyId, areaId, updated.id),
             })
@@ -91,6 +93,7 @@ export const useDeleteDevice = () => {
             void queryClient.invalidateQueries({
                 queryKey: [...queryKeys.devices.all, "list", propertyId, areaId],
             })
+            void queryClient.invalidateQueries({ queryKey: queryKeys.propertyTree.all })
             // Remove o detalhe do cache — não vai mais existir
             queryClient.removeQueries({
                 queryKey: queryKeys.devices.detail(propertyId, areaId, deviceId),

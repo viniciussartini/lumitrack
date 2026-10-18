@@ -65,8 +65,7 @@ test.describe("Perfil — visualizar e editar dados pessoais (#118)", () => {
 
         // O heading vem do mesmo `useAuth().user` que o UserMenu lê — a
         // troca aqui já comprova que `refreshUser()` propagou a mudança
-        // pro AuthContext inteiro, sem precisar reabrir o menu (que fica
-        // sujeito ao toast de sucesso sobrepondo o botão, bem menos estável).
+        // pro AuthContext inteiro, sem precisar reabrir o menu.
         await expect(page.getByRole("heading", { name: "Joana Silva" })).toBeVisible()
         await expect(page.getByRole("button", { name: /editar/i })).toBeVisible()
     })

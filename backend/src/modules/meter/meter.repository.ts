@@ -7,8 +7,9 @@ import {
 } from "@/shared/crypto/meterCredentialEncryption.js"
 import type { MeterConnectionConfig } from "@/modules/iot/iot-worker/IoTConnectionManager.js"
 import {
-    toPropertyResponse,
-    type PropertyResponse,
+    PROPERTY_WITHOUT_ADDRESS,
+    toPropertyWithoutAddress,
+    type PropertyWithoutAddress,
 } from "@/modules/property/property.repository.js"
 import type { AreaResponse } from "@/modules/area/area.repository.js"
 import type { DeviceResponse } from "@/modules/device/device.repository.js"
@@ -49,7 +50,7 @@ type PrismaMeter = NonNullable<Awaited<ReturnType<PrismaClient["meter"]["findUni
 
 export type MeterWithTargetRow = {
     meter: MeterResponse
-    property: PropertyResponse | null
+    property: PropertyWithoutAddress | null
     area: AreaResponse | null
     device: DeviceResponse | null
 }
@@ -57,10 +58,14 @@ export type MeterWithTargetRow = {
 // Compartilhado entre `findByIdWithTarget` e `findManyByIdsWithTarget` — a
 // mesma forma de `include` nas duas é o que permite ao Prisma tratá-las como
 // uma única query em lote quando disparadas concorrentemente.
+//
+// A propriedade vem sem os campos de endereço: quem resolve o alvo de um
+// medidor precisa de posse, tarifa e demanda, e ler (e decifrar) endereço a
+// cada linha é custo e exposição de dado pessoal à toa.
 const METER_TARGET_INCLUDE = {
-    property: true,
-    area: { include: { property: true } },
-    device: { include: { area: { include: { property: true } } } },
+    property: PROPERTY_WITHOUT_ADDRESS,
+    area: { include: { property: PROPERTY_WITHOUT_ADDRESS } },
+    device: { include: { area: { include: { property: PROPERTY_WITHOUT_ADDRESS } } } },
 } as const
 
 type RawMeterWithTarget = Prisma.MeterGetPayload<{ include: typeof METER_TARGET_INCLUDE }>
@@ -89,7 +94,7 @@ function toMeterWithTargetRow(raw: RawMeterWithTarget): MeterWithTargetRow {
 
     return {
         meter: toMeterResponse(raw),
-        property: property ? toPropertyResponse(property) : null,
+        property: property ? toPropertyWithoutAddress(property) : null,
         area: rawArea ? stripAreaProperty(rawArea) : null,
         device: raw.device ? stripDeviceArea(raw.device) : null,
     }
@@ -160,7 +165,9 @@ function decryptExtraForConnection(
     return { ...extra, password: decryptMeterCredential(extra.password) }
 }
 
-function toConnectionConfig(raw: PrismaMeter): MeterConnectionConfig {
+function toConnectionConfig(
+    raw: Pick<PrismaMeter, "id" | "protocol" | "host" | "port" | "topic" | "address" | "extra">,
+): MeterConnectionConfig {
     return {
         meterId: raw.id,
         protocol: raw.protocol,
@@ -227,6 +234,34 @@ export class MeterRepository {
 
         const raw = await this.prisma.meter.findFirst({ where })
         return raw ? toMeterResponse(raw) : null
+    }
+
+    /**
+     * Ids dos medidores de vários alvos do mesmo tipo, numa query só.
+     *
+     * @param targetType - Tipo dos alvos.
+     * @param targetIds - Ids dos alvos.
+     * @returns Mapa alvo → id do medidor; alvo sem medidor fica de fora.
+     */
+    async findMeterIdsByTargets(
+        targetType: TargetType,
+        targetIds: string[],
+    ): Promise<Map<string, string>> {
+        if (targetIds.length === 0) return new Map()
+
+        const column =
+            targetType === "PROPERTY" ? "propertyId" : targetType === "AREA" ? "areaId" : "deviceId"
+        const rows = await this.prisma.meter.findMany({
+            where: { [column]: { in: targetIds } },
+            select: { id: true, propertyId: true, areaId: true, deviceId: true },
+        })
+
+        const meterIdByTargetId = new Map<string, string>()
+        for (const row of rows) {
+            const targetId = row[column]
+            if (targetId) meterIdByTargetId.set(targetId, row.id)
+        }
+        return meterIdByTargetId
     }
 
     /**
@@ -315,7 +350,12 @@ export class MeterRepository {
         }
 
         const [rows, total] = await Promise.all([
-            this.prisma.meter.findMany({ where, orderBy: { name: "asc" }, skip, take }),
+            this.prisma.meter.findMany({
+                where,
+                orderBy: [{ name: "asc" }, { id: "asc" }],
+                skip,
+                take,
+            }),
             this.prisma.meter.count({ where }),
         ])
 
@@ -481,7 +521,17 @@ export class MeterRepository {
      * @returns Os medidores com credencial decifrável, mais os ids dos descartados.
      */
     async findAllConnectionConfigs(): Promise<ConnectionConfigsResult> {
-        const rows = await this.prisma.meter.findMany()
+        const rows = await this.prisma.meter.findMany({
+            select: {
+                id: true,
+                protocol: true,
+                host: true,
+                port: true,
+                topic: true,
+                address: true,
+                extra: true,
+            },
+        })
         const configs: MeterConnectionConfig[] = []
         const skippedMeterIds: string[] = []
 

@@ -23,7 +23,7 @@ const ALL_STATES = "ALL"
  * Populado via seed; sem CRUD pelo usuário (sem dono, sem create/edit/delete).
  *
  * Sem paginação: o catálogo é pequeno (~dezenas), então buscamos tudo de uma
- * vez (`useDistributors(1, 31)`, mesmo idioma de `PropertiesPage.tsx`) e
+ * vez (`useDistributors(1, 31)`) e
  * filtramos em memória por busca (nome/CNPJ/UF) e por UF — conforme o bloco
  * `isDist` do handoff, que não pagina.
  */

@@ -26,11 +26,11 @@ Melhora a estrutura **sem alterar o comportamento observável**.
 - Testes continuam verdes (comportamento preservado).
 - type-check, lint, format passam.
 - **dependency-cruiser** continua verde (nenhuma fronteira nova violada).
-- **Comentários:** funcionais — Javadoc/JSDoc em classes, funções públicas e lógica não óbvia, explicando o **porquê**. **Nunca** referencie issue, PR, auditoria, achado, data ou autor no comentário (`06`): rastreabilidade vive no git, nos ADRs e nas issues, e o lint (`no-warning-comments`) barra. Refatoração é o momento clássico de escrever "movido conforme achado X" — não escreva.
+- **Comentários:** funcionais — Javadoc/JSDoc em classes, funções públicas e lógica não óbvia, explicando o **porquê**. **Nunca** referencie issue, PR, auditoria, achado, data, autor ou número de RF/RNF/RN/FNC no comentário (`06`): rastreabilidade vive no git, nos ADRs, no CHANGELOG e nas issues; RF/RNF/RN/FNC vivem no `02-requisitos.md`. O lint barra os dois casos (`no-warning-comments` para issue/PR/auditoria; `local/no-comment-req-refs` para RF/RN/RNF/FNC seguido de número) — mas releia antes de finalizar, o lint pega o padrão exato, não paráfrase. Refatoração é o momento clássico de escrever "movido conforme achado X" — não escreva.
 
 ## Ao concluir
 
 Siga `.claude/project_context/08-convencoes-git.md`:
 1. Acrescente uma entrada em `.claude/log/CHANGELOG.md` (tipo `refactor`, com a branch atual).
 2. Gere um **texto de commit** (`refactor: ...`) para o usuário commitar manualmente.
-3. Se alguma decisão de `.claude/project_context/07-decisoes-em-aberto.md` foi tomada nesta execução: registre o **ADR** em `.claude/docs/adr/` e atualize o `07`.
+3. Se alguma decisão de `.claude/project_context/07-decisoes-em-aberto.md` foi tomada nesta execução: registre o **ADR** em `.claude/docs/adr/`, acrescente a linha no índice canônico `.claude/docs/README.md` e atualize o `07`.

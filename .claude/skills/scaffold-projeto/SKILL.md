@@ -52,7 +52,7 @@ Só depois do Bloco A aprovado. Para cada camada, apresente **a recomendação d
 ### Saída da entrevista
 
 1. Preencha `03-arquitetura.md` (seção "Específico do projeto"), `04-tech-stack.md` e a seção "Fonte de design do projeto" do `10-design-system.md` com as decisões.
-2. Registre **um ADR por decisão estruturante** (estilo arquitetural, forma da aplicação, banco, estratégia de credencial, ferramenta de design, qualquer componente de infra além do default) em `.claude/docs/adr/`, com alternativas consideradas.
+2. Registre **um ADR por decisão estruturante** (estilo arquitetural, forma da aplicação, banco, estratégia de credencial, ferramenta de design, qualquer componente de infra além do default) em `.claude/docs/adr/`, com alternativas consideradas, e acrescente cada um ao índice canônico `.claude/docs/README.md`.
 3. Jogue o que ficou indefinido em `07-decisoes-em-aberto.md`, no formato declarado lá (opções · impacto · o que falta para decidir).
 4. **Só então** siga para o plano de scaffold.
 
@@ -70,7 +70,7 @@ Em **plan mode**, apresente um PLANO e aguarde aprovação. O plano deve conter:
 - Estrutura de pastas por domínio (fronteiras isoladas).
 - Schema Prisma inicial.
 - Tema do frontend gerado **a partir dos design tokens da fonte de design declarada** (`10-design-system.md`); sem entrega de design ainda, tema mínimo marcado `TODO(design)`.
-- `tsconfig` strict, ESLint + Prettier + `eslint-plugin-jsdoc` + `no-warning-comments` configurado conforme o `06` (bloqueia comentário de rastreabilidade), husky + lint-staged.
+- `tsconfig` strict, ESLint + Prettier + `eslint-plugin-jsdoc` + `no-warning-comments` configurado conforme o `06` (bloqueia comentário de rastreabilidade) **+ a regra local `local/no-comment-req-refs`** (`eslint-rules/no-comment-req-refs.js`, um arquivo por pacote do monorepo — ver `06`): `no-warning-comments` só casa substring literal e não pega RF/RN/RNF/FNC seguido de número sem também barrar as letras soltas em prosa comum; a regra local resolve isso desde o primeiro commit, em vez de descobrir a lacuna depois de dezenas de comentários já terem entrado no código (achado real do LumiTrack, Fase 20). husky + lint-staged.
 - **Fundação de infraestrutura conforme o `11` (itens `[P0]`):** usuário de banco sem DDL + usuário de migração separado, `sslmode=require`, seed sintético, workflows com `permissions:` mínimo e actions pinadas por SHA, secret scanning/push protection, `.env.example` sem valores reais, ambientes isolados.
 - Regras de dependency-cruiser (direção de dependência + fronteiras).
 - Middlewares de segurança (authz, validação, error handler, rate limit, helmet/CORS).
@@ -84,6 +84,6 @@ Em **plan mode**, apresente um PLANO e aguarde aprovação. O plano deve conter:
 Siga `.claude/project_context/08-convencoes-git.md`:
 1. Acrescente uma entrada em `.claude/log/CHANGELOG.md` (tipo `scaffold`, com a branch atual).
 2. Gere um **texto de commit** (Conventional Commits, ex.: `chore: scaffold inicial do projeto`) para o usuário commitar manualmente.
-3. Se alguma decisão de `.claude/project_context/07-decisoes-em-aberto.md` foi tomada nesta execução: registre o **ADR** em `.claude/docs/adr/` e atualize o `07`.
+3. Se alguma decisão de `.claude/project_context/07-decisoes-em-aberto.md` foi tomada nesta execução: registre o **ADR** em `.claude/docs/adr/`, acrescente a linha no índice canônico `.claude/docs/README.md` e atualize o `07`.
 4. **Onboarding:** sugira rodar a skill `onboarding` para gerar `.claude/docs/onboarding.md` — útil em equipe e também em solo (retomada futura do projeto).
 5. **Fechar o ciclo com a ferramenta de design:** sugira sincronizar o design system do codebase recém-criado com a ferramenta declarada (no Claude Design, `/design-sync`) — os próximos designs nascem usando os componentes e tokens reais (ver `10-design-system.md`).

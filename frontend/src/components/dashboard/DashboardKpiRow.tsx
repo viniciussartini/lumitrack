@@ -18,6 +18,7 @@ import {
 } from "@/types/tariff-flag.types"
 import type { ConsumptionBucket } from "@/types/consumption.types"
 import type { ReadingPayload } from "@/lib/sse/appStream"
+import { latestRange } from "@/lib/consumptionWindow"
 
 interface DashboardKpiRowProps {
     propertyId: string
@@ -51,9 +52,16 @@ export const DashboardKpiRow = ({
 
     // "Potência agora" + custo estimado — mesma conta de RealtimeSection (tarifa
     // efetiva do bucket de hora mais recente com consumo, × potência atual).
-    const hourQuery = useConsumption("PROPERTY", propertyId, "hour", 1, 3)
-    const dayQuery = useConsumption("PROPERTY", propertyId, "day", 1, 5)
-    const monthQuery = useConsumption("PROPERTY", propertyId, "month", 1, 1)
+    const hourQuery = useConsumption("PROPERTY", propertyId, "hour", 1, 3, latestRange("hour", 3))
+    const dayQuery = useConsumption("PROPERTY", propertyId, "day", 1, 5, latestRange("day", 5))
+    const monthQuery = useConsumption(
+        "PROPERTY",
+        propertyId,
+        "month",
+        1,
+        1,
+        latestRange("month", 1),
+    )
     const tariffFlagQuery = useTariffFlag()
 
     const currentPowerKw = !isStale && reading ? reading.powerW / 1000 : null
@@ -150,8 +158,10 @@ const computeEstimatedCostPerHour = (
 ): number | null => {
     if (currentPowerKw === null || !items) return null
 
-    const bucketWithConsumption = items.find((item) => item.kwhConsumed > 0)
-    if (!bucketWithConsumption) return null
+    const bucketWithConsumption = items.find(
+        (item) => item.kwhConsumed > 0 && item.costBrl !== undefined,
+    )
+    if (bucketWithConsumption?.costBrl === undefined) return null
 
     const effectiveTariff = bucketWithConsumption.costBrl / bucketWithConsumption.kwhConsumed
     return effectiveTariff * currentPowerKw

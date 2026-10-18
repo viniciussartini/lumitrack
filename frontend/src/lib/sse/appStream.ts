@@ -68,7 +68,8 @@ function wait(ms: number, signal: AbortSignal): Promise<void> {
 /**
  * Contrato de eventos (ver backend/src/modules/iot/iot-stream.routes.ts):
  *   connected     { meterCount }
- *   reading       { meterId, voltage, current, powerW, powerFactor, receivedAt }
+ *   reading       { meterId, voltage, current, powerW, powerFactor, receivedAt,
+ *                    ...grandezas por fase opcionais (ADR-0022) }
  *   alert-firing  { type: "start"|"end", alertId, alertName, meterId, startedAt, endedAt? }
  *   notification  { ...Notification }
  */
@@ -81,7 +82,40 @@ export interface ConnectedPayload {
     meterCount: number
 }
 
-export interface ReadingPayload {
+/**
+ * Grandezas por fase (ADR-0022) — opcionais porque nem todo medidor as
+ * mede; ausência é exibida como tal na UI, nunca como 0. `voltageUnbalance`
+ * é sempre calculado no
+ * backend a partir das 3 fases de tensão da própria amostra; não existe
+ * campo de corrente de neutro (o medidor-alvo não mede nem permite
+ * derivar com confiança).
+ */
+export interface OptionalElectricalFields {
+    voltagePhaseA?: number
+    voltagePhaseB?: number
+    voltagePhaseC?: number
+    voltageUnbalance?: number
+    currentPhaseA?: number
+    currentPhaseB?: number
+    currentPhaseC?: number
+    activePowerPhaseA?: number
+    activePowerPhaseB?: number
+    activePowerPhaseC?: number
+    reactivePowerVar?: number
+    apparentPowerVa?: number
+    frequencyHz?: number
+    powerFactorPhaseA?: number
+    powerFactorPhaseB?: number
+    powerFactorPhaseC?: number
+    thdVoltagePhaseA?: number
+    thdVoltagePhaseB?: number
+    thdVoltagePhaseC?: number
+    thdCurrentPhaseA?: number
+    thdCurrentPhaseB?: number
+    thdCurrentPhaseC?: number
+}
+
+export interface ReadingPayload extends OptionalElectricalFields {
     meterId: string
     voltage: number
     current: number

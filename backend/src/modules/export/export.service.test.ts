@@ -1,16 +1,23 @@
 import { describe, it, expect, beforeEach, afterAll } from "vitest"
-import { ExportService } from "@/modules/export/export.service.js"
+import { AUDIT_LOG_MAX_ROWS, ExportService } from "@/modules/export/export.service.js"
+import { DEMO_RESIDENTIAL_EMAIL } from "@/shared/config/demoAccounts.js"
 import { UserRepository } from "@/modules/user/user.repository.js"
 import { UserService } from "@/modules/user/user.service.js"
 import { PropertyRepository } from "@/modules/property/property.repository.js"
 import { PropertyService } from "@/modules/property/property.service.js"
 import { DistributorRepository } from "@/modules/distributor/distributor.repository.js"
 import { AlertRepository } from "@/modules/alert/alert.repository.js"
+import { DemandAlertRepository } from "@/modules/demand-alert/demand-alert.repository.js"
+import { AclContractRepository } from "@/modules/acl-contract/acl-contract.repository.js"
 import { AreaRepository } from "@/modules/area/area.repository.js"
 import { AreaService } from "@/modules/area/area.service.js"
 import { DeviceRepository } from "@/modules/device/device.repository.js"
 import { DeviceService } from "@/modules/device/device.service.js"
 import { AuditRepository } from "@/shared/audit/audit.repository.js"
+import { ReportRepository } from "@/modules/report/report.repository.js"
+import { ReportScheduleRepository } from "@/modules/report-schedule/report-schedule.repository.js"
+import { GoalRepository } from "@/modules/goal/goal.repository.js"
+import { SessionRepository } from "@/modules/session/session.repository.js"
 import { prismaTest } from "@/shared/test/prisma-test.js"
 import { cleanDatabase } from "@/shared/test/clean-database.js"
 import { createTestDistributor } from "@/shared/test/distributorFixture.js"
@@ -33,17 +40,29 @@ const deviceRepository = new DeviceRepository(prismaTest)
 const deviceService = new DeviceService(deviceRepository, areaRepository, propertyRepository)
 
 const alertRepository = new AlertRepository(prismaTest)
+const demandAlertRepository = new DemandAlertRepository(prismaTest)
+const aclContractRepository = new AclContractRepository(prismaTest)
 
 const auditRepository = new AuditRepository(prismaTest)
+const reportRepository = new ReportRepository(prismaTest)
+const reportScheduleRepository = new ReportScheduleRepository(prismaTest)
+const goalRepository = new GoalRepository(prismaTest)
+const sessionRepository = new SessionRepository(prismaTest)
 
 const exportService = new ExportService(
     userRepository,
     propertyRepository,
     distributorRepository,
     alertRepository,
+    demandAlertRepository,
+    aclContractRepository,
     areaRepository,
     deviceRepository,
     auditRepository,
+    reportRepository,
+    reportScheduleRepository,
+    goalRepository,
+    sessionRepository,
 )
 
 // ─── Dados de apoio ───────────────────────────────────────────────────────────
@@ -107,6 +126,26 @@ async function setupFull(userInput = validUserA) {
             tolerancePercent: 2,
         },
     })
+    await prismaTest.demandAlert.create({
+        data: {
+            userId: user.id,
+            meterId: meter.id,
+            name: "Ultrapassagem de demanda",
+            thresholdPercent: 105,
+        },
+    })
+    await prismaTest.aclContract.create({
+        data: {
+            userId: user.id,
+            propertyId: property.id,
+            retailerName: "Comerc Energia",
+            submarket: "SOUTHEAST_CENTER_WEST",
+            energySource: "CONVENTIONAL",
+            energyPricePerMwh: 280,
+            contractedVolumeMwh: 120,
+            validFrom: new Date("2026-01-01"),
+        },
+    })
 
     await auditRepository.create({
         userId: user.id,
@@ -156,9 +195,86 @@ describe("ExportService.generate", () => {
         expect(payload.devices[0]!.id).toBe(device.id)
 
         expect(payload.alerts).toHaveLength(1)
+        expect(payload.demandAlerts).toHaveLength(1)
+        expect(payload.aclContracts).toHaveLength(1)
+        expect(payload.aclContracts[0]!.retailerName).toBe("Comerc Energia")
 
         expect(payload.auditLogs).toHaveLength(1)
         expect(payload.auditLogs[0]!.action).toBe("LOGIN")
+    })
+
+    it("não exporta registros de auditoria mais antigos que a janela", async () => {
+        const user = await userService.createUser(validUserA)
+        const monthsAgo = (months: number) => {
+            const date = new Date()
+            date.setMonth(date.getMonth() - months)
+            return date
+        }
+        await prismaTest.auditLog.createMany({
+            data: [
+                { userId: user.id, action: "LOGIN", outcome: "SUCCESS", createdAt: monthsAgo(1) },
+                { userId: user.id, action: "LOGOUT", outcome: "SUCCESS", createdAt: monthsAgo(13) },
+            ],
+        })
+
+        const payload = await exportService.generate(user.id)
+
+        expect(payload.auditLogs.map((entry) => entry.action)).toEqual(["LOGIN"])
+        expect(payload.auditLogsSince.getTime()).toBeLessThan(monthsAgo(11).getTime())
+        expect(payload.auditLogsSince.getTime()).toBeGreaterThan(monthsAgo(13).getTime())
+    })
+
+    it("limita o log de auditoria ao teto, mantendo os mais recentes", async () => {
+        const user = await userService.createUser(validUserA)
+        const base = Date.now() - 3_600_000
+        await prismaTest.auditLog.createMany({
+            data: Array.from({ length: AUDIT_LOG_MAX_ROWS + 1 }, (_, index) => ({
+                userId: user.id,
+                action: "LOGIN" as const,
+                outcome: "SUCCESS" as const,
+                createdAt: new Date(base + index * 1000),
+            })),
+        })
+
+        const payload = await exportService.generate(user.id)
+
+        expect(payload.auditLogs).toHaveLength(AUDIT_LOG_MAX_ROWS)
+        expect(payload.auditLogs[0]!.createdAt.getTime()).toBe(base + AUDIT_LOG_MAX_ROWS * 1000)
+    })
+
+    it("conta de demonstração recebe conteúdo fixo, sem consultar o log nem os tokens reais", async () => {
+        const demo = await userService.createUser({
+            ...validUserA,
+            email: DEMO_RESIDENTIAL_EMAIL,
+        })
+        await auditRepository.create({
+            userId: demo.id,
+            action: "LOGIN",
+            outcome: "SUCCESS",
+            ipAddress: "198.51.100.23",
+            userAgent: "VisitanteReal/9.9",
+        })
+        await prismaTest.refreshToken.create({
+            data: {
+                userId: demo.id,
+                token: "hash-visitante",
+                expiresAt: new Date(Date.now() + 3_600_000),
+                deviceLabel: "Navegador do Visitante",
+                origin: "198.51.xx.xx",
+            },
+        })
+
+        const payload = await exportService.generate(demo.id)
+
+        const serialized = JSON.stringify(payload)
+        expect(serialized).not.toContain("198.51")
+        expect(serialized).not.toContain("VisitanteReal")
+        expect(serialized).not.toContain("Navegador do Visitante")
+        expect(payload.sessions.length).toBeGreaterThan(0)
+        for (const entry of payload.auditLogs) {
+            expect(entry.ipAddress).toBeNull()
+            expect(entry.userAgent).toBeNull()
+        }
     })
 
     it("isola completamente os dados entre usuários diferentes", async () => {
@@ -189,7 +305,256 @@ describe("ExportService.generate", () => {
         expect(payload.areas).toEqual([])
         expect(payload.devices).toEqual([])
         expect(payload.alerts).toEqual([])
+        expect(payload.demandAlerts).toEqual([])
+        expect(payload.aclContracts).toEqual([])
+        expect(payload.reports).toEqual([])
+        expect(payload.reportSchedules).toEqual([])
+        expect(payload.goals).toEqual([])
         expect(payload.auditLogs).toEqual([])
+    })
+
+    it("inclui só os metadados dos relatórios do próprio titular, nunca os arquivos", async () => {
+        const userA = await userService.createUser(validUserA)
+        const userB = await userService.createUser(validUserB)
+        const base = {
+            targetType: "PROPERTY" as const,
+            targetId: "00000000-0000-4000-8000-000000000001",
+            type: "MONTHLY" as const,
+            format: "CSV" as const,
+            origin: "MANUAL" as const,
+            periodStart: new Date("2026-07-01T03:00:00.000Z"),
+            periodEnd: new Date("2026-08-01T03:00:00.000Z"),
+            fileName: "lumitrack-relatorio-monthly-2026-07.csv",
+            content: Buffer.from("segredo-do-arquivo"),
+        }
+        await reportRepository.create({ ...base, userId: userA.id })
+        await reportRepository.create({ ...base, userId: userB.id })
+
+        const payload = await exportService.generate(userA.id)
+
+        expect(payload.reports).toHaveLength(1)
+        expect(payload.reports[0]).toMatchObject({ userId: userA.id, type: "MONTHLY" })
+        expect(JSON.stringify(payload)).not.toContain("segredo-do-arquivo")
+        expect(payload.reports[0]).not.toHaveProperty("content")
+    })
+
+    it("inclui as configurações de envio automático só do titular, com os destinatários e sem o userId", async () => {
+        const userA = await userService.createUser(validUserA)
+        const userB = await userService.createUser(validUserB)
+        const base = {
+            targetType: "PROPERTY" as const,
+            targetId: "00000000-0000-4000-8000-000000000001",
+            type: "CONSUMPTION" as const,
+            format: "PDF" as const,
+            frequency: "MONTHLY" as const,
+            sendDay: 5,
+        }
+        await reportScheduleRepository.create(userA.id, {
+            ...base,
+            recipients: ["financeiro@example.com"],
+            active: true,
+            nextRunAt: null,
+        })
+        await reportScheduleRepository.create(userB.id, {
+            ...base,
+            recipients: ["outro@example.com"],
+            active: true,
+            nextRunAt: null,
+        })
+
+        const payload = await exportService.generate(userA.id)
+
+        expect(payload.reportSchedules).toHaveLength(1)
+        expect(payload.reportSchedules[0]!.recipients).toEqual(["financeiro@example.com"])
+        expect(payload.reportSchedules[0]).not.toHaveProperty("userId")
+        expect(JSON.stringify(payload)).not.toContain("outro@example.com")
+    })
+
+    it("inclui as metas de consumo só do titular, sem o userId", async () => {
+        const userA = await userService.createUser(validUserA)
+        const userB = await userService.createUser(validUserB)
+        const distributor = await createTestDistributor(prismaTest)
+        const propertyA = await propertyService.create(userA.id, {
+            name: "Casa A",
+            distributorId: distributor.id,
+            electricalSystem: "TRIPHASIC",
+        })
+        const propertyB = await propertyService.create(userB.id, {
+            name: "Casa B",
+            distributorId: distributor.id,
+            electricalSystem: "TRIPHASIC",
+        })
+        const base = {
+            unit: "KWH" as const,
+            year: 2026,
+            referenceYear: 2025,
+            monthlyTargets: Array.from({ length: 12 }, () => 300),
+            alertPercent: 85,
+        }
+        await goalRepository.create(userA.id, { ...base, propertyId: propertyA.id })
+        await goalRepository.create(userB.id, { ...base, propertyId: propertyB.id, year: 2027 })
+
+        const payload = await exportService.generate(userA.id)
+
+        expect(payload.goals).toHaveLength(1)
+        expect(payload.goals[0]).toMatchObject({ propertyId: propertyA.id, year: 2026 })
+        expect(payload.goals[0]).not.toHaveProperty("userId")
+    })
+
+    it("exporta só as sessões do titular, com dispositivo e origem mascarados e sem token", async () => {
+        const userA = await userService.createUser(validUserA)
+        const userB = await userService.createUser(validUserB)
+        const expiresAt = new Date(Date.now() + 3_600_000)
+        await prismaTest.refreshToken.create({
+            data: {
+                userId: userA.id,
+                token: "hash-refresh-a",
+                expiresAt,
+                revokedAt: new Date(),
+                deviceLabel: "Chrome · Windows",
+                origin: "189.45.xx.xx",
+            },
+        })
+        await prismaTest.authToken.create({
+            data: {
+                userId: userA.id,
+                token: "hash-auth-a",
+                channel: "MOBILE",
+                expiresAt,
+                deviceLabel: "App móvel",
+                origin: null,
+            },
+        })
+        await prismaTest.authToken.create({
+            data: { userId: userA.id, token: "hash-auth-web-a", channel: "WEB", expiresAt },
+        })
+        await prismaTest.refreshToken.create({
+            data: {
+                userId: userB.id,
+                token: "hash-refresh-b",
+                expiresAt,
+                deviceLabel: "Safari · iOS",
+                origin: "201.17.xx.xx",
+            },
+        })
+
+        const payload = await exportService.generate(userA.id)
+
+        expect(payload.sessions).toHaveLength(2)
+        expect(payload.sessions).toEqual(
+            expect.arrayContaining([
+                expect.objectContaining({
+                    channel: "WEB",
+                    deviceLabel: "Chrome · Windows",
+                    origin: "189.45.xx.xx",
+                }),
+                expect.objectContaining({
+                    channel: "MOBILE",
+                    deviceLabel: "App móvel",
+                    origin: null,
+                }),
+            ]),
+        )
+        const serialized = JSON.stringify(payload.sessions)
+        expect(serialized).not.toContain("hash-")
+        expect(serialized).not.toContain("201.17")
+        expect(serialized).not.toContain(userA.id)
+    })
+
+    describe("sessões com rotação do refresh token", () => {
+        const hour = 3_600_000
+        const at = (hoursAgo: number) => new Date(Date.now() - hoursAgo * hour)
+
+        // Uma sessão web com três refresh tokens (duas rotações). `lastRevoked`
+        // diz se o último foi revogado (sessão encerrada) ou segue vigente.
+        async function createRotatedSession(userId: string, lastRevoked: boolean) {
+            const sessionId = "11111111-1111-4111-8111-111111111111"
+            const base = { userId, sessionId }
+            await prismaTest.refreshToken.create({
+                data: {
+                    ...base,
+                    token: "chain-1",
+                    createdAt: at(3),
+                    expiresAt: new Date(Date.now() + 24 * hour),
+                    revokedAt: at(2),
+                },
+            })
+            await prismaTest.refreshToken.create({
+                data: {
+                    ...base,
+                    token: "chain-2",
+                    createdAt: at(2),
+                    expiresAt: new Date(Date.now() + 24 * hour),
+                    revokedAt: at(1),
+                },
+            })
+            await prismaTest.refreshToken.create({
+                data: {
+                    ...base,
+                    token: "chain-3",
+                    createdAt: at(1),
+                    expiresAt: new Date(Date.now() + 24 * hour),
+                    revokedAt: lastRevoked ? at(0.5) : null,
+                    deviceLabel: "Firefox · macOS",
+                    origin: "201.17.xx.xx",
+                },
+            })
+        }
+
+        it("exporta a sessão uma só vez, do primeiro token ao mais recente", async () => {
+            const user = await userService.createUser(validUserA)
+            await createRotatedSession(user.id, false)
+
+            const payload = await exportService.generate(user.id)
+
+            expect(payload.sessions).toHaveLength(1)
+            expect(payload.sessions[0]).toMatchObject({
+                channel: "WEB",
+                deviceLabel: "Firefox · macOS",
+                origin: "201.17.xx.xx",
+                revokedAt: null,
+            })
+            expect(payload.sessions[0]!.createdAt.getTime()).toBe(
+                (
+                    await prismaTest.refreshToken.findUniqueOrThrow({ where: { token: "chain-1" } })
+                ).createdAt.getTime(),
+            )
+        })
+
+        it("só marca a sessão como encerrada quando o último token foi revogado", async () => {
+            const user = await userService.createUser(validUserA)
+            await createRotatedSession(user.id, true)
+
+            const payload = await exportService.generate(user.id)
+
+            expect(payload.sessions).toHaveLength(1)
+            expect(payload.sessions[0]!.revokedAt).not.toBeNull()
+        })
+
+        it("dois logins são duas sessões, cada uma com os seus tokens", async () => {
+            const user = await userService.createUser(validUserA)
+            await createRotatedSession(user.id, false)
+            await prismaTest.refreshToken.create({
+                data: {
+                    userId: user.id,
+                    token: "other-session",
+                    sessionId: "22222222-2222-4222-8222-222222222222",
+                    expiresAt: new Date(Date.now() + 24 * hour),
+                },
+            })
+
+            const payload = await exportService.generate(user.id)
+
+            expect(payload.sessions).toHaveLength(2)
+        })
+    })
+
+    it("sem sessões guardadas, exporta uma lista vazia", async () => {
+        const user = await userService.createUser(validUserA)
+
+        const payload = await exportService.generate(user.id)
+
+        expect(payload.sessions).toEqual([])
     })
 
     it("lança NotFoundError para userId inexistente", async () => {

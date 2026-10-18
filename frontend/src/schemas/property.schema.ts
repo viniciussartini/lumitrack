@@ -46,19 +46,20 @@ const optionalNonNegativeNumber = z
     .pipe(z.number().min(0, "Não pode ser negativo").optional())
 
 /**
- * Schema do form de Property.
- *
- * Diferenças em relação ao backend:
- *   - distributorId aqui é string com min(1) — a mensagem "Selecione uma
- *     distribuidora" é mais útil pro usuário do que "uuid inválido".
- *     A validação de UUID real é feita pelo backend (quem manipula o select
- *     só consegue escolher ids legítimos das distribuidoras carregadas).
- *   - Campos opcionais aceitam string vazia e convertem pra undefined antes
- *     de validar (vide emptyToUndefined acima).
- *   - `electricalSystem`/`billingClass`/`publicLightingFeeBrl` pertencem à
- *     propriedade, não à distribuidora.
+ * Demanda contratada (kW, Grupo A) — mesma técnica de `optionalNonNegativeNumber`,
+ * mas exige > 0 (uma UC não tem demanda contratada zero).
  */
-export const propertyFormSchema = z.object({
+const optionalPositiveNumber = z
+    .union([z.string(), z.number()])
+    .optional()
+    .transform((val) => {
+        if (val === "" || val === undefined || val === null) return undefined
+        const parsed = Number(val)
+        return Number.isNaN(parsed) ? undefined : parsed
+    })
+    .pipe(z.number().positive("Deve ser maior que zero").optional())
+
+const tariffGroupBaseFields = {
     distributorId: z.string().min(1, { message: "Selecione uma distribuidora" }),
 
     name: z.string().min(1, "Nome é obrigatório").max(200, "Nome muito longo"),
@@ -83,10 +84,317 @@ export const propertyFormSchema = z.object({
         message: "Selecione o sistema elétrico",
     }),
 
-    billingClass: z.enum(["B1", "B2", "B3"]).default("B1"),
+    tariffGroup: z.enum(["GROUP_A", "GROUP_B"]).default("GROUP_B"),
+
+    billingClass: z.enum(["B1", "B2", "B3"]).optional(),
+
+    groupBModality: z.enum(["CONVENTIONAL", "WHITE"]).optional(),
+
+    receivesBillingDiscount: z.boolean().optional(),
+
+    tariffSubgroup: emptyToUndefined.pipe(z.enum(["A1", "A2", "A3", "A3A", "A4", "AS"]).optional()),
+
+    tariffModality: emptyToUndefined.pipe(
+        z.enum(["CONVENTIONAL_BINOMIAL", "GREEN", "BLUE"]).optional(),
+    ),
+
+    contractedDemandKw: optionalPositiveNumber,
+
+    contractedDemandPeakKw: optionalPositiveNumber,
+
+    contractedDemandOffPeakKw: optionalPositiveNumber,
 
     publicLightingFeeBrl: optionalNonNegativeNumber,
-})
+
+    contractingEnvironment: z.enum(["ACR", "ACL"]).default("ACR"),
+
+    aclRetailerName: emptyToUndefined.pipe(
+        z.string().min(1, "Comercializadora é obrigatória").max(200).optional(),
+    ),
+
+    aclSubmarket: emptyToUndefined.pipe(
+        z.enum(["NORTH", "NORTHEAST", "SOUTHEAST_CENTER_WEST", "SOUTH"]).optional(),
+    ),
+
+    aclEnergySource: emptyToUndefined.pipe(
+        z.enum(["CONVENTIONAL", "INCENTIVIZED_50", "INCENTIVIZED_100"]).optional(),
+    ),
+
+    aclEnergyPricePerMwh: optionalPositiveNumber,
+
+    aclContractedVolumeMwh: optionalPositiveNumber,
+}
+
+type TariffGroupFields = z.infer<z.ZodObject<typeof tariffGroupBaseFields>>
+
+/**
+ * Demanda contratada por modalidade (dentro do Grupo A): Azul usa duas
+ * (ponta/fora de ponta), as demais usam uma só — formatos mutuamente
+ * exclusivos, mesma regra cruzada de
+ * `PropertyService.resolveContractedDemandFields` no backend.
+ */
+const validateContractedDemandFields = (data: TariffGroupFields, ctx: z.RefinementCtx): void => {
+    if (data.tariffModality === "BLUE") {
+        if (data.contractedDemandPeakKw === undefined) {
+            ctx.addIssue({
+                code: "custom",
+                path: ["contractedDemandPeakKw"],
+                message: "Demanda contratada na ponta é obrigatória para a modalidade Azul",
+            })
+        }
+        if (data.contractedDemandOffPeakKw === undefined) {
+            ctx.addIssue({
+                code: "custom",
+                path: ["contractedDemandOffPeakKw"],
+                message: "Demanda contratada fora de ponta é obrigatória para a modalidade Azul",
+            })
+        }
+        if (data.contractedDemandKw !== undefined) {
+            ctx.addIssue({
+                code: "custom",
+                path: ["contractedDemandKw"],
+                message: "Demanda contratada única não se aplica à modalidade Azul",
+            })
+        }
+        return
+    }
+
+    if (data.contractedDemandKw === undefined) {
+        ctx.addIssue({
+            code: "custom",
+            path: ["contractedDemandKw"],
+            message: "Demanda contratada é obrigatória para propriedades do Grupo A",
+        })
+    }
+    if (data.contractedDemandPeakKw !== undefined || data.contractedDemandOffPeakKw !== undefined) {
+        ctx.addIssue({
+            code: "custom",
+            path: ["contractedDemandPeakKw"],
+            message:
+                "Demanda contratada por posto (ponta/fora de ponta) só se aplica à modalidade Azul",
+        })
+    }
+}
+
+const validateGroupAFields = (data: TariffGroupFields, ctx: z.RefinementCtx): void => {
+    if (!data.tariffSubgroup) {
+        ctx.addIssue({
+            code: "custom",
+            path: ["tariffSubgroup"],
+            message: "Subgrupo é obrigatório para propriedades do Grupo A",
+        })
+    }
+    if (!data.tariffModality) {
+        ctx.addIssue({
+            code: "custom",
+            path: ["tariffModality"],
+            message: "Modalidade tarifária é obrigatória para propriedades do Grupo A",
+        })
+    }
+    if (data.billingClass) {
+        ctx.addIssue({
+            code: "custom",
+            path: ["billingClass"],
+            message: "Classe de faturamento não se aplica a propriedades do Grupo A",
+        })
+    }
+    if (data.groupBModality) {
+        ctx.addIssue({
+            code: "custom",
+            path: ["groupBModality"],
+            message: "Modalidade do Grupo B não se aplica a propriedades do Grupo A",
+        })
+    }
+    if (data.receivesBillingDiscount !== undefined) {
+        ctx.addIssue({
+            code: "custom",
+            path: ["receivesBillingDiscount"],
+            message: "Desconto de faturamento não se aplica a propriedades do Grupo A",
+        })
+    }
+    validateContractedDemandFields(data, ctx)
+}
+
+/**
+ * Elegibilidade da Tarifa Branca (espelha
+ * `PropertyService.assertWhiteModalityEligible` no backend): vedada a B2 (o
+ * enum não tem B4 — vedação satisfeita pela ausência do valor) e a quem
+ * recebe desconto de faturamento (baixa renda ou outro).
+ */
+const validateWhiteModalityFields = (data: TariffGroupFields, ctx: z.RefinementCtx): void => {
+    if (data.groupBModality !== "WHITE") return
+
+    if (data.billingClass !== "B1" && data.billingClass !== "B3") {
+        ctx.addIssue({
+            code: "custom",
+            path: ["groupBModality"],
+            message: "Tarifa Branca só está disponível para as classes B1 e B3",
+        })
+    }
+    if (data.receivesBillingDiscount) {
+        ctx.addIssue({
+            code: "custom",
+            path: ["groupBModality"],
+            message: "Tarifa Branca não está disponível para quem recebe desconto de faturamento",
+        })
+    }
+}
+
+const validateGroupBFields = (data: TariffGroupFields, ctx: z.RefinementCtx): void => {
+    if (data.tariffSubgroup) {
+        ctx.addIssue({
+            code: "custom",
+            path: ["tariffSubgroup"],
+            message: "Subgrupo só se aplica a propriedades do Grupo A",
+        })
+    }
+    if (data.tariffModality) {
+        ctx.addIssue({
+            code: "custom",
+            path: ["tariffModality"],
+            message: "Modalidade tarifária só se aplica a propriedades do Grupo A",
+        })
+    }
+    if (data.contractedDemandKw !== undefined) {
+        ctx.addIssue({
+            code: "custom",
+            path: ["contractedDemandKw"],
+            message: "Demanda contratada só se aplica a propriedades do Grupo A",
+        })
+    }
+    if (data.contractedDemandPeakKw !== undefined || data.contractedDemandOffPeakKw !== undefined) {
+        ctx.addIssue({
+            code: "custom",
+            path: ["contractedDemandPeakKw"],
+            message: "Demanda contratada por posto só se aplica a propriedades do Grupo A",
+        })
+    }
+    validateWhiteModalityFields(data, ctx)
+}
+
+const ACL_FIELD_KEYS = [
+    "aclRetailerName",
+    "aclSubmarket",
+    "aclEnergySource",
+    "aclEnergyPricePerMwh",
+    "aclContractedVolumeMwh",
+] as const
+
+/**
+ * Regra cruzada do ambiente de contratação (espelha
+ * `PropertyService.assertContractingEnvironmentEligible` +
+ * `AclContractService.assertPropertyAcceptsAclContract` no backend): ACL só
+ * se aplica ao Grupo A, e exige os 5 campos do contrato; fora do ACL, os
+ * mesmos 5 campos não fazem sentido (mesmo padrão de
+ * `validateContractedDemandFields`, que zera o formato anterior ao trocar
+ * de grupo/modalidade).
+ */
+const validateAclFields = (data: TariffGroupFields, ctx: z.RefinementCtx): void => {
+    if (data.contractingEnvironment === "ACL" && data.tariffGroup !== "GROUP_A") {
+        ctx.addIssue({
+            code: "custom",
+            path: ["contractingEnvironment"],
+            message: "Ambiente de contratação livre (ACL) só se aplica a propriedades do Grupo A",
+        })
+        return
+    }
+
+    if (data.contractingEnvironment !== "ACL") {
+        for (const key of ACL_FIELD_KEYS) {
+            if (data[key] !== undefined) {
+                ctx.addIssue({
+                    code: "custom",
+                    path: [key],
+                    message: "Só se aplica ao ambiente de contratação livre (ACL)",
+                })
+            }
+        }
+        return
+    }
+
+    if (!data.aclRetailerName) {
+        ctx.addIssue({
+            code: "custom",
+            path: ["aclRetailerName"],
+            message: "Comercializadora é obrigatória no ACL",
+        })
+    }
+    if (!data.aclSubmarket) {
+        ctx.addIssue({
+            code: "custom",
+            path: ["aclSubmarket"],
+            message: "Submercado é obrigatório no ACL",
+        })
+    }
+    if (!data.aclEnergySource) {
+        ctx.addIssue({
+            code: "custom",
+            path: ["aclEnergySource"],
+            message: "Fonte contratada é obrigatória no ACL",
+        })
+    }
+    if (data.aclEnergyPricePerMwh === undefined) {
+        ctx.addIssue({
+            code: "custom",
+            path: ["aclEnergyPricePerMwh"],
+            message: "Preço da energia é obrigatório no ACL",
+        })
+    }
+    if (data.aclContractedVolumeMwh === undefined) {
+        ctx.addIssue({
+            code: "custom",
+            path: ["aclContractedVolumeMwh"],
+            message: "Volume contratado é obrigatório no ACL",
+        })
+    }
+}
+
+/**
+ * Schema do form de Property.
+ *
+ * Diferenças em relação ao backend:
+ *   - distributorId aqui é string com min(1) — a mensagem "Selecione uma
+ *     distribuidora" é mais útil pro usuário do que "uuid inválido".
+ *     A validação de UUID real é feita pelo backend (quem manipula o select
+ *     só consegue escolher ids legítimos das distribuidoras carregadas).
+ *   - Campos opcionais aceitam string vazia e convertem pra undefined antes
+ *     de validar (vide emptyToUndefined acima).
+ *   - `electricalSystem`/`billingClass`/`publicLightingFeeBrl` pertencem à
+ *     propriedade, não à distribuidora.
+ *
+ * Regra cruzada de grupo tarifário (espelha
+ * `PropertyService.resolveTariffGroupFields` do backend): Grupo A exige
+ * subgrupo + modalidade + demanda contratada e não aceita `billingClass`;
+ * Grupo B exige `billingClass` (default B1) e não aceita os 3 campos do
+ * Grupo A. O schema sozinho (campos individualmente opcionais) não expressa
+ * essa obrigatoriedade condicional — por isso o `.superRefine` abaixo, com
+ * as mesmas mensagens do backend.
+ */
+export const propertyFormSchema = z
+    .object(tariffGroupBaseFields)
+    .superRefine((data, ctx) => {
+        if (data.tariffGroup === "GROUP_A") {
+            validateGroupAFields(data, ctx)
+        } else {
+            validateGroupBFields(data, ctx)
+        }
+        validateAclFields(data, ctx)
+    })
+    .transform((data) => ({
+        ...data,
+        // Default B1 só se aplica ao Grupo B — mesma regra do backend
+        // (resolveTariffGroupFields), aplicada aqui pós-refine pra não
+        // conflitar com a validação "billingClass não se aplica ao Grupo A".
+        billingClass: data.tariffGroup === "GROUP_B" ? (data.billingClass ?? "B1") : undefined,
+        // Mesma regra, agora pra groupBModality/receivesBillingDiscount
+        // (resolveGroupBFields no backend): default CONVENTIONAL/false só
+        // dentro do Grupo B — undefined no Grupo A, pra não reenviar um
+        // valor que o backend rejeita por "não se aplica ao Grupo A".
+        groupBModality:
+            data.tariffGroup === "GROUP_B" ? (data.groupBModality ?? "CONVENTIONAL") : undefined,
+        receivesBillingDiscount:
+            data.tariffGroup === "GROUP_B" ? (data.receivesBillingDiscount ?? false) : undefined,
+    }))
 
 /** Tipo de SAÍDA — o que onSubmit recebe (já transformado) */
 export type PropertyFormData = z.output<typeof propertyFormSchema>

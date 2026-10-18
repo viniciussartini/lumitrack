@@ -40,12 +40,89 @@ export const DETAILS_GRANULARITIES: readonly Granularity[] = ["hour", "day"]
 /** Granularidades disponíveis na página /relatorios — os 4 níveis. */
 export const REPORT_GRANULARITIES: readonly Granularity[] = ["hour", "day", "month", "year"]
 
-/** Um bucket agregado de consumo — item de `GET /api/consumption`. */
+/**
+ * Posto tarifário — janela de ponta configurável por distribuidora.
+ * INTERMEDIATE é exclusivo da Tarifa Branca (Grupo B): a 1h imediatamente
+ * antes/depois da ponta, em dia útil — o Grupo A nunca produz esse valor.
+ */
+export type TariffPost = "PEAK" | "INTERMEDIATE" | "OFF_PEAK"
+
+export const TARIFF_POST_LABELS: Record<TariffPost, string> = {
+    PEAK: "Ponta",
+    INTERMEDIATE: "Intermediário",
+    OFF_PEAK: "Fora de ponta",
+}
+
+/** Janela de energia reativa excedente — indutiva (ponta) ou capacitiva (fora de ponta). */
+export type ReactiveWindow = "INDUCTIVE" | "CAPACITIVE"
+
+/**
+ * Parcela de demanda de um posto horário — um item para Verde (post null),
+ * dois para Azul (PEAK e OFF_PEAK).
+ */
+export interface GroupADemandPost {
+    post: TariffPost | null
+    contractedDemandKw: number
+    measuredDemandKw: number
+    demandBrl: number
+    ultrapassagemBrl: number
+}
+
+/** Excedente de energia reativa (R$) apurado numa janela indutiva/capacitiva. */
+export interface GroupAReactiveWindowBreakdown {
+    window: ReactiveWindow
+    excessKvarh: number
+    ereBrl: number
+}
+
+/**
+ * Decomposição da conta binômia do Grupo A — presente só no bucket
+ * mensal de uma Propriedade do Grupo A; ausente para Grupo B e para
+ * qualquer outro alvo/granularidade.
+ */
+export interface GroupABreakdown {
+    contractedDemandKw: number
+    demandByPost: GroupADemandPost[]
+    demandBrl: number
+    ultrapassagemBrl: number
+    energyByPost: { post: TariffPost; kwhConsumed: number; brl: number }[]
+    ereByWindow: GroupAReactiveWindowBreakdown[]
+    ereBrl: number
+    flagBrl: number
+    taxesBrl: number
+    publicLightingFeeBrl: number
+}
+
+/**
+ * Decomposição da conta da Tarifa Branca (Grupo B) — presente só no bucket
+ * mensal de uma Propriedade com `groupBModality` WHITE; ausente para
+ * Convencional e para qualquer outro alvo/granularidade. `energyByPost`
+ * vazio quando `belowAvailabilityFloor` é `true` — abaixo do piso, a conta
+ * inteira usa a tarifa Convencional (REN 1.098/2024), sem decomposição por
+ * posto (ver `TariffService.calculateForGroupBWhite` no backend).
+ */
+export interface GroupBWhiteBreakdown {
+    belowAvailabilityFloor: boolean
+    energyByPost: { post: TariffPost; kwhConsumed: number; brl: number }[]
+    energyBrl: number
+    flagBrl: number
+    taxesBrl: number
+    publicLightingFeeBrl: number
+}
+
+/**
+ * Um bucket agregado de consumo — item de `GET /api/consumption`. O consumo
+ * sempre vem; `costBrl` só quando o custo é calculável para o alvo, a tarifa e
+ * a granularidade (Grupo A e Tarifa Branca só têm custo no mês da Propriedade),
+ * e ausência é "-", nunca zero.
+ */
 export interface ConsumptionBucket {
     bucketStart: string
     kwhConsumed: number
-    costBrl: number
+    costBrl?: number
     avgPowerW: number
+    groupA?: GroupABreakdown
+    groupBWhite?: GroupBWhiteBreakdown
 }
 
 /** Query params de `GET /api/consumption`. */

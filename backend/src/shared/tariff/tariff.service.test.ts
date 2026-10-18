@@ -150,4 +150,469 @@ describe("TariffService", () => {
             expect(result.totalBrl).toBeCloseTo(expectedTotal, 6)
         })
     })
+
+    describe("calculateForGroupA", () => {
+        // Exemplo 6 do documento de referência — metalúrgica A4 Verde em
+        // Joinville/SC (Celesc): 200 kW contratados, consumo 800 kWh Ponta +
+        // 28.000 kWh Fora de Ponta, ICMS SC 17%, bandeira amarela, CIP
+        // R$ 250,00. O documento publica R$ 22.464,75, mas refazendo a
+        // divisão "por dentro" com precisão total (16.382,88 / 0,7375) o
+        // valor correto é R$ 22.464,07 — a diferença de R$ 0,68 é um
+        // arredondamento manual do próprio documento, não um erro desta
+        // fórmula (subtotal antes dos tributos bate exatamente: demanda
+        // R$ 3.600,00 + energia R$ 12.240,00 + bandeira R$ 542,88 =
+        // R$ 16.382,88, igual ao documento). Oráculo ajustado ao valor
+        // matematicamente correto.
+        it("reproduz o Exemplo 6 do documento de referência (A4 Verde)", () => {
+            const result = service.calculateForGroupA({
+                demandPosts: [
+                    { post: null, contractedDemandKw: 200, measuredDemandKw: 195, tusdPerKw: 18.0 },
+                ],
+                energyByPost: [
+                    { post: "PEAK", kwhConsumed: 800, tusdPerKwh: 0.75, tePerKwh: 0.55 },
+                    { post: "OFF_PEAK", kwhConsumed: 28_000, tusdPerKwh: 0.12, tePerKwh: 0.28 },
+                ],
+                reactiveWindows: [],
+                icmsRate: 0.17,
+                pisRate: 0.0165,
+                cofinsRate: 0.076,
+                flagPer100Kwh: 1.885,
+                publicLightingFeeBrl: 250,
+            })
+
+            expect(result.demandBrl).toBeCloseTo(3600, 2)
+            expect(result.energyBrl).toBeCloseTo(12_240, 2)
+            expect(result.flagBrl).toBeCloseTo(542.88, 2)
+            expect(result.publicLightingFeeBrl).toBe(250)
+            expect(result.totalBrl).toBeCloseTo(22_464.07, 2)
+        })
+
+        it("bandeira incide só sobre o consumo total, nunca sobre a demanda", () => {
+            const withZeroConsumption = service.calculateForGroupA({
+                demandPosts: [
+                    { post: null, contractedDemandKw: 100, measuredDemandKw: 90, tusdPerKw: 18.0 },
+                ],
+                energyByPost: [
+                    { post: "OFF_PEAK", kwhConsumed: 0, tusdPerKwh: 0.12, tePerKwh: 0.28 },
+                ],
+                reactiveWindows: [],
+                icmsRate: 0.18,
+                pisRate: 0.0165,
+                cofinsRate: 0.076,
+                flagPer100Kwh: 1.885,
+                publicLightingFeeBrl: null,
+            })
+
+            expect(withZeroConsumption.flagBrl).toBe(0)
+            expect(withZeroConsumption.demandBrl).toBeCloseTo(1800, 2) // demanda cobrada mesmo sem consumo
+        })
+
+        it("CIP nulo vira zero, sem quebrar o total", () => {
+            const result = service.calculateForGroupA({
+                demandPosts: [
+                    { post: null, contractedDemandKw: 50, measuredDemandKw: 40, tusdPerKw: 18.0 },
+                ],
+                energyByPost: [
+                    { post: "OFF_PEAK", kwhConsumed: 1000, tusdPerKwh: 0.4, tePerKwh: 0 },
+                ],
+                reactiveWindows: [],
+                icmsRate: 0.18,
+                pisRate: 0.0165,
+                cofinsRate: 0.076,
+                flagPer100Kwh: 0,
+                publicLightingFeeBrl: null,
+            })
+
+            expect(result.publicLightingFeeBrl).toBe(0)
+        })
+    })
+
+    describe("calculateForGroupA — ultrapassagem de demanda", () => {
+        const baseInput = {
+            energyByPost: [
+                { post: "OFF_PEAK" as const, kwhConsumed: 0, tusdPerKwh: 0, tePerKwh: 0 },
+            ],
+            reactiveWindows: [],
+            icmsRate: 0.18,
+            pisRate: 0.0165,
+            cofinsRate: 0.076,
+            flagPer100Kwh: 0,
+            publicLightingFeeBrl: null,
+        }
+
+        it("não cobra ultrapassagem quando a demanda medida fica dentro da tolerância de 5%", () => {
+            const result = service.calculateForGroupA({
+                ...baseInput,
+                demandPosts: [
+                    // 5% de 200 = 210 — exatamente no limite, não deve ultrapassar.
+                    { post: null, contractedDemandKw: 200, measuredDemandKw: 210, tusdPerKw: 18.0 },
+                ],
+            })
+
+            expect(result.ultrapassagemBrl).toBe(0)
+            expect(result.demandByPost[0]?.ultrapassagemBrl).toBe(0)
+        })
+
+        it("cobra ultrapassagem ao triplo da tarifa assim que passa de 5% acima da contratada", () => {
+            const result = service.calculateForGroupA({
+                ...baseInput,
+                demandPosts: [
+                    // 5% de 200 = 210 — 211 já ultrapassa.
+                    { post: null, contractedDemandKw: 200, measuredDemandKw: 211, tusdPerKw: 18.0 },
+                ],
+            })
+
+            // (211 - 200) × 3 × 18 = 594
+            expect(result.ultrapassagemBrl).toBeCloseTo(594, 2)
+            expect(result.demandByPost[0]?.ultrapassagemBrl).toBeCloseTo(594, 2)
+        })
+
+        it("reproduz o exemplo do documento de referência (metalúrgica A4 Verde, 230 kW medidos)", () => {
+            const result = service.calculateForGroupA({
+                ...baseInput,
+                demandPosts: [
+                    { post: null, contractedDemandKw: 200, measuredDemandKw: 230, tusdPerKw: 18.0 },
+                ],
+            })
+
+            // Ultrapassagem = (230 − 200) × 3 × 18,00 = R$ 1.620,00, antes dos tributos.
+            expect(result.ultrapassagemBrl).toBeCloseTo(1620, 2)
+        })
+
+        it("soma a ultrapassagem de cada posto quando mais de um ultrapassa simultaneamente (Azul)", () => {
+            const result = service.calculateForGroupA({
+                ...baseInput,
+                demandPosts: [
+                    // (160 − 150) × 3 × 45 = 1.350
+                    {
+                        post: "PEAK",
+                        contractedDemandKw: 150,
+                        measuredDemandKw: 160,
+                        tusdPerKw: 45.0,
+                    },
+                    // (430 − 400) × 3 × 15 = 1.350
+                    {
+                        post: "OFF_PEAK",
+                        contractedDemandKw: 400,
+                        measuredDemandKw: 430,
+                        tusdPerKw: 15.0,
+                    },
+                ],
+            })
+
+            expect(result.demandByPost).toHaveLength(2)
+            expect(result.demandByPost[0]?.ultrapassagemBrl).toBeCloseTo(1350, 2)
+            expect(result.demandByPost[1]?.ultrapassagemBrl).toBeCloseTo(1350, 2)
+            expect(result.ultrapassagemBrl).toBeCloseTo(2700, 2)
+        })
+
+        it("entra em baseSemTributos antes dos tributos — não é somada depois", () => {
+            const withoutOverage = service.calculateForGroupA({
+                ...baseInput,
+                demandPosts: [
+                    { post: null, contractedDemandKw: 200, measuredDemandKw: 200, tusdPerKw: 18.0 },
+                ],
+            })
+            const withOverage = service.calculateForGroupA({
+                ...baseInput,
+                demandPosts: [
+                    { post: null, contractedDemandKw: 200, measuredDemandKw: 230, tusdPerKw: 18.0 },
+                ],
+            })
+
+            // Diferença no total deve refletir a ultrapassagem já "por dentro"
+            // dos tributos (dividida por 1 − alíquotas), não somada crua.
+            const taxRateSum = 0.18 + 0.0165 + 0.076
+            const expectedDelta = 1620 / (1 - taxRateSum)
+            expect(withOverage.totalBrl - withoutOverage.totalBrl).toBeCloseTo(expectedDelta, 2)
+        })
+    })
+
+    describe("calculateForGroupA — energia reativa excedente", () => {
+        const baseInput = {
+            demandPosts: [] as never[],
+            energyByPost: [
+                { post: "OFF_PEAK" as const, kwhConsumed: 0, tusdPerKwh: 0, tePerKwh: 0 },
+            ],
+            icmsRate: 0.18,
+            pisRate: 0.0165,
+            cofinsRate: 0.076,
+            flagPer100Kwh: 0,
+            publicLightingFeeBrl: null,
+        }
+
+        // Razão reativa/ativa de referência (FP = 0,92): tan(acos(0,92)).
+        // Recalculada aqui de forma independente da constante interna do
+        // serviço, para o teste não ficar acoplado a um detalhe de implementação.
+        const REFERENCE_RATIO = Math.tan(Math.acos(0.92))
+
+        it("não cobra ERE quando a energia reativa está exatamente na razão de referência (FP = 0,92)", () => {
+            const activeKwh = 1000
+            const result = service.calculateForGroupA({
+                ...baseInput,
+                reactiveWindows: [
+                    {
+                        window: "INDUCTIVE",
+                        activeKwh,
+                        reactiveKvarh: activeKwh * REFERENCE_RATIO,
+                        tusdPerKvarh: 0.3,
+                    },
+                ],
+            })
+
+            expect(result.ereBrl).toBe(0)
+            expect(result.ereByWindow[0]?.excessKvarh).toBe(0)
+        })
+
+        it("cobra ERE proporcional ao excedente quando o fator de potência fica abaixo de 0,92", () => {
+            // FP ≈ 0,894 (tan(acos(FP)) = 0,5) — bem abaixo do mínimo de 0,92.
+            const activeKwh = 1000
+            const reactiveKvarh = activeKwh * 0.5
+            const result = service.calculateForGroupA({
+                ...baseInput,
+                reactiveWindows: [
+                    { window: "INDUCTIVE", activeKwh, reactiveKvarh, tusdPerKvarh: 0.3 },
+                ],
+            })
+
+            const expectedExcessKvarh = activeKwh * (0.5 - REFERENCE_RATIO)
+            expect(result.ereByWindow[0]?.excessKvarh).toBeCloseTo(expectedExcessKvarh, 6)
+            expect(result.ereBrl).toBeCloseTo(expectedExcessKvarh * 0.3, 6)
+        })
+
+        it("ignora a janela capacitiva mesmo com fator de potência abaixo do de referência — falha fechado por falta do sinal do reativo", () => {
+            // `avgPowerFactor` guarda só a magnitude do fator de potência, sem a
+            // direção (indutivo × capacitivo) que distingue as duas janelas — sem
+            // esse sinal, cobrar excedente capacitivo arriscaria confundi-lo com
+            // indutivo. A janela indutiva soma normalmente.
+            const result = service.calculateForGroupA({
+                ...baseInput,
+                reactiveWindows: [
+                    {
+                        window: "INDUCTIVE",
+                        activeKwh: 1000,
+                        reactiveKvarh: 1000 * 0.5,
+                        tusdPerKvarh: 0.3,
+                    },
+                    {
+                        window: "CAPACITIVE",
+                        activeKwh: 100,
+                        reactiveKvarh: 100 * 0.5,
+                        tusdPerKvarh: 0.3,
+                    },
+                ],
+            })
+
+            expect(result.ereByWindow).toHaveLength(2)
+            const capacitive = result.ereByWindow.find((w) => w.window === "CAPACITIVE")
+            expect(capacitive).toEqual({ window: "CAPACITIVE", excessKvarh: 0, ereBrl: 0 })
+
+            const inductiveExpected = 1000 * (0.5 - REFERENCE_RATIO) * 0.3
+            expect(result.ereBrl).toBeCloseTo(inductiveExpected, 6)
+        })
+
+        it("aproxima o exemplo do documento de referência (frigorífico A4 Azul, FP 0,91)", () => {
+            // Exemplo 7: FP médio 0,91 sobre o consumo total do mês (96.500 kWh),
+            // ERE aproximado no próprio documento como "~2% do consumo" ≈ R$ 772,00
+            // — o documento não fecha a fórmula exata nem separa TUSD/TE da
+            // tarifa fora de ponta usada aqui (R$ 0,57/kWh ÷ 2). A fórmula desta
+            // função usa a razão reativa/ativa exata (tan(acos(FP))), então o
+            // resultado só se aproxima do valor do documento, não bate exato.
+            const activeKwh = 96_500
+            const measuredRatio = Math.tan(Math.acos(0.91))
+            const reactiveKvarh = activeKwh * measuredRatio
+
+            const result = service.calculateForGroupA({
+                ...baseInput,
+                reactiveWindows: [
+                    { window: "INDUCTIVE", activeKwh, reactiveKvarh, tusdPerKvarh: 0.285 },
+                ],
+            })
+
+            expect(Math.abs(result.ereBrl - 772)).toBeLessThan(100)
+        })
+
+        it("entra em baseSemTributos antes dos tributos — não é somada depois", () => {
+            const withoutEre = service.calculateForGroupA({
+                ...baseInput,
+                reactiveWindows: [],
+            })
+            const withEre = service.calculateForGroupA({
+                ...baseInput,
+                reactiveWindows: [
+                    {
+                        window: "INDUCTIVE",
+                        activeKwh: 1000,
+                        reactiveKvarh: 1000 * 0.5,
+                        tusdPerKvarh: 0.3,
+                    },
+                ],
+            })
+
+            const ereBrl = 1000 * (0.5 - REFERENCE_RATIO) * 0.3
+            const taxRateSum = 0.18 + 0.0165 + 0.076
+            const expectedDelta = ereBrl / (1 - taxRateSum)
+            expect(withEre.totalBrl - withoutEre.totalBrl).toBeCloseTo(expectedDelta, 6)
+        })
+    })
+
+    describe("calculateForGroupBWhite", () => {
+        // Exemplo 3 do documento de referência — João, casa trifásica em Belo
+        // Horizonte (Cemig): 450 kWh (30 Ponta + 50 Intermediário + 370 Fora
+        // de Ponta), tarifas Ponta R$ 1,20/kWh, Intermediário R$ 0,75/kWh,
+        // Fora de Ponta R$ 0,45/kWh (TUSD+TE combinado, dividido meio a meio
+        // — mesma aproximação do seed), ICMS MG 18%, bandeira amarela,
+        // CIP R$ 18,00. O documento publica R$ 359,55, mas refazendo a
+        // divisão "por dentro" com precisão total (248,4825 / 0,7275) o
+        // valor correto é R$ 359,5567 — a diferença de menos de um centavo é
+        // o mesmo tipo de arredondamento manual do documento já registrado
+        // no Exemplo 6 (subtotal antes dos tributos bate exatamente: energia
+        // R$ 240,00 + bandeira R$ 8,4825 = R$ 248,4825, igual ao documento
+        // arredondado para R$ 248,48). Oráculo ajustado ao valor
+        // matematicamente correto.
+        it("reproduz o Exemplo 3 do documento de referência (B1 trifásico, acima do piso)", () => {
+            const result = service.calculateForGroupBWhite({
+                energyByPost: [
+                    { post: "PEAK", kwhConsumed: 30, tusdPerKwh: 0.6, tePerKwh: 0.6 },
+                    { post: "INTERMEDIATE", kwhConsumed: 50, tusdPerKwh: 0.375, tePerKwh: 0.375 },
+                    { post: "OFF_PEAK", kwhConsumed: 370, tusdPerKwh: 0.225, tePerKwh: 0.225 },
+                ],
+                electricalSystem: "TRIPHASIC",
+                conventionalTusdPerKwh: 0.3,
+                conventionalTePerKwh: 0.3,
+                ...BASE_RATES,
+                flagPer100Kwh: 1.885,
+                publicLightingFeeBrl: 18,
+            })
+
+            expect(result.belowAvailabilityFloor).toBe(false)
+            expect(result.energyBrl).toBeCloseTo(240, 2)
+            expect(result.flagBrl).toBeCloseTo(8.4825, 4)
+            expect(result.publicLightingFeeBrl).toBe(18)
+            expect(result.totalBrl).toBeCloseTo(359.5567, 2)
+        })
+
+        it("decompõe o consumo por posto na resposta", () => {
+            const result = service.calculateForGroupBWhite({
+                energyByPost: [
+                    { post: "PEAK", kwhConsumed: 30, tusdPerKwh: 0.6, tePerKwh: 0.6 },
+                    { post: "INTERMEDIATE", kwhConsumed: 50, tusdPerKwh: 0.375, tePerKwh: 0.375 },
+                    { post: "OFF_PEAK", kwhConsumed: 370, tusdPerKwh: 0.225, tePerKwh: 0.225 },
+                ],
+                electricalSystem: "TRIPHASIC",
+                conventionalTusdPerKwh: 0.3,
+                conventionalTePerKwh: 0.3,
+                ...BASE_RATES,
+                flagPer100Kwh: 0,
+                publicLightingFeeBrl: null,
+            })
+
+            expect(result.energyByPost).toEqual([
+                { post: "PEAK", kwhConsumed: 30, brl: 36 },
+                { post: "INTERMEDIATE", kwhConsumed: 50, brl: 37.5 },
+                { post: "OFF_PEAK", kwhConsumed: 370, brl: 166.5 },
+            ])
+        })
+
+        // O próprio documento de referência dá o contraexemplo: com o mesmo
+        // total de 450 kWh mas mais deslocado para a ponta, a Branca fica
+        // mais cara que a Convencional — não é o cenário testado aqui, mas
+        // confirma que a fórmula por posto (sem piso) está certa mesmo em
+        // um perfil desfavorável.
+        it("com consumo concentrado na ponta, o total é maior que com o mesmo consumo fora de ponta", () => {
+            const concentratedOnPeak = service.calculateForGroupBWhite({
+                energyByPost: [{ post: "PEAK", kwhConsumed: 100, tusdPerKwh: 0.6, tePerKwh: 0.6 }],
+                electricalSystem: "TRIPHASIC",
+                conventionalTusdPerKwh: 0.3,
+                conventionalTePerKwh: 0.3,
+                ...BASE_RATES,
+                flagPer100Kwh: 0,
+                publicLightingFeeBrl: null,
+            })
+            const concentratedOffPeak = service.calculateForGroupBWhite({
+                energyByPost: [
+                    { post: "OFF_PEAK", kwhConsumed: 100, tusdPerKwh: 0.225, tePerKwh: 0.225 },
+                ],
+                electricalSystem: "TRIPHASIC",
+                conventionalTusdPerKwh: 0.3,
+                conventionalTePerKwh: 0.3,
+                ...BASE_RATES,
+                flagPer100Kwh: 0,
+                publicLightingFeeBrl: null,
+            })
+
+            expect(concentratedOnPeak.totalBrl).toBeGreaterThan(concentratedOffPeak.totalBrl)
+        })
+
+        // REN 1.098/2024 — a particularidade que a fase existe para não
+        // errar: abaixo do piso de disponibilidade, a Branca some da conta
+        // e o piso inteiro (não o consumo real) é cobrado pela tarifa
+        // Convencional, mesmo com a modalidade ativa sendo a Branca.
+        it("abaixo do piso de disponibilidade, cobra o piso pela tarifa Convencional, não pela Branca", () => {
+            const result = service.calculateForGroupBWhite({
+                energyByPost: [
+                    { post: "OFF_PEAK", kwhConsumed: 80, tusdPerKwh: 0.225, tePerKwh: 0.225 },
+                ],
+                electricalSystem: "TRIPHASIC", // piso 100 kWh
+                conventionalTusdPerKwh: 0.3,
+                conventionalTePerKwh: 0.3,
+                ...BASE_RATES,
+                flagPer100Kwh: 0,
+                publicLightingFeeBrl: null,
+            })
+
+            expect(result.belowAvailabilityFloor).toBe(true)
+            expect(result.kwhBilled).toBe(100) // o piso, não os 80 kWh consumidos
+            expect(result.energyByPost).toEqual([])
+            expect(result.energyBrl).toBeCloseTo(100 * (0.3 + 0.3), 2) // tarifa Convencional, não a Branca
+        })
+
+        it("com consumo igual ao piso, usa a tarifa por posto normalmente (fronteira não é abaixo do piso)", () => {
+            const result = service.calculateForGroupBWhite({
+                energyByPost: [
+                    { post: "OFF_PEAK", kwhConsumed: 100, tusdPerKwh: 0.225, tePerKwh: 0.225 },
+                ],
+                electricalSystem: "TRIPHASIC",
+                conventionalTusdPerKwh: 0.3,
+                conventionalTePerKwh: 0.3,
+                ...BASE_RATES,
+                flagPer100Kwh: 0,
+                publicLightingFeeBrl: null,
+            })
+
+            expect(result.belowAvailabilityFloor).toBe(false)
+            expect(result.energyBrl).toBeCloseTo(100 * (0.225 + 0.225), 2)
+        })
+
+        it("sem nenhuma leitura no mês, cobra o piso inteiro pela Convencional", () => {
+            const result = service.calculateForGroupBWhite({
+                energyByPost: [],
+                electricalSystem: "MONOPHASIC", // piso 30 kWh
+                conventionalTusdPerKwh: 0.3,
+                conventionalTePerKwh: 0.3,
+                ...BASE_RATES,
+                flagPer100Kwh: 0,
+                publicLightingFeeBrl: null,
+            })
+
+            expect(result.belowAvailabilityFloor).toBe(true)
+            expect(result.kwhBilled).toBe(30)
+        })
+
+        it("CIP nulo vira zero, sem quebrar o total", () => {
+            const result = service.calculateForGroupBWhite({
+                energyByPost: [
+                    { post: "OFF_PEAK", kwhConsumed: 200, tusdPerKwh: 0.225, tePerKwh: 0.225 },
+                ],
+                electricalSystem: "TRIPHASIC",
+                conventionalTusdPerKwh: 0.3,
+                conventionalTePerKwh: 0.3,
+                ...BASE_RATES,
+                flagPer100Kwh: 0,
+                publicLightingFeeBrl: null,
+            })
+
+            expect(result.publicLightingFeeBrl).toBe(0)
+        })
+    })
 })

@@ -1,56 +1,58 @@
 import { useState } from "react"
-import { Link, useNavigate, useParams } from "react-router"
-import { AlertCircle, ArrowLeft, Home, LayoutGrid, MapPin, Pencil, Plus } from "lucide-react"
+import { Link, useParams } from "react-router"
+import { AlertCircle, Home, MapPin, Pencil, Scale } from "lucide-react"
 import { useProperty } from "@/hooks/queries/useProperties"
 import { useDistributor, useDistributors } from "@/hooks/queries/useDistributors"
-import { useAreas } from "@/hooks/queries/useAreas"
 import { useMeterByTarget } from "@/hooks/queries/useMeters"
 import { useLiveMeterReading } from "@/hooks/useLiveMeterReading"
-import { useConsumptionSummary } from "@/hooks/queries/useConsumption"
 import { Button } from "@/components/ui/Button"
-import { EmptyState } from "@/components/ui/EmptyState"
 import { Tag } from "@/components/ui/Tag"
-import { PropertyMenu } from "@/components/property/PropertyMenu"
 import { PropertyFormDialog } from "@/components/property/PropertyFormDialog"
-import { AreaFormDialog } from "@/components/area/AreaFormDialog"
-import { AreaCard } from "@/components/area/AreaCard"
+import { AreaComparison } from "@/components/property/AreaComparison"
 import { PropertyConsumptionSection } from "@/components/consumption/ConsumptionSection"
-import { ComparisonBars } from "@/components/consumption/ComparisonBars"
 import { MeterSection } from "@/components/meter/MeterSection"
 import { IconCircle } from "@/components/ui/IconCircle"
 import { LiveKpiCard } from "@/components/dashboard/LiveKpiCard"
 import { RealtimeChartCard } from "@/components/realtime/RealtimeChartCard"
+import { AnalysisSectionTabs } from "@/components/analysis/AnalysisSectionTabs"
+import { ElectricalQuantitiesTabPanel } from "@/components/electrical/ElectricalQuantitiesTabPanel"
+import {
+    ANALYSIS_SECTION_PANEL_IDS,
+    ANALYSIS_SECTION_TAB_IDS,
+    type AnalysisSection,
+} from "@/lib/analysisSection"
 import { formatPowerKw, formatKwhPrice, formatBrl } from "@/lib/format"
+import { formatKw as formatContractedDemandKw } from "@/lib/formatters/consumption"
 import {
     BILLING_CLASS_LABELS,
     ELECTRICAL_SYSTEM_LABELS,
+    TARIFF_MODALITY_LABELS,
+    TARIFF_SUBGROUP_LABELS,
     type Property,
 } from "@/types/property.types"
 import type { Distributor } from "@/types/distributor.types"
-import type { ConsumptionSummaryItem } from "@/types/consumption.types"
+import type { Meter } from "@/types/meter.types"
 
 /**
- * Página de detalhes de uma propriedade — LumiTrack Home.dc.html,
- * `propDetailView`.
+ * Detalhe da propriedade na Análise — LumiTrack Home v2.dc.html,
+ * `propDetailView`. Vive à direita da árvore de seleção (`AnalysisLayout`).
  *
  * Estrutura:
- *   1. Breadcrumb / voltar
- *   2. Header em blueprint: nome + endereço + tags (distribuidora/UF/TUSD/TE,
- *      sistema/faturamento/CIP) + ações (Editar / ⋯)
- *   3. KPI "Potência agora" (só quando há medidor com leitura real — sem
- *      inventar dado; ver 07-decisoes-em-aberto / ADR sobre os KPIs
- *      omitidos: Consumo hoje, Custo projetado, Bandeira)
- *   4. Seção de Medidor
- *   5. Seção de Consumo (histórico real — ocupa o lugar do gráfico "ao vivo"
- *      bespoke do protótipo, que foi omitido por não ter dado/lógica real)
- *   6. Seção de Áreas (grid + comparação de áreas por consumo do mês)
+ *   1. Card de dados (nome, endereço, distribuidora, faturamento) com
+ *      "Editar" e, ao lado, o card do Medidor
+ *   2. KPI "Potência agora" (só com medidor)
+ *   3. Consumo em tempo real
+ *   4. Comparação de áreas
+ *   5. Histórico de consumo (mês/ano, fatura Grupo A e Tarifa Branca)
  *
- * Carrega as queries em paralelo — `enabled`/`targetId` opcional em cada
+ * Criar e excluir a propriedade vivem em Configurações → Cadastro; aqui só
+ * se edita. O histórico (5) não está no protótipo e fica abaixo dos blocos
+ * dele. As queries rodam em paralelo — `enabled`/`targetId` opcional em cada
  * hook evita disparos fadados ao erro antes do id resolver.
  */
 export const PropertyDetailsPage = () => {
     const { id } = useParams<{ id: string }>()
-    const navigate = useNavigate()
+    const [section, setSection] = useState<AnalysisSection>("consumo")
 
     const propertyQuery = useProperty(id)
     const distributorQuery = useDistributor(propertyQuery.data?.distributorId)
@@ -66,28 +68,18 @@ export const PropertyDetailsPage = () => {
 
     // Loading só do primeiro nível (property). Distributor carregando depois
     // não bloqueia a página inteira — mostramos um placeholder local.
-    if (propertyQuery.isLoading) {
-        return (
-            <div className="flex flex-col gap-6">
-                <BackLink />
-                <DetailsSkeleton />
-            </div>
-        )
-    }
+    if (propertyQuery.isLoading) return <DetailsSkeleton />
 
     // Erro ao carregar a propriedade é fatal — sem ela não tem o que mostrar.
     if (propertyQuery.isError || !propertyQuery.data) {
         return (
-            <div className="flex flex-col gap-6">
-                <BackLink />
-                <ErrorState
-                    message={
-                        propertyQuery.error instanceof Error
-                            ? propertyQuery.error.message
-                            : "Propriedade não encontrada"
-                    }
-                />
-            </div>
+            <ErrorState
+                message={
+                    propertyQuery.error instanceof Error
+                        ? propertyQuery.error.message
+                        : "Propriedade não encontrada"
+                }
+            />
         )
     }
 
@@ -96,55 +88,112 @@ export const PropertyDetailsPage = () => {
     const meter = meterQuery.data
 
     return (
-        <div className="flex flex-col gap-6">
-            <BackLink />
+        <div className="flex flex-col gap-5">
+            <AnalysisSectionTabs value={section} onChange={setSection} />
 
-            <PropertyHeaderCard
-                property={property}
-                distributor={distributor}
-                isDistributorLoading={distributorQuery.isLoading}
-                distributors={distributorsQuery.data?.items ?? []}
-                onAfterDelete={() => void navigate("/propriedades", { replace: true })}
-            />
-
-            {meter && (
-                <LiveKpiCard
-                    label="Potência agora"
-                    value={
-                        lastKnownPowerW !== undefined ? (
-                            formatPowerKw(lastKnownPowerW)
-                        ) : (
-                            <span className="text-muted">—</span>
-                        )
-                    }
-                    isLive
-                    className="w-fit min-w-[220px]"
+            {section === "consumo" && (
+                <PropertyConsumptionTabPanel
+                    property={property}
+                    distributor={distributor}
+                    isDistributorLoading={distributorQuery.isLoading}
+                    distributors={distributorsQuery.data?.items ?? []}
+                    meter={meter}
+                    lastKnownPowerW={lastKnownPowerW}
                 />
             )}
 
-            {meter && (
-                <RealtimeChartCard
+            {section === "grandezas" && (
+                <ElectricalQuantitiesTabPanel
                     targetType="PROPERTY"
                     targetId={property.id}
-                    meterId={meter.id}
-                    title="Consumo em tempo real"
-                    subtitle={property.name}
+                    targetName={property.name}
+                    meterId={meter?.id}
+                    isMeterLoading={meterQuery.isLoading}
+                    isMeterError={meterQuery.isError}
                 />
             )}
-
-            <MeterSection targetType="PROPERTY" targetId={property.id} />
-            <PropertyConsumptionSection propertyId={property.id} />
-            <AreasSection propertyId={property.id} />
         </div>
     )
 }
+
+interface PropertyConsumptionTabPanelProps {
+    property: Property
+    distributor: Distributor | undefined
+    isDistributorLoading: boolean
+    distributors: Distributor[]
+    meter: Meter | null | undefined
+    lastKnownPowerW: number | undefined
+}
+
+/**
+ * Conteúdo da aba "Consumo e Custos" — extraído do corpo principal só para
+ * manter a complexidade da página dentro do teto do lint; nenhuma mudança
+ * de comportamento em relação ao que já existia antes das abas de seção.
+ */
+const PropertyConsumptionTabPanel = ({
+    property,
+    distributor,
+    isDistributorLoading,
+    distributors,
+    meter,
+    lastKnownPowerW,
+}: PropertyConsumptionTabPanelProps) => (
+    <div
+        role="tabpanel"
+        id={ANALYSIS_SECTION_PANEL_IDS.consumo}
+        aria-labelledby={ANALYSIS_SECTION_TAB_IDS.consumo}
+        className="flex flex-col gap-5"
+    >
+        <div className="grid grid-cols-1 items-start gap-[clamp(14px,1.6vw,20px)] xl:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)]">
+            <PropertyHeaderCard
+                property={property}
+                distributor={distributor}
+                isDistributorLoading={isDistributorLoading}
+                distributors={distributors}
+            />
+            <MeterSection targetType="PROPERTY" targetId={property.id} />
+        </div>
+
+        {meter && (
+            <LiveKpiCard
+                label="Potência agora"
+                value={
+                    lastKnownPowerW !== undefined ? (
+                        formatPowerKw(lastKnownPowerW)
+                    ) : (
+                        <span className="text-muted">—</span>
+                    )
+                }
+                isLive
+                className="w-fit min-w-[220px]"
+            />
+        )}
+
+        {meter && (
+            <RealtimeChartCard
+                targetType="PROPERTY"
+                targetId={property.id}
+                meterId={meter.id}
+                title="Consumo em tempo real"
+                subtitle={property.name}
+            />
+        )}
+
+        <AreaComparison propertyId={property.id} />
+
+        <PropertyConsumptionSection
+            propertyId={property.id}
+            tariffGroup={property.tariffGroup}
+            groupBModality={property.groupBModality}
+        />
+    </div>
+)
 
 interface PropertyHeaderCardProps {
     property: Property
     distributor: Distributor | undefined
     isDistributorLoading: boolean
     distributors: Distributor[]
-    onAfterDelete: () => void
 }
 
 const PropertyHeaderCard = ({
@@ -152,7 +201,6 @@ const PropertyHeaderCard = ({
     distributor,
     isDistributorLoading,
     distributors,
-    onAfterDelete,
 }: PropertyHeaderCardProps) => {
     const addressLine = formatAddress(property)
     const [isEditOpen, setIsEditOpen] = useState(false)
@@ -169,9 +217,9 @@ const PropertyHeaderCard = ({
                 <div className="gap-15px flex min-w-0 items-start">
                     <IconCircle icon={Home} tone="accent" strokeWidth={1.5} />
                     <div className="min-w-0">
-                        <h1 className="font-heading truncate text-[clamp(24px,2.6vw,32px)] leading-none font-semibold uppercase">
+                        <h2 className="font-heading truncate text-[clamp(24px,2.6vw,32px)] leading-none font-semibold uppercase">
                             {property.name}
-                        </h1>
+                        </h2>
                         {addressLine && (
                             <p className="text-muted mt-2 flex items-center gap-1.5 text-sm">
                                 <MapPin className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
@@ -182,22 +230,27 @@ const PropertyHeaderCard = ({
                 </div>
 
                 {/* Ações */}
-                <div className="flex shrink-0 items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
+                    {property.contractingEnvironment === "ACL" && (
+                        <Button asChild variant="secondary" size="sm">
+                            <Link to={`/propriedades/${property.id}/comparacao-acl`}>
+                                <Scale className="h-4 w-4" aria-hidden="true" />
+                                Comparar ACR × ACL
+                            </Link>
+                        </Button>
+                    )}
+                    {property.groupBModality === "WHITE" && (
+                        <Button asChild variant="secondary" size="sm">
+                            <Link to={`/propriedades/${property.id}/comparacao-branca`}>
+                                <Scale className="h-4 w-4" aria-hidden="true" />
+                                Comparar Convencional × Branca
+                            </Link>
+                        </Button>
+                    )}
                     <Button variant="secondary" size="sm" onClick={() => setIsEditOpen(true)}>
                         <Pencil className="h-4 w-4" aria-hidden="true" />
                         Editar
                     </Button>
-                    {/*
-                        showEdit=false: botão "Editar" explícito acima,
-                        no menu sobra apenas Excluir.
-                        onAfterDelete: navega de volta — sem isso, ficaríamos
-                        numa rota /propriedades/:id que não existe mais (404).
-                    */}
-                    <PropertyMenu
-                        property={property}
-                        showEdit={false}
-                        onAfterDelete={onAfterDelete}
-                    />
                 </div>
             </div>
 
@@ -218,9 +271,40 @@ const PropertyHeaderCard = ({
                     <Tag variant="outline">
                         {ELECTRICAL_SYSTEM_LABELS[property.electricalSystem]}
                     </Tag>
-                    <Tag variant="outline">{BILLING_CLASS_LABELS[property.billingClass]}</Tag>
+                    {property.tariffGroup === "GROUP_A" ? (
+                        <>
+                            {property.tariffSubgroup && (
+                                <Tag variant="outline">
+                                    {TARIFF_SUBGROUP_LABELS[property.tariffSubgroup]}
+                                </Tag>
+                            )}
+                            {property.tariffModality && (
+                                <Tag variant="outline">
+                                    {TARIFF_MODALITY_LABELS[property.tariffModality]}
+                                </Tag>
+                            )}
+                            {property.contractedDemandKw !== null && (
+                                <Tag variant="outline">
+                                    Demanda contratada:{" "}
+                                    {formatContractedDemandKw(property.contractedDemandKw)}
+                                </Tag>
+                            )}
+                        </>
+                    ) : (
+                        property.billingClass && (
+                            <Tag variant="outline">
+                                {BILLING_CLASS_LABELS[property.billingClass]}
+                            </Tag>
+                        )
+                    )}
                     {property.publicLightingFeeBrl !== null && (
                         <Tag variant="outline">CIP: {formatBrl(property.publicLightingFeeBrl)}</Tag>
+                    )}
+                    {property.contractingEnvironment === "ACL" && (
+                        <Tag variant="accent-2">Mercado Livre (ACL)</Tag>
+                    )}
+                    {property.groupBModality === "WHITE" && (
+                        <Tag variant="accent-2">Tarifa Branca</Tag>
                     )}
                 </div>
             </div>
@@ -271,186 +355,7 @@ const DistributorTags = ({ distributor, isLoading }: DistributorTagsProps) => {
     )
 }
 
-interface AreasSectionProps {
-    propertyId: string
-}
-
-/**
- * Lista as áreas da propriedade + comparação de consumo entre elas.
- *
- * O consumo mensal por área (usado tanto no kWh/mês de cada AreaCard quanto
- * nas barras de comparação) é buscado numa única chamada via
- * `useConsumptionSummary` — substitui o `useQueries` de N chamadas, uma
- * por área. Área sem medidor/sem leitura simplesmente não aparece no
- * resultado — não é erro, só fica de fora da comparação.
- */
-const AreasSection = ({ propertyId }: AreasSectionProps) => {
-    const areasQuery = useAreas(propertyId)
-    const [isCreateOpen, setIsCreateOpen] = useState(false)
-    const [comparisonUnit, setComparisonUnit] = useState<"kwh" | "reais">("kwh")
-    const areas = areasQuery.data?.items ?? []
-
-    const summaryQuery = useConsumptionSummary(
-        "AREA",
-        areas.map((a) => a.id),
-        "month",
-    )
-    const bucketById = new Map((summaryQuery.data?.items ?? []).map((item) => [item.id, item]))
-
-    const comparisonRows = areas
-        .map((area) => ({ id: area.id, label: area.name, bucket: bucketById.get(area.id) }))
-        .filter(
-            (row): row is { id: string; label: string; bucket: ConsumptionSummaryItem } =>
-                row.bucket != null,
-        )
-
-    return (
-        <section className="flex flex-col gap-4">
-            <div className="blueprint">
-                <i className="corner tl" />
-                <i className="corner tr" />
-                <i className="corner bl" />
-                <i className="corner br" />
-
-                <div className="border-divider flex items-center justify-between border-b px-5 py-4">
-                    <h2 className="font-heading text-17 font-semibold uppercase">Áreas</h2>
-                    <Button
-                        variant="secondary"
-                        size="sm"
-                        onClick={() => setIsCreateOpen(true)}
-                        className="text-13 min-h-9"
-                    >
-                        <Plus className="h-3.5 w-3.5" aria-hidden="true" />
-                        Adicionar área
-                    </Button>
-                </div>
-
-                <div className="px-5 py-4">
-                    {areasQuery.isLoading && <AreasSkeleton />}
-
-                    {areasQuery.isError && (
-                        <div
-                            role="alert"
-                            className="border-status-danger/40 flex items-start gap-3 border p-4"
-                        >
-                            <AlertCircle
-                                className="text-status-danger h-5 w-5 shrink-0"
-                                aria-hidden="true"
-                            />
-                            <p className="text-status-danger/85 text-sm">
-                                {areasQuery.error instanceof Error
-                                    ? areasQuery.error.message
-                                    : "Não foi possível carregar as áreas."}
-                            </p>
-                        </div>
-                    )}
-
-                    {areasQuery.isSuccess && areas.length === 0 && (
-                        <EmptyState
-                            icon={LayoutGrid}
-                            title="Nenhuma área cadastrada"
-                            description="Organize os dispositivos da propriedade por cômodo, setor ou unidade — comece adicionando a primeira área."
-                        />
-                    )}
-
-                    {areasQuery.isSuccess && areas.length > 0 && (
-                        <div
-                            className="grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-3"
-                            data-testid="areas-grid"
-                        >
-                            {areas.map((area) => (
-                                <AreaCard
-                                    key={area.id}
-                                    area={area}
-                                    monthlyConsumption={bucketById.get(area.id)}
-                                />
-                            ))}
-                        </div>
-                    )}
-                </div>
-            </div>
-
-            {comparisonRows.length > 0 && (
-                <div className="blueprint">
-                    <i className="corner tl" />
-                    <i className="corner tr" />
-                    <i className="corner bl" />
-                    <i className="corner br" />
-
-                    <div className="border-divider flex flex-wrap items-center justify-between gap-3 border-b px-5 py-4">
-                        <div>
-                            <span className="font-heading text-17 font-semibold uppercase">
-                                Comparação de áreas
-                            </span>
-                            <span className="text-muted text-12-5 mt-[3px] block">
-                                Consumo por área neste mês (
-                                {comparisonUnit === "kwh" ? "kWh" : "R$"})
-                            </span>
-                        </div>
-                        <div
-                            role="group"
-                            aria-label="Unidade de comparação"
-                            className="flex gap-1.5"
-                        >
-                            <button
-                                type="button"
-                                className="lt-selbtn"
-                                data-on={comparisonUnit === "kwh"}
-                                aria-pressed={comparisonUnit === "kwh"}
-                                onClick={() => setComparisonUnit("kwh")}
-                            >
-                                kWh
-                            </button>
-                            <button
-                                type="button"
-                                className="lt-selbtn"
-                                data-on={comparisonUnit === "reais"}
-                                aria-pressed={comparisonUnit === "reais"}
-                                onClick={() => setComparisonUnit("reais")}
-                            >
-                                R$
-                            </button>
-                        </div>
-                    </div>
-
-                    <div className="px-5 pt-2 pb-5">
-                        <ComparisonBars rows={comparisonRows} unit={comparisonUnit} />
-                    </div>
-                </div>
-            )}
-
-            <AreaFormDialog
-                isOpen={isCreateOpen}
-                onClose={() => setIsCreateOpen(false)}
-                mode={{ kind: "create", propertyId }}
-            />
-        </section>
-    )
-}
-
-const AreasSkeleton = () => (
-    <div
-        className="grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-3"
-        aria-busy="true"
-        aria-label="Carregando áreas"
-    >
-        {[0, 1, 2].map((i) => (
-            <div key={i} className="border-divider h-28 animate-pulse border" />
-        ))}
-    </div>
-)
-
 // Estados auxiliares
-
-const BackLink = () => (
-    <Link
-        to="/propriedades"
-        className="text-muted hover:text-text inline-flex w-fit items-center gap-1.5 text-sm"
-    >
-        <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-        Voltar para propriedades
-    </Link>
-)
 
 const DetailsSkeleton = () => (
     <div
@@ -480,7 +385,7 @@ const ErrorState = ({ message }: ErrorStateProps) => (
             <p className="text-status-danger/85 mt-1 text-sm">{message}</p>
         </div>
         <Button asChild variant="secondary">
-            <Link to="/propriedades">Voltar para a lista</Link>
+            <Link to="/propriedades">Voltar para a análise</Link>
         </Button>
     </div>
 )

@@ -50,7 +50,7 @@ export const queryClient = new QueryClient({
  * Chaves de query — centralizadas para evitar typos e facilitar invalidação.
  *
  * Listagens paginadas (properties, areas, devices, meters, distributors,
- * alerts, alertEvents, consumption) incluem page/pageSize na key — páginas
+ * alerts, alertEvents, reports, consumption) incluem page/pageSize na key — páginas
  * diferentes são resultados diferentes que valem cache próprio.
  * `notifications` não é paginado (efêmero, cap de 100 no backend).
  */
@@ -66,6 +66,16 @@ export const queryKeys = {
         list: (page: number, pageSize: number) =>
             [...queryKeys.properties.all, "list", page, pageSize] as const,
         detail: (id: string) => [...queryKeys.properties.all, "detail", id] as const,
+    },
+    // Árvore de cadastro: chave própria (fora de `properties`) porque muda com
+    // qualquer escrita em propriedade, área ou dispositivo — cada mutation a
+    // invalida explicitamente.
+    propertyTree: {
+        all: ["property-tree"] as const,
+    },
+    sessions: {
+        all: ["sessions"] as const,
+        list: () => [...queryKeys.sessions.all, "list"] as const,
     },
     areas: {
         all: ["areas"] as const,
@@ -114,10 +124,17 @@ export const queryKeys = {
                 window,
             ] as const,
         // "Últimos N buckets" (KPIs do painel, comparação mensal de área) —
-        // não paginado; `count` é quantos buckets mais recentes, não um
-        // `pageSize` de verdade. Chave própria: nunca compartilha cache com
-        // `list`, mesmo que targetType/granularity/pageSize coincidam.
-        latest: (targetType: string, targetId: string, granularity: string, count: number) =>
+        // `count` é o `pageSize` pedido e `window` o tamanho da janela (balde e
+        // N), não as datas: o hook as recalcula a cada pedido. Chave própria:
+        // nunca compartilha cache com `list`, mesmo que
+        // targetType/granularity/pageSize coincidam.
+        latest: (
+            targetType: string,
+            targetId: string,
+            granularity: string,
+            count: number,
+            window: string,
+        ) =>
             [
                 ...queryKeys.consumption.all,
                 "latest",
@@ -125,16 +142,18 @@ export const queryKeys = {
                 targetId,
                 granularity,
                 count,
+                window,
             ] as const,
         // Endpoint batch — "último bucket de N alvos do mesmo tipo", não
         // paginado. Chave própria pra não colidir com `list`.
-        summary: (targetType: string, ids: string[], granularity: string) =>
+        summary: (targetType: string, ids: string[], granularity: string, range = "") =>
             [
                 ...queryKeys.consumption.all,
                 "summary",
                 targetType,
                 [...ids].sort(),
                 granularity,
+                range,
             ] as const,
     },
     meterReadings: {
@@ -150,6 +169,16 @@ export const queryKeys = {
         // diferentes).
         latest: (targetType: string, targetId: string) =>
             [...queryKeys.meterReadings.all, "latest", targetType, targetId] as const,
+        // Chaveado pelo `run` inteiro (ao contrário de `history`): cada
+        // submissão do formulário é uma consulta nova e distinta, não um
+        // refetch da mesma janela — trocar a grandeza ou o dia não deve
+        // reaproveitar o cache de uma consulta anterior.
+        series: (targetType: string, targetId: string, run: unknown) =>
+            [...queryKeys.meterReadings.all, "series", targetType, targetId, run] as const,
+        // Mesma razão de `series`: cada comparação submetida é uma consulta
+        // distinta, chaveada pelo run inteiro (alvo, grandeza e os dois períodos).
+        comparePeriods: (run: unknown) =>
+            [...queryKeys.meterReadings.all, "comparePeriods", run] as const,
     },
     alerts: {
         all: ["alerts"] as const,
@@ -158,6 +187,27 @@ export const queryKeys = {
         firing: () => [...queryKeys.alerts.all, "firing"] as const,
         stats: () => [...queryKeys.alerts.all, "stats"] as const,
         detail: (id: string) => [...queryKeys.alerts.all, "detail", id] as const,
+    },
+    reports: {
+        all: ["reports"] as const,
+        list: (page: number, pageSize: number) =>
+            [...queryKeys.reports.all, "list", page, pageSize] as const,
+    },
+    reportSchedules: {
+        all: ["reportSchedules"] as const,
+        list: (page: number, pageSize: number) =>
+            [...queryKeys.reportSchedules.all, "list", page, pageSize] as const,
+    },
+    goals: {
+        all: ["goals"] as const,
+        list: (propertyId: string) => [...queryKeys.goals.all, "list", propertyId] as const,
+        progress: (propertyId: string) => [...queryKeys.goals.all, "progress", propertyId] as const,
+        alerts: ["goals", "alerts"] as const,
+    },
+    demand: {
+        all: ["demand"] as const,
+        overview: (propertyId: string) =>
+            [...queryKeys.demand.all, "overview", propertyId] as const,
     },
     alertEvents: {
         all: ["alertEvents"] as const,
@@ -171,5 +221,20 @@ export const queryKeys = {
     tariffFlag: {
         all: ["tariffFlag"] as const,
         current: () => [...queryKeys.tariffFlag.all, "current"] as const,
+    },
+    aclContracts: {
+        all: ["aclContracts"] as const,
+        byProperty: (propertyId: string) =>
+            [...queryKeys.aclContracts.all, "by-property", propertyId] as const,
+    },
+    aclComparison: {
+        all: ["aclComparison"] as const,
+        detail: (propertyId: string, from: string, to: string) =>
+            [...queryKeys.aclComparison.all, propertyId, from, to] as const,
+    },
+    brancaComparison: {
+        all: ["brancaComparison"] as const,
+        detail: (propertyId: string, from: string, to: string) =>
+            [...queryKeys.brancaComparison.all, propertyId, from, to] as const,
     },
 } as const

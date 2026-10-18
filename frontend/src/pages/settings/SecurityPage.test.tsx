@@ -6,6 +6,7 @@ import { render, screen, waitFor } from "@testing-library/react"
 import { AuthProvider } from "@/contexts/AuthContext"
 import { SecurityPage } from "@/pages/settings/SecurityPage"
 import { authService } from "@/services/auth.service"
+import { sessionService } from "@/services/session.service"
 import { toast } from "sonner"
 import type { User } from "@/types/auth.types"
 
@@ -20,6 +21,10 @@ vi.mock("@/services/auth.service", () => ({
         mfaVerifySetup: vi.fn(),
         mfaDisable: vi.fn(),
     },
+}))
+
+vi.mock("@/services/session.service", () => ({
+    sessionService: { list: vi.fn() },
 }))
 
 vi.mock("@/services/api", () => ({
@@ -67,6 +72,7 @@ const renderPage = () => {
 
 beforeEach(() => {
     vi.clearAllMocks()
+    vi.mocked(sessionService.list).mockResolvedValue([])
 })
 
 describe("SecurityPage — status", () => {
@@ -84,6 +90,27 @@ describe("SecurityPage — status", () => {
 
         expect(await screen.findByText(/^ativada/i)).toBeInTheDocument()
         expect(screen.getByRole("button", { name: /desativar 2fa/i })).toBeInTheDocument()
+    })
+})
+
+describe("SecurityPage — sessões ativas", () => {
+    it("mostra o bloco de sessões ativas com a sessão atual", async () => {
+        vi.mocked(authService.getCurrentUser).mockResolvedValue(mockUserMfaOff)
+        vi.mocked(sessionService.list).mockResolvedValue([
+            {
+                id: "s-1",
+                channel: "WEB",
+                deviceLabel: "Chrome · Windows",
+                origin: "189.45.xx.xx",
+                lastAccessAt: new Date().toISOString(),
+                isCurrent: true,
+            },
+        ])
+        renderPage()
+
+        expect(await screen.findByRole("heading", { name: "Sessões ativas" })).toBeInTheDocument()
+        expect(await screen.findByText("Chrome · Windows")).toBeInTheDocument()
+        expect(screen.getByText("Esta sessão")).toBeInTheDocument()
     })
 })
 

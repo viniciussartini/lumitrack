@@ -1,6 +1,43 @@
 import { describe, it, expect, vi } from "vitest"
 import { SimulationStore } from "@/simulation/store.js"
 import type { ChangeEvent } from "@/simulation/store.js"
+import type { ElectricalSample } from "@/simulation/types.js"
+
+// `ElectricalSample` cresceu com as grandezas por fase do ADR-0022 — estes
+// testes são sobre o comportamento do store (coalescência, índice reverso),
+// não sobre os valores elétricos em si, então um objeto completo com
+// valores fixos e só os 4 campos testados sobrescritos evita repetir os 21
+// campos novos em cada `recordSample`.
+function buildSample(overrides: Partial<ElectricalSample> = {}): ElectricalSample {
+    return {
+        voltage: 220,
+        current: 1,
+        powerW: 220,
+        powerFactor: 1,
+        voltagePhaseA: 220,
+        voltagePhaseB: 220,
+        voltagePhaseC: 220,
+        currentPhaseA: 1,
+        currentPhaseB: 1,
+        currentPhaseC: 1,
+        activePowerPhaseA: 73.3,
+        activePowerPhaseB: 73.3,
+        activePowerPhaseC: 73.3,
+        reactivePowerVar: 0,
+        apparentPowerVa: 220,
+        frequencyHz: 60,
+        powerFactorPhaseA: 1,
+        powerFactorPhaseB: 1,
+        powerFactorPhaseC: 1,
+        thdVoltagePhaseA: 2,
+        thdVoltagePhaseB: 2,
+        thdVoltagePhaseC: 2,
+        thdCurrentPhaseA: 5,
+        thdCurrentPhaseB: 5,
+        thdCurrentPhaseC: 5,
+        ...overrides,
+    }
+}
 
 describe("SimulationStore — networks", () => {
     it("cria uma rede e a lista em listNetworks/snapshot", () => {
@@ -96,18 +133,10 @@ describe("SimulationStore — power, anomaly, samples", () => {
         store.clearAnomaly(device.id)
         expect(store.getDevice(device.id)?.anomaly.active).toBe(false)
 
-        store.recordSample(
-            device.id,
-            { voltage: 220, current: 2, powerW: 440, powerFactor: 0.95 },
-            1000,
-        )
+        const sample = buildSample({ voltage: 220, current: 2, powerW: 440, powerFactor: 0.95 })
+        store.recordSample(device.id, sample, 1000)
         const updated = store.getDevice(device.id)!
-        expect(updated.lastSample).toEqual({
-            voltage: 220,
-            current: 2,
-            powerW: 440,
-            powerFactor: 0.95,
-        })
+        expect(updated.lastSample).toEqual(sample)
         expect(updated.lastPublishedAt).toBe(1000)
         expect(updated.publishCount).toBe(1)
         expect(updated.connected).toBe(true)
@@ -125,12 +154,6 @@ describe("SimulationStore — power, anomaly, samples", () => {
         expect(
             store.setAnomaly("id-inexistente", { active: true, multiplier: 2, endsAt: null }),
         ).toBeUndefined()
-        expect(() =>
-            store.recordSample(
-                "id-inexistente",
-                { voltage: 1, current: 1, powerW: 1, powerFactor: 1 },
-                0,
-            ),
-        ).not.toThrow()
+        expect(() => store.recordSample("id-inexistente", buildSample(), 0)).not.toThrow()
     })
 })

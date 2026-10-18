@@ -332,7 +332,7 @@ Sistema criado pela ANEEL em 2015 para sinalizar **mensalmente** o custo de gera
 - **Grupo A:** acréscimo no consumo medido (não na demanda).
 - **Tarifa Social (até 80 kWh)**: bandeira **não** se aplica à parcela gratuita.
 - **Sistemas isolados** (parte da Amazônia fora do SIN): **isentos** de bandeiras.
-- **Mercado Livre:** bandeira não se aplica à TE (que é negociada bilateralmente), mas se aplica à TUSD.
+- **Mercado Livre:** bandeira **não se aplica** — nem à TE (negociada bilateralmente, fora do sistema que a bandeira sinaliza) nem à TUSD (a bandeira nunca foi um componente da TUSD; é estruturalmente um acréscimo à tarifa de energia, REN 1.000/2021 Art. 2º, II). Corrigido em 2026-09-09 — ver ADR-0021 (spike #395) para a investigação completa; a formulação anterior deste item ("se aplica à TUSD") não tinha fonte normativa ou de mercado que a sustentasse.
 
 >[!NOTE]
 >A ANEEL anuncia mensalmente, normalmente na **última sexta-feira útil** do mês anterior.
@@ -441,6 +441,7 @@ Regulamentada pela REN 482/2012, atualizada pela REN 1.059/2023 e Lei 14.300/202
 
 - Consumidor compra energia diretamente de geradores ou comercializadores.
 - Continua pagando TUSD à distribuidora local, mas **negocia a TE** bilateralmente.
+- **Bandeira tarifária não incide** — nem sobre a TUSD nem sobre a TE negociada (ver "Bandeiras tarifárias" acima e ADR-0021).
 - Acesso obrigatório para A1/A2/A3 desde sempre; A3a/A4/AS desde jan/2024 sem restrição de demanda.
 - A partir de **jan/2028** (proposta), pequenos consumidores e residências também poderão migrar.
 

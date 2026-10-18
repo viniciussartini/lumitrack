@@ -31,6 +31,24 @@ export function getQueryCount(): number | null {
 }
 
 /**
+ * Executa `fn` num contexto rastreado e devolve o resultado com o total de
+ * queries Prisma que ela disparou. Serve às medições e aos testes de "quantas
+ * queries esta operação faz"; só conta se o cliente Prisma usado repassa os
+ * eventos `query` a {@link incrementQueryCount} (o do app e o `prismaTest`
+ * fazem).
+ *
+ * @param fn - Operação a medir.
+ * @returns O resultado de `fn` e o número de queries disparadas dentro dela.
+ */
+export async function countQueries<T>(
+    fn: () => Promise<T>,
+): Promise<{ result: T; queryCount: number }> {
+    const state: QueryCounterState = { count: 0 }
+    const result = await storage.run(state, fn)
+    return { result, queryCount: state.count }
+}
+
+/**
  * Cria o middleware que conta, por requisição, quantas queries Prisma foram
  * disparadas, logando o total ao final — restrito aos prefixos de caminho
  * informados (ex.: `/api/alerts`, `/api/consumption`), para não instrumentar

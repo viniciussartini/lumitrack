@@ -102,9 +102,9 @@ export const envSchema = z
         // LGPD a cumprir) e passou a ser armazenamento/performance: as 4
         // tabelas abaixo cresciam sem nenhum expurgo.
         //
-        // MeterReading: 365 dias, com o crescimento real medido (~2 GiB/ano
-        // para os 11 medidores da demo, teto conhecido e estável pela
-        // ADR-0014). Ver RIPD.md §3.3.
+        // MeterReading: 365 dias, com o crescimento real medido para os 11
+        // medidores da demo (~3,1 GiB/ano com as grandezas por fase, ~2 GiB/ano
+        // antes delas; teto conhecido e estável pela ADR-0014). Ver RIPD.md §3.3.
         DATA_RETENTION_METER_READING_DAYS: z.coerce.number().int().positive().default(365),
         // AlertTriggerEvent: mesmo prazo de MeterReading — histórico de
         // episódios de alerta, volume ínfimo perto de MeterReading (só cresce
@@ -120,6 +120,11 @@ export const envSchema = z
         // categoria de coisa (log histórico imutável de um evento do
         // sistema), não um credencial nem dado de alto volume.
         DATA_RETENTION_TARIFF_FLAG_HISTORY_DAYS: z.coerce.number().int().positive().default(730),
+        // Report: mesmo prazo de MeterReading (365 dias). O relatório é um
+        // derivado agregado das leituras, com endereço de destinatário no
+        // agendamento — não deve sobreviver à fonte, e cada arquivo mora no
+        // banco (ADR-0023), então o prazo também limita o crescimento da tabela.
+        DATA_RETENTION_REPORT_DAYS: z.coerce.number().int().positive().default(365),
 
         // MFA opcional via TOTP (A06/A07).
         // Chave própria (separada de CPF_CNPJ_ENCRYPTION_KEY) para cifrar o
@@ -249,10 +254,12 @@ export const envSchema = z
         // caso legítimo dos dois é de naturezas diferentes: uma rota HTTP
         // nunca deveria demorar minutos, mas um `DELETE` represado sobre
         // `meter_readings` em escala de produção, sim (medido em ~48s contra
-        // uma massa sintética de 5,7M linhas — ver
-        // `.claude/docs/2026-08-31-baseline-desempenho-statement-timeout.md`).
-        // Default de 120s mantém a margem de ~2,5× já medida sobre esse
-        // pior caso.
+        // uma massa sintética de 5,7M linhas com a linha de 9 colunas, e em
+        // 97-104s com as 22 grandezas por fase — ver
+        // `.claude/docs/2026-10-13-baseline-desempenho-meter-readings.md`).
+        // Com a linha larga, o default de 120s deixa só ~1,15-1,24× de folga
+        // sobre o pior caso (tabela inteira); o expurgo em lotes é o que
+        // devolve a margem (ADR-0027).
         RETENTION_PURGE_STATEMENT_TIMEOUT_MS: z.coerce.number().int().positive().default(120_000),
     })
     .refine((data) => !(data.NODE_ENV === "production" && data.CORS_ORIGIN === "*"), {

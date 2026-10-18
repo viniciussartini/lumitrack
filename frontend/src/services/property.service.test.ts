@@ -23,6 +23,15 @@ const mockProperty: Property = {
     zipCode: "30000-000",
     electricalSystem: "MONOPHASIC",
     billingClass: "B1",
+    groupBModality: "CONVENTIONAL",
+    receivesBillingDiscount: false,
+    tariffGroup: "GROUP_B",
+    contractingEnvironment: "ACR",
+    tariffSubgroup: null,
+    tariffModality: null,
+    contractedDemandKw: null,
+    contractedDemandPeakKw: null,
+    contractedDemandOffPeakKw: null,
     publicLightingFeeBrl: null,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
@@ -125,5 +134,26 @@ describe("propertyService.delete", () => {
         await propertyService.delete("prop-1")
 
         expect(api.delete).toHaveBeenCalledWith("/properties/prop-1")
+    })
+})
+
+describe("propertyService.getTree", () => {
+    it("faz GET em /properties/tree e descasca o envelope", async () => {
+        const tree = {
+            items: [
+                {
+                    id: "prop-1",
+                    name: "Casa",
+                    areas: [{ id: "area-1", name: "Sala", devices: [] }],
+                },
+            ],
+            total: 1,
+        }
+        vi.mocked(api.get).mockResolvedValue({ data: { status: "success", data: tree } })
+
+        const result = await propertyService.getTree()
+
+        expect(api.get).toHaveBeenCalledWith("/properties/tree")
+        expect(result).toEqual(tree)
     })
 })

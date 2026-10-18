@@ -53,6 +53,13 @@ const powerFormatter = new Intl.NumberFormat("pt-BR", {
     maximumFractionDigits: 1,
 })
 
+// Sem casas decimais: demanda contratada (Grupo A) é cadastrada em kW
+// inteiros (ver `step="1"` de PropertyForm) — só o separador de milhar
+// pt-BR importa aqui (1500 -> "1.500").
+const kwFormatter = new Intl.NumberFormat("pt-BR", {
+    maximumFractionDigits: 0,
+})
+
 /**
  * Formata `bucketStart` adaptando o nível de precisão ao tamanho do bucket
  * (não à granularidade escolhida na UI — ver `lib/consumptionWindow.ts`).
@@ -97,8 +104,12 @@ export const formatBucketLabel = (bucketStart: string, bucketSize: BucketSize): 
  */
 export const formatKwh = (kwh: number): string => kwhFormatter.format(kwh)
 
-/** Formata valor em BRL. */
-export const formatCostBrl = (cost: number): string => brlFormatter.format(cost)
+/** Formata valor em BRL; custo não calculável (ausente) aparece como "-", nunca como R$ 0,00. */
+export const formatCostBrl = (cost: number | undefined): string =>
+    cost === undefined ? "-" : brlFormatter.format(cost)
 
 /** Formata potência média do bucket, em W. */
 export const formatAvgPowerW = (powerW: number): string => `${powerFormatter.format(powerW)} W`
+
+/** Formata demanda contratada (Grupo A) em pt-BR, com sufixo "kW". */
+export const formatKw = (kw: number): string => `${kwFormatter.format(kw)} kW`

@@ -5,6 +5,10 @@ import type {
     SendEmailChangeConfirmationFn,
     SendEmailChangedNoticeFn,
 } from "@/modules/auth/email-change.service.js"
+import type {
+    ScheduledReportEmail,
+    SendScheduledReportEmailFn,
+} from "@/modules/report-schedule/ReportScheduleRunner.js"
 
 // Transporter
 // O transporter é criado uma única vez e reutilizado em todos os envios.
@@ -152,4 +156,55 @@ export const sendEmailChangedNotice: SendEmailChangedNoticeFn = async (
             </div>
         `,
     })
+}
+
+const SCHEDULED_REPORT_LABELS: Record<ScheduledReportEmail["reportType"], string> = {
+    MONTHLY: "mensal de consumo",
+    CONSUMPTION: "de consumo",
+    ALERTS: "de alertas",
+    POWER_QUALITY: "de qualidade de energia",
+    DEMAND: "de demanda",
+}
+
+/**
+ * Envia um relatório agendado como anexo. Os destinatários vão em cópia
+ * oculta, para um não ver o endereço dos outros (podem ser de terceiros); o
+ * campo "Para" leva o próprio remetente. Endereços nunca vão para log.
+ *
+ * @param email - Destinatários, período e arquivo a anexar.
+ * @throws {Error} Se nenhum destinatário foi aceito pelo servidor SMTP.
+ */
+export const sendScheduledReportEmail: SendScheduledReportEmailFn = async (
+    email: ScheduledReportEmail,
+): Promise<void> => {
+    const label = SCHEDULED_REPORT_LABELS[email.reportType]
+
+    const info = await transporter.sendMail({
+        from: env.SMTP_FROM,
+        to: env.SMTP_FROM,
+        bcc: email.recipients,
+        subject: `Relatório ${label} — LumiTrack`,
+        text: `Segue em anexo o relatório ${label} do LumiTrack, referente ao período ${email.periodLabel}.\n\nEste envio foi programado por um usuário do LumiTrack. Se você não esperava esta mensagem, ignore-a.`,
+        html: `
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                <h2 style="color: #1a1a1a;">Relatório ${label}</h2>
+                <p>Segue em anexo o relatório ${label} do <strong>LumiTrack</strong>, referente ao período <strong>${email.periodLabel}</strong>.</p>
+                <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 32px 0;" />
+                <p style="color: #9ca3af; font-size: 12px;">
+                    Este envio foi programado por um usuário do LumiTrack. Se você não esperava esta mensagem, ignore-a.
+                </p>
+            </div>
+        `,
+        attachments: [
+            {
+                filename: email.fileName,
+                content: email.content,
+                contentType: email.contentType,
+            },
+        ],
+    })
+
+    if (info.accepted.length === 0) {
+        throw new Error("Nenhum destinatário aceito pelo servidor SMTP")
+    }
 }

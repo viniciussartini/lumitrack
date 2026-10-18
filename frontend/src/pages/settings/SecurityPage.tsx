@@ -6,6 +6,7 @@ import { toast } from "sonner"
 import { useAuth } from "@/contexts/AuthContext"
 import { useMfaSetup, useMfaVerifySetup, useMfaDisable } from "@/hooks/queries/useMfaMutations"
 import { MfaCodeForm } from "@/components/auth/MfaCodeForm"
+import { SessionsSection } from "@/components/security/SessionsSection"
 import { Button } from "@/components/ui/Button"
 import { Input } from "@/components/ui/Input"
 import { Tag } from "@/components/ui/Tag"
@@ -17,8 +18,8 @@ import type { MfaSetupResponse } from "@/types/auth.types"
 type Step = "idle" | "setup" | "backup-codes" | "disable"
 
 /**
- * Configuração de MFA (TOTP) da conta — única página de "Segurança"/conta
- * do app hoje (acessível via UserMenu). Fluxos:
+ * Segurança da conta (acessível via UserMenu): configuração de MFA (TOTP) e
+ * a lista de sessões ativas. Fluxos do MFA:
  *
  *   idle          → botão Ativar/Desativar conforme user.mfaEnabled
  *   setup         → QR code + secret + MfaCodeForm confirmando o código
@@ -79,7 +80,7 @@ export const SecurityPage = () => {
     return (
         <div className="flex flex-col gap-6">
             <p className="text-muted text-sm">
-                Gerencie a autenticação de dois fatores da sua conta.
+                Gerencie a autenticação de dois fatores e as sessões ativas da sua conta.
             </p>
 
             <div className="blueprint p-26px">
@@ -192,6 +193,8 @@ export const SecurityPage = () => {
                     </div>
                 )}
             </div>
+
+            <SessionsSection />
         </div>
     )
 }

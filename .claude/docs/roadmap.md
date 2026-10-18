@@ -1,9 +1,9 @@
 # Roadmap de Implementação — LumiTrack
 
-> Documento vivo. Atualizado ao fim de cada fase. Fonte: `02-requisitos.md` + ADR-0005 + `.claude/design/2026-07-31-lumitrack-completo/`.
-> Última atualização: 2026-09-02 · Fases 1–18 concluídas — épicos #94, #104, #110, #114, #128, #132, #133, #134, #148, #154, #159, #185, #187, #259, #275, #279, #290, #305, #322, #334, #335, issue #127 e PRs #250 (13.6), #254/#256 (13.7), #274 (14), #286 (épico #275, Fase 15), #287 (épico #279, Fase 15), #288 (#284/#285, Fase 15), #300 (épico #290, Fase 15.5), #304 (#296–#299, Fase 15.5), #314 (épico #305: #306–#309, Fase 16), #317 (#310–#313, #168, Fase 16), #321 (#255, #257, #316, Fase 16), #333 (épico #322: #323–#328, Fase 17), #354 (épico #334: #336–#341, #353, Fase 18), #355 (épico #335: #342–#345, Fase 18), #357 (#346–#351, #318, #329, #356, #269, #272, #289, #303, Fase 18). Dos itens fora do escopo declarado da Fase 18, quatro acabaram fechados dentro dela mesma (#269, #272, #289, #303 — ver replanejamento de 2026-09-02, abaixo); #302 foi fechada como adiada (destino já previsto pela ADR-0014); só #315 (fator de escala Modbus/Profinet) segue genuinamente em aberto. Fase atual: **19** (Grupo A — fundação tarifária + Horária Verde/A4) — já detalhada em 5 itens desde o planejamento de 2026-08-05, sem alteração. Entre o fechamento da Fase 18 e o início da 19, duas correções não planejadas entraram por pedido direto do usuário, fora da estrutura de fases (ver replanejamento de 2026-09-02): PR #358 (leituras de medidor em tempo real não chegavam ao painel — SSE, credencial IoT, formulário MQTT) e PR #361 (issues #359/#360 — wordmark e seletor de janela de hora no histórico de consumo — mais os achados da própria revisão de código do PR).
+> Documento vivo. Atualizado ao fim de cada fase. Fonte: `02-requisitos.md` + ADR-0005 + `.claude/design/2026-09-06-lumitrack-completo/`.
+> Última atualização: 2026-10-15 · Fases 1–30, 32 e 33 concluídas — épicos #94, #104, #110, #114, #128, #132, #133, #134, #148, #154, #159, #185, #187, #259, #275, #279, #290, #305, #322, #334, #335, #379, #386, #394, #416, #423, #439, #446, #458, #464, #481, #489, #509, #511, issue #127 e PRs #250 (13.6), #254/#256 (13.7), #274 (14), #286 (épico #275, Fase 15), #287 (épico #279, Fase 15), #288 (#284/#285, Fase 15), #300 (épico #290, Fase 15.5), #304 (#296–#299, Fase 15.5), #314 (épico #305: #306–#309, Fase 16), #317 (#310–#313, #168, Fase 16), #321 (#255, #257, #316, Fase 16), #333 (épico #322: #323–#328, Fase 17), #354 (épico #334: #336–#341, #353, Fase 18), #355 (épico #335: #342–#345, Fase 18), #357 (#346–#351, #318, #329, #356, #269, #272, #289, #303, Fase 18), #385 (épico #379: #380–#384, Fase 19), #401 (épico #386: #387–#391, #392, #393, Fase 20), #415 (épico #394: #395–#400, Fase 21), #422 (épico #416: #417–#421, Fase 22), #427 (épico #423: #424–#426, Fase 23), #438 (backlog de correções #428–#433 e #437, fora das fases), #443 (épico #439: #440–#442, Fase 24), #457 (épico #446: #447–#451, Fase 25), #463 (épico #458: #459–#462, Fase 26), #475 (épico #464: #465–#470, Fase 27), #488 (épico #481: #482–#487, Fase 28), #495 (épico #489: #490–#494, Fase 29), #502 (#500, Fase 30), #503 (#501, Fase 30), #555 (#534, Fase 32), #556 (#538, Fase 32), #557 (#537, Fase 32), #558 (#542, Fase 32), #559 (épico #511: #525–#529, Fase 32), #566 (#535, Fase 33), #567 (épico #509: #518–#520, Fase 33), #568 (#536, Fase 33). Dos itens fora do escopo declarado da Fase 18, quatro acabaram fechados dentro dela mesma (#269, #272, #289, #303); #302 foi fechada como adiada (destino já previsto pela ADR-0014); só #315 (fator de escala Modbus/Profinet) segue genuinamente em aberto. **A Fase 19 fechou em `staging` (PR #385, 2026-09-07); o épico #379 segue formalmente *open* no GitHub até a próxima promoção `staging → main`, convenção já observada nas fases anteriores.** **A Fase 20 fechou com o PR #401 mesclado em `staging` em 2026-09-09** (o mesmo PR já absorveu os bloqueios/sugestões da `revisao-codigo` antes de mesclar) — épico #386 (issues #387–#391) mais as duas issues avulsas #392 (alerta de ultrapassagem, implementado) e #393 (Convencional Binômia, decisão de escopo: adiada — ver item da fase); o épico #386 segue formalmente *open* no GitHub pela mesma convenção de promoção `staging → main`. **A Fase 21 fechou com o PR #415 mesclado em `staging` em 2026-09-15** — épico #394 (issues #395–#400: spike de bandeira/ADR-0021, modelo de dados ACR×ACL, PLD por submercado, cálculo binômio ACL, comparação ACR×ACL, UI) mais dois commits de correção na mesma branch (bloqueios/sugestões da `revisao-codigo` e uma regressão de e2e causada por eles) antes do merge. **A Fase 22 fechou com o PR #422 mesclado em `staging` em 2026-09-17** — épico #416 (issues #417–#421: janela Intermediária, modelo de dados da Branca, cálculo por posto, comparação Convencional×Branca, UI) mais um commit de correção na mesma branch (bloqueios da `revisao-codigo`: N+1 no caminho anual, extração de tabela de rotas, correção de RF36/RF49 e da classificação LGPD do PR) antes do merge. **Fecha a entrega `Tarifação Grupo A, Mercado Livre e Tarifa Branca` (Fases 19–22)** — milestone a fechar no GitHub. **Correção de convenção (ver "Replanejamento de 2026-09-17"):** a entrada de 2026-09-15 abaixo, que concluía que `Closes #N` fecha o épico automaticamente ao mesclar em `staging` (branch não-default), estava errada — checado agora contra a timeline real do GitHub, #394 foi fechado por um evento manual, não por automação; o comportamento padrão do GitHub só fecha via `Closes #N` na branch **default** do repositório. Os épicos #379/#386/#394 foram fechados à mão em cada ciclo anterior; #416 (Fase 22) também precisou ser fechado manualmente agora, e essa passa a ser a convenção registrada — não mais a presunção de automação. **A Fase 23 fechou com o PR #427 mesclado em `staging` em 2026-09-19** — épico #423 (issues #424–#426: navegação v2, Configurações→Cadastro criar, Cadastro com estrutura, editar e excluir) mais dois commits de remediação na mesma branch (achados da `revisao-codigo`: seletores de pai pela árvore, teto real do endpoint, guardas de acessibilidade, mais uma sugestão de legibilidade). O épico foi fechado à mão logo após o merge (convenção de 2026-09-17); a milestone `App v2` segue aberta até a Fase 30. **O PR #438 (backlog de correções #428–#433 e #437) mesclou em 2026-09-20**, fora da estrutura de fases, e deixa heranças para a Fase 24 (ver "Replanejamento de 2026-09-20"). **A Fase 24 fechou com o PR #443 mesclado em `staging` em 2026-09-23T22:39:52Z** — épico #439 (issues #440–#442: árvore de seleção + detalhe da Propriedade, detalhe da Área, detalhe do Dispositivo) mais dois commits de correção na mesma branch: o laudo da `revisao-codigo` (1 bloqueio + 5 sugestões, todas corrigidas como `fix` por decisão do usuário) e, à parte, um teste de CI não relacionado (`RealtimeChartCard.test.tsx`, preso à virada real da hora em São Paulo). O épico foi fechado à mão 24 segundos após o merge (convenção de 2026-09-17); a milestone `App v2` segue aberta até a Fase 30 (ver "Replanejamento de 2026-09-23 (fechamento da Fase 24)"). **A Fase 25 (Telemetria ampliada) foi detalhada em 2026-09-23**, na mesma sessão em que a Fase 24 fechou — o bloqueio do `07` ("grandezas medidas × calculadas pelo medidor") foi resolvido via ADR-0022, confirmado contra o datasheet real do medidor CCK 7200D fornecido pelo usuário; ver "Replanejamento de 2026-09-23 (detalhamento da Fase 25)" no fim do documento. **A Fase 25 fechou com o PR #457 mesclado em `staging` em 2026-09-27T20:31:01Z** — épico #446 (issues #447–#451: schema/pipeline/validação das grandezas por fase, simulador IoT, endpoint de série configurável, aba "Grandezas Elétricas" com cards em tempo real, área de análise configurável) implementado item a item via `nova-feature`, seguido de um comentário de `revisao-codigo` no PR (3 bloqueios + 11 sugestões — mass assignment nos campos opcionais do worker, média ponderada por Δt errada, `any` num tipo de gráfico; mais deduplicação de UI, a11y, discriminated union no schema Zod, `null` tratado como ausente, sinal de potência reativa, entre outras) corrigido integralmente antes do merge, por decisão do usuário ("bloqueios + sugestões"), e squashado no único commit do PR. O épico foi fechado à mão ~1 minuto após o merge (convenção de 2026-09-17); a milestone `App v2` segue aberta até a Fase 30. `02-requisitos.md` foi atualizado nesta sessão de fechamento (RF37, RF38, RN34, FNC005, FNC010 → `[implementado]`), não nos commits de feature — ver "Replanejamento de 2026-09-27 (fechamento da Fase 25)" no fim do documento. **A Fase 26 (Histórico e comparações) fechou com o PR #463 mesclado em `staging` em 2026-09-28T22:58:29Z** — épico #458 (issues #459–#462: endpoint de comparação de dois períodos, navegação + página com formulário, gráfico comparativo, seção de diferenças) implementado item a item via `nova-feature`, seguido de um comentário de `revisao-codigo` no PR (1 bloqueio + 9 sugestões, todas corrigidas por decisão do usuário) e de um commit de correção do e2e do CI, squashados no merge. O épico foi fechado à mão ~4 minutos após o merge (convenção de 2026-09-17); a milestone `App v2` segue aberta até a Fase 30. `02-requisitos.md` já saiu atualizado nos commits de feature (RF39 e FNC006 → `[implementado]`) — ver "Replanejamento de 2026-09-28 (fechamento da Fase 26)" no fim do documento. **A Fase 27 (Relatórios) fechou com o PR #475 mesclado em `staging` em 2026-10-04T20:49:52Z** — épico #464 (issues #465–#470: modelo, geração e emissão sob demanda dos tipos mensal e consumo; histórico com download, exclusão, retenção e export do titular; agendamento com CRUD e a sub-página Configurações → Relatórios; execução automática com envio por e-mail como anexo; próximos envios em 15 dias; tipos alertas, qualidade de energia e demanda, também agendáveis) implementado item a item via `nova-feature` — a #470 nasceu do corte do item 1 durante a implementação —, seguido de um comentário de `revisao-codigo` no PR (3 bloqueios + 10 sugestões: período agendado sobreposto com dia de envio 29 a 31, base legal dos destinatários de terceiros ausente do ROPA e controles de privacidade do envio sem teste; todos corrigidos por decisão do usuário, exceto juntar as migrações) e de dois commits de correção para o CI (e2e do agendamento sem os mocks do Cadastro; os três jobs de `npm audit`), squashados no merge com os 15 checks verdes. O épico foi fechado à mão ~3 minutos após o merge (convenção de 2026-09-17); a milestone `App v2` segue aberta até a Fase 30. `02-requisitos.md` saiu atualizado no próprio PR (RF40, RF41, RN35, RN36, FNC007 e a sub-página Relatórios de FNC008 → `[implementado]`) — ver "Replanejamento de 2026-10-04 (fechamento da Fase 27)" no fim do documento. **A Fase 28 fechou com o PR #488 mesclado em `staging` em 2026-10-05**, com os 6 itens entregues (kWh, acompanhamento, referência, alerta, custo em R$ e demanda do Grupo A) e o épico #481 já fechado — ver "Replanejamento de 2026-10-05 (fechamento da Fase 28 e detalhamento da Fase 29)" no fim do documento. **A Fase 29 (Painel v2) fechou com o PR #495 mesclado em `staging` em 2026-10-08**, com os 5 itens entregues (meta de consumo, consumo de hoje, peso de cada medidor, demanda atual × contratada e faixa de horário de ponta) e o épico #489 já fechado — ver "Replanejamento de 2026-10-08 (fechamento da Fase 29 e detalhamento da Fase 30)" no fim do documento. **A Fase 30 (Sessões ativas) fechou com os PRs #502 e #503 mesclados em `staging` em 2026-10-09**, com os 2 itens entregues (ver e encerrar as sessões da conta) e as issues #500 e #501 fechadas; é a última fase da milestone `App v2`, que fica com 0 issues abertas e 48 fechadas, pronta para fechar — ver "Replanejamento de 2026-10-09 (fechamento da Fase 30 e detalhamento da Fase 31)" no fim do documento. **A milestone `App v2` foi fechada no GitHub em 2026-10-12.** **Em 2026-10-12, as três auditorias de outubro (segurança e desempenho de 2026-10-10, qualidade de 2026-10-12; 85 achados) viraram a milestone `Endurecimento pós-Fase 30` (#7: épicos #508–#512, issues #513–#554 e as antigas #444 e #445) e as Fases 32–36, que executam antes da Fase 31** — ver "Remediação das auditorias de outubro (Fases 32–36)" e "Replanejamento de 2026-10-12" no fim do documento. **A Fase 32 (Alto, ajustes baratos e contexto em dia) fechou com os PRs #555, #556, #557, #558 e #559 mesclados em `staging` em 2026-10-12**, com os cinco itens entregues (#534, #538, #537, #542 e o épico #511 com #525–#529) e as issues fechadas — ver "Replanejamento de 2026-10-12 (fechamento da Fase 32 e detalhamento da Fase 33)" no fim do documento. **A Fase 33 (Desempenho: Painel e banco) fechou com os PRs #566, #567 e #568 mesclados em `staging` em 2026-10-14 e 2026-10-15**, com os três itens entregues (#535 com a ADR-0027, o épico #509 com #518–#520 e #536) e as issues fechadas; o gate vale para o Painel e o custo, e é parcial no armazenamento, porque o expurgo em lotes (#564) e a retenção menor do staging (#565) seguem abertos — ver "Replanejamento de 2026-10-15 (fechamento da Fase 33)" no fim do documento. **Próxima fase: Fase 34 (Segurança: sessão, MFA e perímetro), detalhada em 2026-10-15** — ver "Replanejamento de 2026-10-15 (detalhamento da Fase 34)" no fim do documento. A Fase 31 (Simulador — Modbus TCP/RTU, detalhada em 2026-10-09 em 2 itens) fica adiada: é P2, sem valor de usuário final, e segue bloqueada pela decisão do `07`. Entre o fechamento da Fase 18 e o início da 19, duas correções não planejadas entraram por pedido direto do usuário, fora da estrutura de fases: PR #358 (leituras de medidor em tempo real não chegavam ao painel — SSE, credencial IoT, formulário MQTT) e PR #361 (issues #359/#360 — wordmark e seletor de janela de hora no histórico de consumo — mais os achados da própria revisão de código do PR). **Replanejamento de 2026-09-06** (ver seção própria no fim do documento): revisão completa do `02-requisitos.md` (categoria RN, status por item) a partir de um novo handoff de design (`2026-09-06-lumitrack-completo`) que substitui `Home` por `Home v2` como alvo do app logado — inseridas as **Fases 23–31**, um bloco novo de 9 fases cobrindo a navegação redesenhada (Painel · Análise · Histórico · Relatórios · Configurações), Metas, Sessões ativas, telemetria ampliada e suporte a Modbus no simulador.
 >
-> Escopo: guia geral de implementação do projeto, não mais restrito a uma área. Fases 1–5 cobrem a migração do frontend para o design system Industry e a construção das telas do handoff que ainda não existem (nenhuma delas altera RF de backend). Fases 6–9 ampliam para fidelidade do chrome, consistência das telas públicas, integração externa e dívida técnica de backend. **Fases 10–18 são a remediação das auditorias** — as quatro de 2026-08-05 e, a partir da Fase 13.6, as quatro de 2026-08-22 (pós-deploy) — nenhum RF novo; o produto passa a ser endurecido em vez de ampliado. **A Fase 13.7 separa os ambientes:** VPS Hostinger (São Paulo) vira produção real (branch `main`), Render+Neon é rebaixado a staging/integração (branch `staging`) — ver **ADR-0012**. **Fases 19–22 abrem a maior expansão de domínio desde o MVP:** Grupo A (alta/média tensão, tarifa binômia), Mercado Livre (ACL) e Tarifa Branca — RFs novos, ADR estrutural e mudança no modelo de dados tarifário.
+> Escopo: guia geral de implementação do projeto, não mais restrito a uma área. Fases 1–5 cobrem a migração do frontend para o design system Industry e a construção das telas do handoff que ainda não existem (nenhuma delas altera RF de backend). Fases 6–9 ampliam para fidelidade do chrome, consistência das telas públicas, integração externa e dívida técnica de backend. **Fases 10–18 são a remediação das auditorias** — as quatro de 2026-08-05 e, a partir da Fase 13.6, as quatro de 2026-08-22 (pós-deploy) — nenhum RF novo; o produto passa a ser endurecido em vez de ampliado. **A Fase 13.7 separa os ambientes:** VPS Hostinger (São Paulo) vira produção real (branch `main`), Render+Neon é rebaixado a staging/integração (branch `staging`) — ver **ADR-0012**. **Fases 19–22 abrem a maior expansão de domínio desde o MVP:** Grupo A (alta/média tensão, tarifa binômia), Mercado Livre (ACL) e Tarifa Branca — RFs novos, ADR estrutural e mudança no modelo de dados tarifário. **Fases 23–31 (2026-09-06) são o segundo bloco de expansão**, independente do primeiro: redesenho de navegação e features novas do handoff `Home v2` — sem mudança no modelo tarifário. **Fases 32–36 (2026-10-12) voltam a ser remediação**, desta vez das três auditorias de outubro: nenhum RF novo, agrupadas pelo gate que cada item destrava.
 
 ## Visão geral das fases
 
@@ -31,10 +31,24 @@
 | 16 | Worker IoT — robustez, estrutura e cobertura | **Concluída** (épico #305 — PR #314; PR #317; PR #321) |
 | 17 | Frontend — tempo real e bundle | **Concluída** (épico #322 — #323–#328; PR #333 mesclado em staging) |
 | 18 | Design system, cobertura de testes e polimento | **Concluída** (épicos #334, #335, PRs #354/#355/#357) |
-| **19** | **Grupo A — fundação tarifária (subgrupos, modalidades, postos, demanda) + Horária Verde** | Planejada — fase atual, detalhada em 5 itens |
-| 20 | Grupo A — Horária Azul, ultrapassagem de demanda e energia reativa excedente | Planejada — objetivo abaixo |
-| 21 | Mercado Livre de Energia (ACL) | Planejada — objetivo abaixo |
-| 22 | Tarifa Branca (Grupo B) — reaproveita a fundação de postos tarifários | Planejada — objetivo abaixo |
+| 19 | Grupo A — fundação tarifária (subgrupos, modalidades, postos, demanda) + Horária Verde | **Concluída** (épico #379: #380–#384, PR #385 → staging) |
+| 20 | Grupo A — Horária Azul, ultrapassagem de demanda e energia reativa excedente | **Concluída** (épico #386: #387–#391, issues #392, #393, PR #401 → staging) |
+| 21 | Mercado Livre de Energia (ACL) | **Concluída** (épico #394: #395–#400, PR #415 → staging) |
+| 22 | Tarifa Branca (Grupo B) — reaproveita a fundação de postos tarifários | **Concluída** (épico #416: #417–#421, PR #422 → staging) |
+| 23 | Shell v2 — navegação redesenhada (Painel · Análise · Relatórios · Alertas · Distribuidoras · Sobre + Configurações→Cadastro) | **Concluída** (épico #423: #424–#426, PR #427 → staging) |
+| 24 | Análise — consumo e custos (reestruturação de `/propriedades`) | **Concluída** (épico #439: #440–#442, PR #443 → staging) |
+| 25 | Telemetria ampliada — grandezas elétricas por fase | **Concluída** (épico #446: #447–#451, PR #457 → staging) |
+| 26 | Histórico e comparações (Período A × B) | **Concluída** (épico #458: #459–#462, PR #463 → staging) |
+| 27 | Relatórios — emissão, histórico e agendamento automático | **Concluída** (épico #464: #465–#470, PR #475 → staging) |
+| 28 | Metas (+ alerta de meta) | **Concluída** (épico #481: #482–#487, PR #488 → staging) |
+| 29 | Painel v2 — widgets novos | **Concluída** (épico #489: #490–#494, PR #495 → staging) |
+| 30 | Sessões ativas | **Concluída** (#500 e #501, PRs #502 e #503 → staging) |
+| 31 | Simulador — suporte a Modbus TCP/RTU | **Adiada** (2026-10-12) — detalhada em 2026-10-09 com 2 itens; P2, bloqueada pela decisão do `07`; executa depois da 36 |
+| 32 | Alto, ajustes baratos e contexto em dia — exportação da demo, corpo malformado, ReDoS, simulação que falha fechado, documentação viva | **Concluída** (#534, #538, #537, #542 e épico #511: #525–#529; PRs #555–#559 → `staging`) |
+| 33 | Desempenho — Painel sem varrer a tabela inteira, custo tarifário em lote, `meter_readings` medida e decidida, `ConsumptionService` dividido | **Concluída** (#535, épico #509: #518–#520, #536; PRs #566–#568 → `staging`); #564 e #565, da ADR-0027, seguem abertas |
+| 34 | Segurança — sessão, MFA e perímetro | Detalhada em 2026-10-15 (épico #508: #513–#517, #539, #545; riders de #546, #549, #550) — próxima fase |
+| 35 | Tempo real e worker IoT — ingestão que não para em silêncio, stream barato | Planejada (#444, #445, #541, #540, #543, épico #510: #521–#524, #547, #553) |
+| 36 | Qualidade — componentes e travas; fecha a milestone | Planejada (#544, épico #512: #530–#533, #548, #554) |
 
 ## Fase 1 — Fundação Industry + Autenticação
 
@@ -1761,8 +1775,8 @@ Tratado como item de spike na Fase 21, validado contra a REN vigente e registrad
 
 ### Pré-requisito comum: requisitos e design
 
-- **`02-requisitos.md` precisa de RFs novos.** O RF13 atual descreve **só** o Grupo B ("TUSD + TE decompostos, tributos por dentro, bandeira, CIP, piso de disponibilidade") e a FNC003 idem. Grupo A binômio, ACL e Branca são comportamento novo, não refinamento — cada fase abre com a atualização do `02`, senão o roadmap passa a referenciar requisitos que não existem.
-- **Nenhuma tela destas fases tem handoff de design.** O bundle `2026-07-31-lumitrack-completo` não cobre cadastro de Grupo A, detalhamento de conta binômia, gestão de contrato ACL nem comparação ACR × ACL. Aplica-se a **regra de ausência** do `10-design-system.md` — decidir na chegada de cada fase entre aguardar handoff ou versão provisória com `TODO(design)`. Precedente do projeto: a página "Sobre o projeto" (Fase 6) foi versão provisória por decisão explícita do usuário.
+- **`02-requisitos.md` precisa de RFs novos.** ✅ **Resolvido em 2026-09-06.** RF25–RF36 (Grupo A/ACL/Branca) e RN17–RN28 (fórmulas binômias, postos, calendário) já estão registrados, cada um com o status `[planejado — Fase N]` correspondente.
+- ~~**Nenhuma tela destas fases tem handoff de design.**~~ **Deixou de ser verdade em 2026-09-06.** O handoff `2026-09-06-lumitrack-completo` (tela `LumiTrack Home v2`, que substitui `Home` como design-alvo — ver `10-design-system.md`) já cobre: cadastro de Grupo A (subgrupo, modalidade, demanda contratada), detalhamento de conta binômia por posto, **demanda contratada ponta + fora de ponta** (Azul, Fase 20) e contrato ACL — comercializadora, volume contratado, submercado, PLD (Fase 21). Tarifa Branca (Fase 22) tem cobertura indireta via os postos horários configuráveis, compartilhados com a fundação da Fase 19. Continua valendo a regra de ausência do `10` para qualquer detalhe que a tela não especifique.
 
 ## Fase 19 — Grupo A: fundação tarifária + Horária Verde (A4)
 
@@ -1834,42 +1848,1199 @@ Tratado como item de spike na Fase 21, validado contra a REN vigente e registrad
   - Formulário de propriedade ramifica por grupo: Grupo B mantém exatamente os campos de hoje; Grupo A acrescenta subgrupo, modalidade e demanda contratada, com validação por modalidade.
   - Detalhamento da conta mostra as parcelas do binômio separadas (demanda × consumo por posto), não um total agregado — a decomposição é o valor do produto para um consumidor A4, que precisa saber **onde** gastou.
   - Gráfico de consumo passa a distinguir os postos.
-  - **Sem handoff de design** — decidir na execução entre aguardar export do Claude Design ou versão provisória com `TODO(design)`, seguindo a regra de ausência do `10`.
+  - **Handoff de design disponível** (atualizado em 2026-09-06) — segue a tela `LumiTrack Home v2` (`.claude/design/2026-09-06-lumitrack-completo/`), que mostra o formulário de propriedade com subgrupo/modalidade/demanda e o detalhamento por posto. Qualquer estado ou interação que a tela não especifique cai na regra de ausência do `10`.
   - Nenhuma tela de Grupo B sofre regressão visual ou funcional.
 - **Depende de:** tarifação binômia Verde.
-- **Risco/observações:** médio-alto. É o item **mais afetado pela ausência de design** de todo o roadmap: não é uma tela institucional como "Sobre o projeto", é a superfície onde o usuário confere dinheiro. Uma versão provisória aqui carrega mais risco de retrabalho — vale considerar produzir o handoff antes desta fase chegar, e é o motivo de ela ser o último item da fase (o backend fecha e entrega valor mesmo se a UI esperar).
+- **Risco/observações:** médio — reduzido em relação à avaliação original (2026-08-05), que classificava este item como "o mais afetado pela ausência de design" do roadmap; o handoff de 2026-09-06 resolveu essa lacuna. Risco remanescente é o normal de qualquer tela nova: fidelidade ao protótipo e ausência de regressão no Grupo B.
 
-## Fases 20–22 (objetivo — serão detalhadas ao chegar)
+## Fase 20 — Grupo A: Azul, ultrapassagem e energia reativa excedente
 
-### Fase 20 — Grupo A: Azul, ultrapassagem e energia reativa excedente
+**Entrega (milestone):** `Tarifação Grupo A, Mercado Livre e Tarifa Branca` (mesma da Fase 19, no GitHub).
 
-Completa o Grupo A sobre a fundação da Fase 19. Cobre: **modalidade Horária Azul** (2 demandas contratadas — ponta e fora de ponta — e 4 tarifas distintas; obrigatória para A1/A2/A3 e para demanda ≥ 300 kW); **ultrapassagem de demanda** (tolerância de 5%, acima disso `(medida − contratada) × 3 × tarifa`, aplicada **antes** dos tributos); **energia reativa excedente** (FP mínimo 0,92, indutivo medido entre 6h–24h e capacitivo entre 0h–6h, cobrado em R$/kVArh) — viável porque `MeterReading` já persiste `avgPowerFactor` por minuto. Oráculo de teste disponível: **Exemplo 7** do documento de referência (frigorífico A4 Azul em Cuiabá, FP 0,91, total R$ 101.496,36). A **Convencional Binômia** entra aqui como decisão de escopo: está em extinção gradual segundo o documento e restrita a A3a/A4/AS com demanda < 300 kW — avaliar na chegada se vale implementar ou registrar como adiada com justificativa.
+> Completa o Grupo A sobre a fundação construída na Fase 19. O achado do replanejamento de 2026-09-07: o catálogo (`TariffEnergyRate`/`TariffDemandRate`, ambos já com coluna `post`) e a demanda medida por posto (`MeterDemandRollup`, escrita pelo `DemandRollupScheduler` desde a Fase 19 sem leitor de produção) já existem — o comentário do schema desde o PR #385 já previa "Azul popula PEAK/OFF_PEAK". Esta fase é mais sobre **ligar** o que já está persistido do que sobre criar modelo novo.
 
-### Fase 21 — Mercado Livre de Energia (ACL)
+### Modelo de dados: demanda contratada por posto (Azul)
 
-Abre com o **spike de validação da incidência de bandeira no ACL** (ver "Ponto de validação obrigatório" acima) e as regras de elegibilidade de migração, fechando em ADR antes de qualquer cálculo. Depois: `Property` passa a distinguir **ACR (cativo) × ACL (livre)**; contrato de energia com preço da TE negociado e vigência; cálculo ACL (TUSD da distribuidora + TE contratada, em vez da TE do catálogo); e a **comparação ACR × ACL** — "vale a pena migrar?" — que é o maior valor de produto da fase, porque responde com o consumo real do próprio usuário em vez de estimativa. Elegibilidade a registrar: A1/A2/A3 sempre; A3a/A4/AS desde jan/2024 sem restrição de demanda; pequenos consumidores e residências a partir de jan/2028 (proposta) — este último é premissa datada, revisar na chegada.
+- **Comportamento:** nenhum diretamente — habilita o restante da fase. `Property` passa a aceitar duas demandas contratadas (ponta e fora de ponta) para a modalidade Azul.
+- **Cobre:** habilita RF30 e RN18 (Azul).
+- **Priority:** P0 · **Size:** S
+- **Critérios de aceite:**
+  - `Property` ganha `contractedDemandPeakKw`/`contractedDemandOffPeakKw` (nullable), obrigatórios quando `tariffModality = BLUE`; `contractedDemandKw` (Verde) permanece intocado.
+  - Validação cruzada por modalidade em `property.service.ts`, mesmo padrão já usado para subgrupo/modalidade desde a Fase 19.
+  - Seed do catálogo Azul de uma distribuidora real (Energisa MT — mesma fonte do Exemplo 7: TUSD demanda R$ 45,00/kW ponta, R$ 15,00/kW fora ponta).
+  - Testes de Grupo B e da Verde continuam verdes sem alteração — mesmo contrato de regressão da Fase 19.
+- **Depende de:** —.
+- **Risco/observações:** baixo — diferente do item equivalente da Fase 19 (risco alto, mudança estrutural), aqui o catálogo binômio e a agregação por posto já existem; o trabalho é aditivo (2 colunas + seed), sem ADR nova.
 
-### Fase 22 — Tarifa Branca (Grupo B)
+### Ultrapassagem de demanda (RN20)
 
-Reaproveita integralmente a fundação de postos tarifários da Fase 19 — é por isso que entra depois dela e não antes. Cobre: modalidade Branca para B1 e B3 voluntariamente (**vedada** a baixa renda, B4 e a quem recebe outros descontos); três postos nos dias úteis com fins de semana e feriados integralmente fora de ponta; e a particularidade que uma implementação ingênua erra — o **custo de disponibilidade na Branca é calculado com a tarifa Convencional**, não com as horárias (REN 1.098/2024). Oráculo de teste: **Exemplo 3** do documento de referência (casa trifásica em BH, 450 kWh distribuídos em três postos, total R$ 359,55), incluindo o contraexemplo documentado de quando a Branca fica **mais cara** que a Convencional — que é exatamente o alerta que o produto precisa dar ao usuário antes de ele aderir. Contexto de urgência: a ANEEL propôs em nov/2025 tornar a Branca automática para consumidores BT acima de 1 MWh/mês em 2026 e acima de 600 kWh/mês em 2027.
+- **Comportamento:** um consumidor Grupo A — Verde ou Azul — vê a multa de ultrapassagem discriminada na conta quando a demanda medida do mês excede em mais de 5% a contratada, por posto quando houver mais de uma.
+- **Cobre:** RF31 (cálculo), RN20.
+- **Priority:** P0 · **Size:** M
+- **Critérios de aceite:**
+  - `ultrapassagem = (demandaMedida − demandaContratada) × 3 × TUSDdemanda` quando `demandaMedida > 1,05 × demandaContratada`, senão zero — por posto.
+  - Lê `MeterDemandRollup` (existe desde a Fase 19; este é o primeiro leitor de produção).
+  - Entra em `baseSemTributos` **antes** dos tributos (RN17), sem duplicar a extração já usada por Verde/bandeira/CIP.
+  - Implementado de forma genérica (lista de postos, não um único valor) para já servir a Azul sem retrabalho quando o item seguinte a ligar.
+  - Teste cobrindo a fronteira dos 5% (justo abaixo não cobra, justo acima cobra) e o caso de mais de um posto simultaneamente ultrapassado.
+- **Depende de:** modelo de dados (para o caminho Azul; Verde já tem `contractedDemandKw` desde a Fase 19).
+- **Risco/observações:** médio-alto — mesma classe de risco da demanda medida (Fase 19): uma leitura imprecisa de `MeterDemandRollup` agora é multiplicada por 3, então o erro de cobrança é maior que o da parcela normal.
+
+### Energia reativa excedente — ERE (RN21)
+
+- **Comportamento:** um consumidor Grupo A com fator de potência abaixo de 0,92 vê a parcela de energia reativa excedente na conta.
+- **Cobre:** RF32, RN21.
+- **Priority:** P0 · **Size:** M
+- **Critérios de aceite:**
+  - FP mínimo 0,92; indutivo medido entre 6h–24h, capacitivo entre 0h–6h — é regra de **janela horária de faturamento**, não de sinal medido, então não depende da decisão em aberto do `07` sobre grandezas medidas × calculadas (diferente da Fase 25): dá para calcular só com `avgPowerFactor` e `kwhConsumed`, já persistidos por minuto desde a fundação do produto.
+  - **Fórmula a derivar e documentar:** o documento de referência só dá uma aproximação para o Exemplo 7 ("~2% do consumo... kVArh × tarifa"), não a fórmula exata de energia reativa excedente a partir do FP de referência (ANEEL, REN 1.000/2021). Este item cita a fonte normativa consultada no código/ADR-lite do PR, não só no roadmap.
+  - Teste reproduzindo o **Exemplo 7** (FP 0,91, ERE ≈ R$ 772,00) com tolerância, registrando explicitamente que o valor de referência já é aproximado no documento-fonte.
+  - Entra em `baseSemTributos` (RN17), mesmo ponto de entrada da ultrapassagem.
+- **Depende de:** —.
+- **Risco/observações:** médio — é o item de maior risco de especificação da fase (fórmula exata não está no documento de referência); o de menor risco de dado (as grandezas necessárias já existem).
+
+### Modalidade Horária Azul — parcela de demanda dupla (RF30/RN18-Azul)
+
+- **Comportamento:** um consumidor A4 (ou A1/A2/A3, onde a Azul é obrigatória) na modalidade Azul vê a conta calculada com duas parcelas de demanda (ponta e fora de ponta) e quatro tarifas distintas.
+- **Cobre:** RF30, RN18 (ramo Azul).
+- **Priority:** P0 · **Size:** M
+- **Critérios de aceite:**
+  - `TariffService.calculateForGroupA` ramifica por modalidade: `parcelaDemanda = Σ_posto (demandaContratadaPosto × TUSDdemandaPosto)` para Azul, mantendo o caminho Verde intocado.
+  - Reaproveita a ultrapassagem (item anterior) e a ERE por posto, sem duplicar `applyTaxesByDentro` — mesmo cuidado de não degradar o `TariffService` já registrado como "o melhor arquivo do repositório" nos critérios da Fase 19.
+  - `ConsumptionService.calculateMonthCost` deixa de falhar fechado para `BLUE` (guarda existente desde o PR #385, que rejeitava explicitamente esta modalidade para a Fase 20 resolver).
+  - Teste reproduzindo o **Exemplo 7** ponta-a-ponta (frigorífico A4 Azul, Cuiabá, FP 0,91, total R$ 101.496,36) — mesmo padrão de oráculo externo da Fase 19.
+- **Depende de:** modelo de dados; ultrapassagem; ERE.
+- **Risco/observações:** médio — é composição de peças já testadas isoladamente (demanda dupla, ultrapassagem, ERE), não lógica nova; o risco residual é de integração, não de fórmula.
+
+### UI: cadastro Azul e detalhamento (ultrapassagem + ERE)
+
+- **Comportamento:** o usuário cadastra uma propriedade Azul (duas demandas contratadas) e vê a conta detalhada com ultrapassagem e ERE quando houver.
+- **Cobre:** os RFs desta fase, na camada de apresentação.
+- **Priority:** P1 · **Size:** L
+- **Critérios de aceite:**
+  - `PropertyForm` ganha os dois campos de demanda quando a modalidade selecionada é Azul, reaproveitando a ramificação por grupo já existente desde a Fase 19.
+  - `GroupABillCard` ganha as linhas de ultrapassagem e ERE, exibidas só quando o valor for maior que zero.
+  - **Handoff parcial:** o `10-design-system.md` confirma que a v2 cobre demanda ponta/fora-ponta e ultrapassagem, mas não menciona ERE explicitamente — onde a tela não especificar, vale a regra de ausência do `10` (mesma saída que o `GroupABillCard` já usou na Fase 19 para a decomposição por posto).
+  - Nenhuma tela de Grupo B ou de Verde sofre regressão.
+- **Depende de:** os quatro itens anteriores.
+- **Risco/observações:** médio — risco normal de tela nova, reaproveitando um dispatcher (`ConsumptionSection`) já existente.
+
+### Alerta de ultrapassagem de demanda contratada (RF31)
+
+- **Comportamento:** um usuário Grupo A configura um alerta e é avisado quando a demanda medida se aproxima ou ultrapassa a contratada.
+- **Cobre:** RF31 (configuração do alerta — o cálculo em si é o item de ultrapassagem acima).
+- **Priority:** P1 · **Size:** M
+- **Critérios de aceite:**
+  - Decisão a registrar no próprio item (não é decisão do `07` — não bloqueia nada): estender o modelo `Alert` existente (hoje por medidor/potência instantânea com histerese, RN32) ou usar um mecanismo mais simples direto sobre `MeterDemandRollup` (um agregado por mês, não uma série contínua — a histerese de RN32 foi desenhada para outro tipo de sinal).
+  - Notificação (mesmo canal já usado pelos alertas existentes) quando o agregado do mês corrente ultrapassar o limiar configurado.
+- **Depende de:** ultrapassagem de demanda (item 2).
+- **Risco/observações:** baixo-médio — escopo pequeno se a decisão for não reaproveitar o padrão de episódio/histerese do `Alert` atual.
+
+### Convencional Binômia — decisão de escopo
+
+- **Comportamento:** nenhum ainda — item de decisão, não de código.
+- **Cobre:** avaliação de escopo, sem RF associado até a decisão.
+- **Priority:** P2 · **Size:** XS
+- **Critérios de aceite:** decisão registrada — implementar (com plano próprio de tamanho a estimar então) ou adiar com justificativa (não é ADR, por não ser decisão estrutural).
+- **Depende de:** —.
+- **Risco/observações:** nenhum — a modalidade está em extinção gradual segundo o documento de referência e restrita a A3a/A4/AS com demanda < 300 kW, o que reduz a urgência.
+- **Decisão (2026-09-07, issue #393): adiada.** Justificativa: apesar de ser tarifariamente a modalidade mais simples do Grupo A (demanda única + tarifa de energia única, sem distinção ponta/fora de ponta), não é "religar infraestrutura pronta" como foi a Azul — `TariffEnergyRate.post` é `NOT NULL` (sempre `PEAK`/`OFF_PEAK`) e dar suporte à ausência de distinção horária exige tornar o campo nulável (mirror de `TariffDemandRate.post`) mais um caminho de código novo em `ConsumptionRepository`/`ConsumptionService` para somar kWh sem split de posto e aplicar tarifa única — modelagem nova, não wiring. Nenhum RF numerado do `02-requisitos.md` exige a modalidade (Verde/RF29 e Azul/RF30 cobrem os dois casos reais do produto hoje), e o documento de referência já a trata como em extinção gradual, segmento restrito e encolhendo. Sem ADR — decisão de escopo, não estrutural.
+
+## Fase 21 — Mercado Livre de Energia (ACL)
+
+**Entrega (milestone):** `Tarifação Grupo A, Mercado Livre e Tarifa Branca` (mesma das Fases 19 e 20).
+
+> **Ressalva de sequenciamento (2026-09-07) — resolvida em 2026-09-09:** a fase foi detalhada antes da conclusão da Fase 20, a pedido do usuário, e o item 4 (cálculo ACL) ficou marcado como dependente de como a Fase 20 estruturaria ultrapassagem/ERE dentro de `calculateForGroupA`. A Fase 20 fechou (PR #401) generalizando `calculateForGroupA` para `demandPosts`/`reactiveWindows` (listas), já pensada para servir a Azul sem mudança de assinatura — a mesma generalização serve o ACL: o item 4 só precisa trocar `tePerKwh` do catálogo pelo valor do contrato, sem alteração estrutural adicional. Ver "Replanejamento de 2026-09-09" no fim do documento.
+>
+> **Lacuna de oráculo:** diferente das Fases 19/20, o documento de referência não traz nenhum exemplo numérico de ACL (sem PLD, submercado ou comparação ACR×ACL resolvidos ponta-a-ponta) — os testes desta fase não têm número externo para conferir contra, só a lógica de composição da fórmula.
+
+### Spike: incidência de bandeira no ACL + ADR
+
+- **Comportamento:** nenhum — é decisão, registrada em ADR antes de qualquer cálculo.
+- **Cobre:** pré-requisito de todo RF de cálculo desta fase.
+- **Priority:** P0 · **Size:** XS
+- **Critérios de aceite:** confirmar contra a REN vigente se a bandeira tarifária incide sobre a TUSD no Mercado Livre (o documento de referência afirma que sim, linha 335, mas isso destoa do mecanismo — a bandeira recompõe custo de compra de energia, que o consumidor ACL não tem; a TUSD é encargo de fio). ADR registrando a fonte normativa consultada e a decisão.
+- **Depende de:** —.
+- **Risco/observações:** o item existe justamente para eliminar risco antes dele se espalhar pelo cálculo — mesma disciplina de risco/incerteza primeiro já aplicada pela Fase 8 (bandeira na fonte oficial).
+- **Decisão (2026-09-09, issue #395, ADR-0021): bandeira tarifária não incide no ACL** — nem sobre a TUSD nem sobre a TE negociada. O documento de referência descrevia incidência sobre a TUSD, mas nenhuma fonte normativa (REN 1.000/2021, Art. 2º, II — bandeira veiculada "por meio da tarifa de energia") ou de mercado sustentava essa leitura; corrigido em `O-Sistema-Eletrico-Brasileiro.md`. Consequência para o item "Cálculo binômio ACL" (#398): não precisa portar `flagPer100Kwh` para o caminho ACL.
+
+### Modelo de dados: ambiente de contratação (ACR × ACL) e contrato de energia
+
+- **Comportamento:** o usuário marca uma propriedade Grupo A como ACL e registra o contrato de energia — comercializadora, volume contratado, submercado, fonte, vigência.
+- **Cobre:** RF33.
+- **Priority:** P0 · **Size:** S
+- **Critérios de aceite:**
+  - `Property` ganha `contractingEnvironment` (`ACR` default, `ACL`).
+  - Novo modelo `AclContract` (comercializadora, volume contratado em MWh, submercado — Norte/Nordeste/Sudeste-CO/Sul —, fonte, vigência `validFrom`/`validTo`).
+  - Validação de elegibilidade por subgrupo: A1/A2/A3 sempre; A3a/A4/AS sem restrição de demanda desde jan/2024. A regra "residencial a partir de 2028" é proposta, não vigente — não implementar ainda.
+  - Sem ADR nova — mudança aditiva, mesmo padrão da Fase 19/20.
+- **Depende de:** —.
+- **Risco/observações:** baixo — mesmo padrão aditivo já usado nas duas fases anteriores.
+
+### PLD por submercado — catálogo e consulta
+
+- **Comportamento:** o sistema registra e consulta o PLD (Preço de Liquidação das Diferenças) por submercado e período, usado como contexto na comparação da fase.
+- **Cobre:** RF34.
+- **Priority:** P0 · **Size:** S
+- **Critérios de aceite:** novo modelo `PldQuote` (submercado, período de referência, valor R$/MWh); rota de consulta; sem ingestão automática da CCEE nesta fase — carga manual/seed, mesmo padrão do catálogo tarifário de Grupo A.
+- **Depende de:** —.
+- **Risco/observações:** baixo — tabela de apoio, sem lógica de cálculo acoplada.
+
+### Cálculo binômio ACL (TUSD da distribuidora + TE contratada)
+
+- **Comportamento:** uma propriedade Grupo A em ACL tem a conta calculada com a TUSD do catálogo regulado e a TE do contrato negociado, em vez da TE do catálogo.
+- **Cobre:** RF novo a registrar no `02` (RN a numerar, resultado do spike).
+- **Priority:** P0 · **Size:** M
+- **Critérios de aceite:**
+  - Extensão de `calculateForGroupA` substitui `tePerKwh` do catálogo pelo valor negociado do `AclContract` — TE única para o contrato, não diferenciada por posto (simplificação a registrar como corte de escopo, não RN).
+  - **Bandeira não aplicada** (ADR-0021, spike #395): `flagBrl` fica zerado/omitido no caminho ACL — nem sobre TUSD nem sobre a TE do contrato.
+  - Reaproveita `demandPosts`/`reactiveWindows` (ultrapassagem/ERE, generalizados na Fase 20 — PR #401) sem duplicar `applyTaxesByDentro`.
+  - **Sem oráculo externo** — teste construído a partir da fórmula documentada, não de um exemplo numérico de terceiros (diferente das Fases 19/20); revisão cuidadosa da fórmula é o único controle de qualidade disponível aqui.
+- **Depende de:** spike de bandeira; modelo de dados.
+- **Risco/observações:** médio — a forma final de `calculateForGroupA` já fechou na Fase 20 (`demandPosts`/`reactiveWindows` genéricos por lista, sem mudança de assinatura esperada para o ACL), o que elimina o risco de integração que a ressalva original sinalizava; permanece o risco de especificação (sem oráculo externo para conferir o resultado).
+
+### Comparação ACR × ACL — "vale a pena migrar?"
+
+- **Comportamento:** o usuário compara o custo real do próprio consumo no mercado cativo (ACR, cálculo já existente) contra o mercado livre (ACL), respondendo se migrar compensa.
+- **Cobre:** RF35 — o maior valor de produto da fase, porque responde com o consumo real do próprio usuário em vez de estimativa.
+- **Priority:** P0 · **Size:** M
+- **Critérios de aceite:** usa o consumo real medido do usuário (não estimativa) nos dois cálculos; resultado mostra a diferença e o veredito; considera o PLD como contexto informativo da análise, não como insumo direto da fórmula de custo.
+- **Depende de:** modelo de dados; PLD; cálculo ACL.
+- **Risco/observações:** médio — depende inteiramente do item de cálculo estar correto; sem oráculo externo, a revisão da fórmula é o único controle de qualidade disponível.
+
+### UI: contrato ACL e comparação ACR × ACL
+
+- **Comportamento:** o usuário cadastra o contrato ACL (comercializadora, volume, submercado, PLD) e vê a comparação de custo.
+- **Cobre:** os RFs desta fase, na camada de apresentação.
+- **Priority:** P1 · **Size:** L
+- **Critérios de aceite:** handoff disponível — `10-design-system.md` confirma que a v2 cobre "contrato ACL — comercializadora, volume contratado, submercado, PLD"; a tela de comparação não tem mockup específico registrado, cai na regra de ausência do `10`.
+- **Depende de:** os quatro itens anteriores.
+- **Risco/observações:** médio — normal de tela nova.
+- **Concluído (2026-09-14):** o contrato ACL foi implementado embutido no form de Propriedade (`PropertyForm`), seguindo o handoff — "Ambiente de contratação" ao lado de "Grupo tarifário", contrato colapsável quando Livre. A tela de comparação seguiu a regra de ausência do `10`: versão utilitária provisória (usuário optou por não aguardar handoff), com `// TODO(design)` no topo do arquivo — mesma linguagem visual já usada em `GroupABillCard.tsx` para o mesmo caso (`.blueprint` + grid de estatísticas + tabela).
+
+## Fase 22 — Tarifa Branca (Grupo B)
+
+**Entrega (milestone):** `Tarifação Grupo A, Mercado Livre e Tarifa Branca` (mesma das Fases 19–21) — **última fase da entrega**: ao concluir, fechar a milestone no GitHub.
+
+> Reaproveita integralmente a fundação de postos tarifários da Fase 19 (`classifyPost`, `findKwhByPost*`, `TariffPost`, feriados) — é por isso que entra depois dela e não antes. Cobre: modalidade Branca para B1 e B3 voluntariamente; três postos nos dias úteis (Ponta, **Intermediário** — novo, exclusivo desta fase — e Fora de Ponta) com fins de semana e feriados integralmente fora de ponta; e a particularidade que uma implementação ingênua erra — o **custo de disponibilidade na Branca é calculado com a tarifa Convencional**, não com as horárias (REN 1.098/2024).
+>
+> **Oráculo disponível** (diferente da Fase 21): **Exemplo 3** do documento de referência (João, casa trifásica em BH, 450 kWh distribuídos em Ponta/Intermediário/Fora de Ponta, total R$ 359,55, incluindo bandeira amarela) cobre o caminho feliz ponta-a-ponta; o próprio documento também traz o **contraexemplo** de quando a Branca fica **mais cara** que a Convencional (100 kWh na ponta + 350 fora → R$ 277,50) — o alerta que o produto precisa dar ao usuário antes de ele aderir (RF36) tem oráculo próprio para os dois lados.
+>
+> **Decisão de modelagem (2026-09-15):** RN28 veda a Branca a "B4, baixa renda e quem recebe outros descontos" — hoje nada disso é representável: `BillingClass` só tem `B1`/`B2`/`B3` (B4 é iluminação pública faturada à prefeitura, fora do público-alvo do produto, nunca modelado) e não existe campo de subclasse (baixa renda, desconto social, rural). Confirmado com o usuário: modelar agora, não adiar. Decisão tomada — ver item de modelo de dados abaixo — sem taxonomia completa de subclasses (BPC, indígena, quilombola, rural 10–73%): um booleano genérico de desconto, proporcional ao que RN28 pede e ao que nenhum outro RF do roadmap exige hoje.
+>
+> Contexto de urgência (sem impacto na priorização desta fase): a ANEEL propôs em nov/2025 tornar a Branca automática para consumidores BT acima de 1 MWh/mês em 2026 e acima de 600 kWh/mês em 2027.
+
+### Extensão da classificação de posto: janela Intermediária
+
+- **Comportamento:** nenhum direto — fundação dos demais itens. Um instante de consumo em dia útil, na 1h antes ou na 1h depois da janela de ponta, passa a ser classificado como `INTERMEDIATE` em vez de `OFF_PEAK`.
+- **Cobre:** RN novo a registrar no `02` (janela intermediária — 1h antes + 1h depois da ponta, conforme o documento de referência); pré-requisito de RF36/RN27/RN28.
+- **Priority:** P0 · **Size:** S
+- **Critérios de aceite:**
+  - `TariffPost` ganha o valor `INTERMEDIATE` (o comentário do schema desde a Fase 19 já antecipa isso como "migração aditiva trivial").
+  - `classifyPost` (função pura, `tariffPost.ts`) e as duas queries SQL cruas equivalentes em `consumption.repository.ts` (`findKwhByPost`/`findKwhByPostGroupedByMonth`, cada uma com o mesmo `CASE WHEN` hoje limitado a `PEAK`/`OFF_PEAK`) passam a reconhecer a janela intermediária — os três precisam ficar consistentes entre si.
+  - Grupo A **nunca** produz `INTERMEDIATE` (nenhuma modalidade sua usa essa janela) — teste de regressão explícito provando que Verde/Azul continuam recebendo só `PEAK`/`OFF_PEAK` sem alteração.
+  - Mesmo padrão de oráculo já usado no teste de repositório da Fase 19: `classifyPost` como função pura valida a query SQL para um conjunto maior de leituras sintéticas.
+- **Depende de:** —.
+- **Risco/observações:** baixo-médio — mudança aditiva e bem delimitada, mas a lógica de classificação está **duplicada em 3 lugares** (função pura + 2 queries); o risco real é deixar um dos três desalinhado, não a lógica em si.
+
+### Modelo de dados: modalidade do Grupo B (Convencional × Branca), catálogo por posto e elegibilidade
+
+- **Comportamento:** o usuário marca uma propriedade B1/B3 como Branca (em vez de Convencional); o sistema impede a adesão quando a propriedade recebe desconto de faturamento.
+- **Cobre:** RF36 (parte de modalidade/elegibilidade), RN28.
+- **Priority:** P0 · **Size:** M
+- **Critérios de aceite:**
+  - Novo enum de modalidade do Grupo B (`CONVENTIONAL` default / `WHITE`) em `Property`, nulo para Grupo A — mesmo padrão de `tariffModality` (Grupo A) desde a Fase 19, sem reaproveitar o enum `TariffModality` (que ADR-0019 já separou como exclusivo do Grupo A; reaproveitá-lo aqui reintroduziria a mesma conflação que aquela ADR corrigiu).
+  - Novo booleano em `Property` (ex.: "recebe desconto de faturamento") cobrindo baixa renda e outros descontos (RN28) — validação cruzada em `property.service.ts` bloqueia `WHITE` quando o booleano é verdadeiro, mesmo padrão de regra cruzada já usado para subgrupo/modalidade/demanda do Grupo A.
+  - Elegibilidade por `billingClass`: só `B1`/`B3` aceitam `WHITE`; `B2` fica de fora (a norma não veda B2 explicitamente, mas o documento de referência não caracteriza Branca rural — tratado como corte de escopo, não RN, até haver caso real). B4 nunca é uma opção de `BillingClass` — a vedação da RN28 quanto a B4 fica satisfeita pela ausência do valor no enum, sem código adicional.
+  - Novo modelo de catálogo (ex.: `GroupBEnergyRate`: distribuidora, modalidade, posto `PEAK`/`INTERMEDIATE`/`OFF_PEAK`, TUSD, TE) — **não** reaproveita `TariffEnergyRate` (chave inclui `TariffSubgroup`, dimensão exclusiva do Grupo A); seed de uma distribuidora real com as tarifas do Exemplo 3 (Cemig Branca: ponta R$ 1,20/kWh, intermediário R$ 0,75/kWh, fora de ponta R$ 0,45/kWh, convencional equivalente R$ 0,60/kWh).
+  - Sem ADR nova — separação aditiva, mesma disciplina da ADR-0019, não uma decisão arquitetural nova.
+- **Depende de:** —.
+- **Risco/observações:** baixo-médio — aditivo, sem migração do catálogo existente do Grupo A; o ponto de atenção é não reintroduzir a conflação subgrupo×modalidade que a ADR-0019 já resolveu.
+
+### Cálculo Branca (TUSD + TE por posto, disponibilidade pela Convencional, bandeira)
+
+- **Comportamento:** uma propriedade B1/B3 em Branca tem a conta calculada por posto (Ponta/Intermediário/Fora de Ponta), com o custo de disponibilidade calculado pela tarifa Convencional em vez das horárias.
+- **Cobre:** RF36 (cálculo), RN27.
+- **Priority:** P0 · **Size:** M
+- **Critérios de aceite:**
+  - Novo caminho de cálculo para Grupo B com modalidade `WHITE` em `consumption.service.ts` — soma o consumo por posto (reaproveita a extensão de `findKwhByPost*` do item 1) × tarifa do posto (catálogo do item 2), em vez do monômio plano de sempre.
+  - **RN27, a armadilha central da fase:** quando o consumo do mês fica abaixo do piso de disponibilidade (30/50/100 kWh), a diferença é cobrada pela tarifa **Convencional**, nunca pelas horárias da Branca — mesmo quando a modalidade ativa é `WHITE`.
+  - Bandeira tarifária aplicada normalmente sobre o total (diferente do ACL — RN38/ADR-0021 —, o Exemplo 3 confirma bandeira incidindo na Branca).
+  - Tributos "por dentro" via `applyTaxesByDentro`, mesmo mecanismo já usado por Grupo A e Convencional — sem duplicar.
+  - Teste reproduzindo o **Exemplo 3** ponta-a-ponta (450 kWh, R$ 359,55) — mesmo padrão de oráculo externo das Fases 19–20.
+- **Depende de:** extensão da classificação de posto; modelo de dados.
+- **Risco/observações:** médio — a fórmula tem oráculo externo (diferente do ACL), então o risco real é a RN27 (piso pela Convencional) passar despercebido, não a composição da fórmula em si.
+
+### Comparação Convencional × Branca — "vale a pena aderir?"
+
+- **Comportamento:** o usuário compara o custo real do próprio consumo medido na Convencional contra a Branca, respondendo se a adesão compensa — com alerta explícito quando a Branca sai mais cara.
+- **Cobre:** RF novo a registrar no `02` (mesmo papel de RF35 na Fase 21); parte final de RF36 ("incluindo o alerta").
+- **Priority:** P0 · **Size:** M
+- **Critérios de aceite:** usa o consumo real medido (não estimativa) nos dois cenários, mês a mês; resultado mostra diferença, percentual e veredito; alerta destacado quando a Branca é mais cara para o perfil do usuário.
+- **Depende de:** cálculo Branca.
+- **Risco/observações:** médio — mesma classe de risco do item equivalente da Fase 21 (RF35: depende do cálculo anterior estar correto), mas com vantagem sobre aquele: o documento de referência já traz o contraexemplo numérico (100 kWh ponta + 350 fora → R$ 277,50, mais caro que a Convencional), então o alerta tem oráculo próprio para os dois lados, o que a comparação ACR×ACL não tinha.
+
+### UI: modalidade Branca, decomposição por posto e comparação
+
+- **Comportamento:** o usuário seleciona a modalidade Branca no cadastro (quando elegível), vê a conta decomposta por posto e acessa a comparação com a Convencional.
+- **Cobre:** os RFs desta fase, na camada de apresentação.
+- **Priority:** P1 · **Size:** L
+- **Critérios de aceite:** **sem mockup específico da Branca no handoff** — o `10-design-system.md` só cobre cobertura indireta via os postos horários configuráveis (compartilhados com a fundação da Fase 19), regra de ausência do `10`. Salvo o usuário indicar o contrário, segue a mesma decisão já tomada na Fase 21 (não esperar handoff): versão utilitária provisória com `// TODO(design)`, reaproveitando o padrão visual já estabelecido (`GroupABillCard.tsx` para a decomposição por posto, `AclComparisonPage.tsx` para a tela de comparação).
+- **Depende de:** os quatro itens anteriores.
+- **Risco/observações:** médio — normal de tela nova; risco de retrabalho se um handoff da Branca chegar depois.
+
+## App v2: navegação, histórico, relatórios e metas (Fases 23–31)
+
+> **Origem:** revisão do `02-requisitos.md` de 2026-09-06 a partir do handoff `.claude/design/2026-09-06-lumitrack-completo/` (tela `LumiTrack Home v2`, que substitui `Home` como design-alvo do app logado) e da seção "Revisar" absorvida no mesmo documento (FNC004–FNC013).
+>
+> **Independente do bloco Grupo A/ACL/Branca (Fases 19–22).** Nenhuma fase deste bloco muda `TariffService` nem o modelo tarifário — é redesenho de navegação e features novas (Histórico, Relatórios, Metas, Sessões ativas) mais duas frentes de robustez de IoT. Entra **depois** da Fase 22 por decisão do usuário (2026-09-06): a prioridade de Grupo A/ACL/Branca, já assumida em 2026-08-05, não muda por causa deste achado.
+>
+> **Milestone:** `App v2 — navegação, histórico, relatórios e metas` (Fases 23–30). A Fase 31 (Simulador — Modbus) usa a milestone `Simulador IoT`, já existente no GitHub e vazia — criada para a Fase 5 e nunca usada.
+
+### Fase 23 — Shell v2: navegação redesenhada
+
+**Entrega (milestone):** `App v2 — navegação, histórico, relatórios e metas` (Fases 23–30).
+
+> Mesma classe de mudança estrutural da Fase 6 ("o que todo o resto herda vem antes"). **Design:** `Home v2` (sidebar, topbar, Configurações→Cadastro) no bundle vigente `2026-09-06-lumitrack-completo` — sem dependência de novo export. Nenhuma tela de Grupo A, Grupo B ou Mercado Livre sofre regressão funcional: é rota, menu e uma tela de cadastro, não lógica tarifária.
+>
+> **Detalhada em 2026-09-19** — ver "Replanejamento de 2026-09-19" no fim do documento para as seis correções em relação ao texto anterior (Conta, Medidor, componente compartilhado, esqueletos, Relatórios, "Cálculos e tarifas"). Nenhuma decisão do `07` bloqueia esta fase.
+>
+> **Estado de partida:** a sidebar tem 7 itens (Painel · Propriedades · Relatórios · Simulações · Alertas · Distribuidoras · Sobre), o `NavLink` usa `end`, não existe rota `/configuracoes` e o cadastro de Propriedade/Área/Dispositivo só é acessível por cards/menus dentro de `/propriedades`. Não há endpoint de árvore — listar Propriedades→Áreas→Dispositivos hoje exige uma query por nível.
+
+### Navegação v2: sidebar, títulos e menu do usuário
+
+- **Comportamento:** a sidebar mostra **Painel · Análise · Relatórios · Alertas · Distribuidoras · Sobre**. "Análise" aponta para `/propriedades` (URL preservada) e continua ativa nas páginas filhas. "Simulações" sai da navegação e a rota/página são apagadas. O menu do usuário vira **Perfil · Segurança · Configurações · Sair**. Os títulos do Header seguem o `Home v2` (ex.: `/propriedades` → "Suas unidades / Análise de propriedades").
+- **Cobre:** RF46 (parcial — ponto de entrada), FNC008 (estrutura).
+- **Priority:** P0 · **Size:** S
+- **Critérios de aceite:**
+  - Cada item da nav leva à rota certa; o ícone de Análise segue o handoff (linha com eixos).
+  - Análise fica ativa em `/propriedades/:id`, `/propriedades/:propertyId/areas/:areaId` e `.../devices/:deviceId` (o `end` do `NavLink` hoje impede isso).
+  - `/simulacao` deixa de existir e cai no fallback do router; `SimulationPage` e `PlaceholderPage` (único consumidor) são apagados.
+  - Item "Configurações" do menu do usuário navega para `/configuracoes`.
+  - Testes de `Sidebar`, `UserMenu`, `pageTitles` e os e2e que citam "Propriedades"/"Simulações" atualizados.
+- **Depende de:** —.
+- **Risco/observações:** baixo. Histórico e Metas **não** entram na navegação — cada fase seguinte acrescenta seu item junto com o conteúdo (sem rota-esqueleto, sem beco sem saída num ambiente de demo público).
+
+### Configurações: casca + Cadastro (criar)
+
+- **Comportamento:** `/configuracoes` redireciona para `/configuracoes/cadastro`. Layout com sub-nav lateral do design, alimentada por uma lista de configuração (`SETTINGS_NAV_ITEMS`, mesmo padrão do `NAV_ITEMS`) — hoje com uma entrada, **Cadastro**. A tela traz os três cards do design (Propriedade, Área, Dispositivo), cada um com "Nova …", abrindo os `FormDialog` existentes.
+- **Cobre:** RF46 (criação), FNC008 (Cadastro).
+- **Priority:** P0 · **Size:** M
+- **Critérios de aceite:**
+  - Criar propriedade pelo card.
+  - Criar área escolhendo a propriedade **dentro do modal** (seletor de pai, como no design).
+  - Criar dispositivo escolhendo a área num seletor **único "Área", agrupado por propriedade** (`optgroup`), como no design — a propriedade dona da área fica implícita no grupo.
+  - Sem propriedade cadastrada, "Nova área" e "Novo dispositivo" ficam desabilitados com explicação; com propriedades mas sem nenhuma área, o modal de dispositivo explica que é preciso criar uma área antes e não oferece o formulário. Os seletores de pai leem a árvore do item seguinte (`usePropertyTree`) — uma única requisição, a mesma fonte da lista "Estrutura cadastrada" (a versão inicial fazia uma consulta de áreas por propriedade e foi trocada na revisão do PR).
+  - WCAG 2.2 AA: foco visível, navegação por teclado, rótulos associados aos campos.
+- **Depende de:** Navegação v2. **Design:** `Home v2` → Configurações → Cadastro (pronto).
+- **Risco/observações:** médio-baixo. `AreaFormDialog` e `DeviceFormDialog` recebem `propertyId`/`areaId` do contexto da rota (`mode.propertyId`, `mode.areaId`); no Cadastro não há contexto de rota, então precisam de seletor de pai — resolvido com um wrapper por entidade sobre o dialog existente, que ganhou um slot para o campo de pai, sem duplicar o formulário. Os seletores herdam o teto de 100 propriedades da árvore.
+
+### Cadastro: estrutura hierárquica com editar/excluir
+
+- **Comportamento:** o bloco "Estrutura cadastrada" mostra Propriedades → Áreas → Dispositivos expansíveis, cada linha com a meta do design (contagem de áreas/dispositivos; potência do dispositivo) e botões de editar e excluir. Editar abre o dialog existente; excluir abre `ConfirmDialog` avisando da cascata (mesmo padrão do `AreaMenu`).
+- **Cobre:** RF46 (estrutura completa com edição e exclusão), FNC008 (Cadastro).
+- **Priority:** P0 · **Size:** L (backend S + frontend M)
+- **Critérios de aceite:**
+  - **Backend:** um endpoint único de leitura (`GET /api/properties/tree`) devolve a árvore do usuário (propriedades → áreas → dispositivos) — as contagens de áreas e dispositivos saem do tamanho das listas, sem campo próprio — em número constante de consultas, sem N+1. Vive no módulo `property` (`PropertyTreeService`) e lê área/dispositivo pelos repositories existentes conforme a ADR-0016 (sem ADR nova). **Não** inclui flag "tem medidor" (só a Fase 24 precisa dela).
+  - **Frontend:** uma requisição carrega a árvore (`usePropertyTree`, reaproveitável pela árvore de Análise na Fase 24); qualquer escrita em propriedade, área ou dispositivo invalida a chave da árvore.
+  - Editar e excluir atualizam a árvore (invalidação de cache); estado vazio quando não há propriedades.
+  - **Autorização:** teste provando que a árvore só devolve dados do próprio usuário e falha fechado sem autenticação; contas demo continuam com escrita bloqueada (`blockDemoWrite`) — a leitura é livre, como nas outras listagens.
+  - Teto defensivo de 100 propriedades na consulta, com áreas e dispositivos lidos só das propriedades que entraram na árvore; a resposta traz `total` com o número real e a tela avisa "Mostrando N de M propriedades" quando o teto corta. Propriedades e áreas sem filhos não expandem (linha sem botão de expandir), diferente do protótipo, que exibe um botão que não faz nada.
+  - Sem dado pessoal novo: a árvore expõe campos que o usuário já enxerga em `/propriedades` — sem impacto no ROPA.
+- **Depende de:** Configurações: casca + Cadastro.
+- **Risco/observações:** médio — único item com backend. Sem o endpoint, mostrar contagens com as linhas recolhidas exigiria 1 + N + M chamadas no cliente, o mesmo problema que a Fase 15 eliminou em outros pontos.
+
+> **Fase concluída** (PR #427 → `staging`, 2026-09-19; épico #423 fechado manualmente após o merge, convenção de 2026-09-17). A milestone `App v2` só fecha na Fase 30. Ver "Replanejamento de 2026-09-20".
+
+### Fase 24 — Análise: consumo e custos
+
+**Entrega (milestone):** `App v2 — navegação, histórico, relatórios e metas` (Fases 23–30).
+
+> Reestrutura `/propriedades` na aba **"Consumo e Custos"** do handoff: árvore de seleção com busca à esquerda e, à direita, o detalhe do item — dados, medidor, gráfico de consumo em tempo real e comparação em barras (kWh ou R$). **Design:** `Home v2` → Análise, no bundle vigente `2026-09-06-lumitrack-completo` — sem dependência de novo export. Cobre FNC005 itens 1–3 e fecha o "concentrar" do RF46.
+>
+> **Detalhada em 2026-09-20** — ver "Replanejamento de 2026-09-20 (detalhamento da Fase 24)" no fim do documento para as divergências entre o texto anterior, o `02` e o design (três decididas com o usuário). Nenhuma decisão do `07` bloqueia esta fase.
+>
+> **Fora do escopo, movido para a Fase 25 (decisão de 2026-09-20):** a área de análise configurável (janela, dia, hora, agregação, grandeza, "Gerar análise") e o seletor de abas. No design essa área vive só na aba **Grandezas Elétricas**, que nasce na Fase 25 — aqui a tela tem uma única visão, sem seletor de abas e sem beco sem saída. RF38 e FNC005 itens 4–6 passam para a Fase 25.
+>
+> **Estado de partida:** `/propriedades` é uma grade paginada de `PropertyCard`; as três páginas de detalhe (`PropertyDetailsPage`, `AreaDetailsPage`, `DeviceDetailsPage`) trazem menus de criar/editar/excluir, `MeterSection`, `RealtimeChartCard` e `ConsumptionSection`. O endpoint `GET /api/consumption/summary` devolve só o bucket mais recente por alvo e **omite o item inteiro** (kWh incluído) quando o custo não é calculável — caso de área/dispositivo de propriedade Grupo A ou Tarifa Branca. `usePropertyTree` já existe (Fase 23) e é reaproveitável.
+>
+> **Regras herdadas (Fase 23 e PR #438):** (a) a árvore de seleção é UI própria — não reaproveita a do Cadastro —, mas consome o mesmo hook/endpoint de árvore; (b) listagem paginada nova leva desempate por `id`; (c) nenhum CTA novo no canto inferior direito (toasts ficam ali); (d) teste que clique em painel com animação usa `expandAndSettle`.
+>
+> **Ordem interna 1 → 2 → 3:** o item 1 concentra a árvore e a única mudança de backend — destrava os demais e carrega o maior risco. A área e o dispositivo reaproveitam os blocos do item 1.
+
+### Análise: árvore de seleção + detalhe da Propriedade
+
+- **Comportamento:** `/propriedades` (URL mantida) mostra, à esquerda, a hierarquia Propriedades → Áreas → Dispositivos com busca "Buscar na hierarquia"; à direita, o estado vazio "Selecione o que deseja analisar" ou o detalhe do item selecionado. A seleção continua nas rotas atuais (`/propriedades/:id`, `.../areas/:areaId`, `.../devices/:deviceId`), então links do Painel e das notificações seguem valendo. O detalhe da propriedade traz: card de dados (distribuidora, UF, TUSD/TE, sistema elétrico, classe de faturamento e CIP no Grupo B), card **Medidor** (nome, conexão, "Editar medidor"; sem medidor, o "Configurar medidor" de hoje), botão "Editar" (modal existente), **gráfico de consumo em tempo real** (`RealtimeChartCard`, minuto a minuto) e **"Comparação de áreas"** — barras horizontais com alternância kWh/R$ do mês.
+- **Cobre:** FNC005 itens 1–3 (propriedade), RF46 (parcial — saída dos pontos de entrada).
+- **Priority:** P0 · **Size:** L (backend S + frontend L)
+- **Critérios de aceite:**
+  - **Árvore:** busca por nome (propriedade ou área que casa mostra os descendentes; com busca ativa os nós com resultado expandem); linha selecionada com o destaque do design; área sem dispositivos não tem botão de expandir; "Nenhum resultado para a busca." quando vazio. Acessível: `role="tree"`/`treeitem`, `aria-expanded`, navegação por setas/Enter, foco visível (o protótipo não define — WCAG 2.2 AA). Aviso "Mostrando N de M propriedades" quando o teto de 100 da árvore corta.
+  - **Backend:** `GET /api/consumption/summary` devolve `costBrl` **opcional** — o item de quem tem medidor sempre volta com kWh; o custo vem só quando calculável (Grupo B Convencional em área/dispositivo; propriedade mensal/anual). Quem não tem medidor, é de outro usuário ou não existe continua omitido (falha fechada). Teste de autorização por id e teste de que Grupo A/Branca devolve kWh sem custo. **Auditar todos os consumidores** de `ConsumptionSummaryItem` (Painel, páginas de detalhe) e tratar o custo ausente. A consulta continua em número constante de consultas.
+  - **Comparação de áreas:** só as áreas com medidor aparecem (o resumo omite as demais); com R$ indisponível (Grupo A/Branca) o botão R$ fica desabilitado com a explicação; sem nenhuma área com medidor, estado vazio dedicado ("Nenhuma área desta propriedade tem medidor."); sem áreas, "Cadastre áreas para comparar o consumo entre elas."
+  - **Editar:** o botão "Editar" abre o `PropertyFormDialog` existente. **Removidos:** grade de `PropertyCard` e paginação de `/propriedades`, "Nova propriedade", "Cadastrar primeira propriedade", `PropertyMenu` e o item "Excluir".
+  - **Preservados sob os blocos do design (decisão de 2026-09-20):** o histórico de consumo (`PropertyConsumptionSection`, com fatura Grupo A/Branca) e os botões "Comparar ACR × ACL" / "Comparar Convencional × Branca" — componentes atuais, sem layout novo; divergência deliberada, registrada no PR.
+  - Estados de carregamento e erro com os padrões existentes; em viewport estreita o aside empilha acima do detalhe (o protótipo não define mobile).
+  - Testes de `Sidebar` (Análise ativa nas rotas filhas), `pageTitles`, páginas, e os e2e que usam `/propriedades` (CRUD de propriedade, medidor, consumo, tempo real, navegação) atualizados — o e2e mocka o backend inteiro, então conferir cada `page.route` de `summary`.
+- **Depende de:** Fase 23 (`usePropertyTree`). **Design:** `Home v2` → Análise (pronto).
+- **Risco/observações:** médio-alto — único item com backend e o que reescreve a página mais usada do app. Tornar `costBrl` opcional muda um contrato consumido por mais de uma tela: o tipo passa a forçar o tratamento do custo ausente em cada consumidor. A flag "tem medidor" na árvore (prevista em 2026-09-19) **não entra**: o resumo já restringe a quem tem medidor, e a árvore só precisaria dela para um recurso que o design não pede.
+
+### Análise: detalhe da Área
+
+- **Comportamento:** selecionar uma área mostra: dados (propriedade e kWh/mês), card **Medidor**, dois KPIs — **"Consumo hoje"** e **"Custo do mês"** —, gráfico de consumo em tempo real e **"Comparação de dispositivos"** (kWh/R$ do mês, só dispositivos com medidor).
+- **Cobre:** FNC005 itens 1–3 (área), RF46 (parcial).
+- **Priority:** P0 · **Size:** M
+- **Critérios de aceite:**
+  - "Consumo hoje" e "Custo do mês" com dado real (o protótipo usa kWh/30 e R$ = kWh × 0,638, valores fictícios; o backend não projeta custo). Custo indisponível (Grupo A/Branca) aparece como "—" com explicação, nunca como zero.
+  - Comparação de dispositivos com o consumo **medido** de cada dispositivo (o protótipo divide pela potência nominal); dispositivos sem medidor ficam fora, com aviso; sem dispositivos, "Cadastre dispositivos para comparar o consumo entre eles."
+  - Consumo da área é o do medidor da própria área — **não** a soma dos dispositivos (não existe agregação hierárquica; somar divergiria do medidor do nível).
+  - "Editar área" abre o `AreaFormDialog` existente; **removidos** `AreaMenu`, "Adicionar dispositivo" e "Excluir". Histórico de consumo preservado (`AreaConsumptionSection`).
+  - Autorização: área de propriedade de outro usuário segue respondendo 403, a convenção do módulo (coberta por teste no service e nas rotas); o resumo de consumo omite o id em silêncio. *(Corrigido em 2026-09-21: o critério dizia 404, mas o módulo inteiro — e propriedade e dispositivo — responde 403 por convenção; mudar só a área deixaria a API inconsistente.)*
+- **Depende de:** item 1.
+- **Risco/observações:** baixo — reaproveita árvore, card de medidor, gráfico e comparação do item 1.
+
+### Análise: detalhe do Dispositivo
+
+- **Comportamento:** selecionar um dispositivo mostra: dados (propriedade, área, marca · modelo, potência), card **Medidor**, KPIs "Consumo hoje" e "Custo do mês" e gráfico de consumo em tempo real. Sem comparativo (o design não tem).
+- **Cobre:** FNC005 itens 1–3 (dispositivo), RF46 (fecha: criar e excluir só no Cadastro; editar também aqui).
+- **Priority:** P0 · **Size:** S
+- **Critérios de aceite:**
+  - "Editar dispositivo" abre o `DeviceFormDialog` existente; **removido** `DeviceMenu` (Excluir). Histórico de consumo preservado (`DeviceConsumptionSection`).
+  - **`02-requisitos.md`:** RF46 já descreve o estado final (criar/excluir no Cadastro; editar nos dois); ao concluir o item, conferir que nenhum ponto de criar/excluir sobrou em `/propriedades` (busca por `PropertyMenu`/`AreaMenu`/`DeviceMenu`/"Nova …"/"Adicionar …").
+  - E2E dos itens 1–3 verdes, incluindo o CRUD do Cadastro (`settings.spec.ts`), que passa a ser o único caminho de criar/excluir.
+- **Depende de:** item 2.
+- **Risco/observações:** baixo.
+
+> **Fase concluída** (PR #443 → `staging`, 2026-09-23T22:39:52Z; épico #439 fechado manualmente 24 s após o merge, convenção de 2026-09-17). A milestone `App v2` segue aberta até a Fase 30. Ver "Replanejamento de 2026-09-23 (fechamento da Fase 24)".
+
+### Fase 25 — Telemetria ampliada: grandezas elétricas por fase
+
+**Entrega (milestone):** `App v2 — navegação, histórico, relatórios e metas` (Fases 23–30).
+
+> **Detalhada em 2026-09-23** — ver "Replanejamento de 2026-09-23 (detalhamento da Fase 25)" no fim do documento. **Desbloqueada pelo ADR-0022** (grandezas medidas × calculadas pelo medidor, confirmado contra o datasheet real do CCK 7200D) — o bloqueio do `07` que impedia detalhar esta fase foi resolvido nesta sessão, não é mais um spike a abrir dentro da fase.
+>
+> Estende a ingestão (`IoTDataProcessor`) e o `MeterReading` para tensão por fase e fase-neutro média, desequilíbrio (calculado), corrente por fase (corrente de neutro fica sempre "-", ADR-0022), potência ativa total e por fase, reativa, aparente, frequência, fator de potência por fase e THD de tensão/corrente por fase — alimenta a aba "Grandezas Elétricas" de Análise (design: `Home v2`, bloco `gzCards`/`gzView`). Cobre RF37, RF38, RN34 e FNC005 itens 4–6.
+>
+> **Fora do escopo, adiado sem fase (decisão de 2026-09-23):** endereços/registradores por fase para os 4 adaptadores de protocolo por polling (Modbus TCP, Modbus RTU, EtherNet/IP, PROFINET) — `MqttConnection`/`Rs232Connection`/`Rs485Connection` repassam qualquer campo extra do payload/linha sem mudança de parsing (adaptador agnóstico ao shape), mas os 4 de polling exigiriam N endereços novos configuráveis em `extra` por protocolo, e hoje não há como testar isso de ponta a ponta — o `iot-simulator` só fala MQTT (mesma lacuna já registrada em FNC009/RF47 e na issue #315, que segue genuinamente em aberto). Medidor real nesses 4 protocolos simplesmente não populará os campos novos por enquanto; RN34 já cobre isso como ausência, sem quebrar nada. Reavaliar quando a Fase 31 (Modbus no simulador) ou hardware real tornarem isso testável.
+>
+> **Estado de partida (investigação de 2026-09-23):** `MeterReading` hoje só tem 4 campos escalares agregados (`avgVoltage`/`avgCurrent`/`avgPowerW`/`avgPowerFactor`), sem nada por fase e sem mínimo/máximo — toda a cadeia `MeterReadingSample` → `RawReadingPayload` → `MinuteBuffer` → `MeterReadingRepository.upsertMinute` (SQL raw com merge ponderado por tempo, RN31) está fortemente acoplada a esses 4 campos. `GET /api/meter-readings` é hardcoded para potência, granularidade fixa minuto/hora via `date_trunc`, sem seleção de grandeza nem mínimo/máximo. O frontend não tem nenhum tab selector de seção hoje (as 3 páginas de detalhe de Análise são listas verticais fixas) — a aba "Grandezas Elétricas" é construção nova, mas os 5 cards em tempo real do design consomem o SSE já existente (`processor.addSampleListener` → evento `reading`), então não dependem do endpoint novo do item 3.
+>
+> **Ordem interna 1 → 2 → 3 → 4 → 5:** o item 1 é a fundação estrutural (schema + pipeline) que todo o resto consome; o item 2 (simulador) valida o item 1 ponta a ponta sem hardware; o item 3 (endpoint) só depende do schema do item 1, podendo rodar em paralelo ao item 2; os itens 4 e 5 são UI, nessa ordem porque o 5 vive dentro da aba que o 4 constrói.
+
+### Telemetria: schema, pipeline e validação das grandezas por fase
+
+- **Comportamento:** qualquer medidor MQTT (ou RS-232/RS-485, mesmo formato JSON livre) que publique os campos novos passa a ter cada grandeza persistida por minuto em `MeterReading`, com a mesma ponderação por tempo (RN31) já usada hoje; medidor que não publica um campo mantém esse campo `NULL` (RN34 mostra "-"), sem quebrar a leitura das demais grandezas nem dos medidores existentes.
+- **Cobre:** RF37, RN29 (estendida), RN31 (estendida), RN34, ADR-0022.
+- **Priority:** P0 · **Size:** L
+- **Critérios de aceite:**
+  - `MeterReading` ganha 22 colunas novas *nullable* (convenção de nome alinhada aos `avgX` já existentes): tensão por fase ×3, desequilíbrio de tensão ×1 (calculado), corrente por fase ×3, potência ativa por fase ×3, potência reativa ×1, potência aparente ×1, frequência ×1, fator de potência por fase ×3, THD de tensão por fase ×3, THD de corrente por fase ×3. **Sem** coluna de corrente de neutro (ADR-0022) — a ausência é tratada só na UI (item 4), não no schema.
+  - `MeterReadingSample`/`RawReadingPayload` (`IoTDataProcessor`) crescem com os mesmos campos, todos opcionais.
+  - RN29 estendida: cada campo de fase presente é validado (não-negativo para V/A/W/var/VA; FP em [0,1]; frequência num teto plausível ~45–65Hz; THD ≥0) com o padrão já existente ("descarta com log, não derruba conexão"); campo ausente não participa da agregação daquele campo específico e não invalida a amostra inteira.
+  - Desequilíbrio de tensão calculado em `IoTDataProcessor.process`, a partir das 3 fases da própria amostra (mesmo padrão de `energyKwh`, calculado por amostra); amostra sem as 3 fases simultâneas não calcula desequilíbrio nessa leitura — permanece ausente ali, sem interromper o processamento das demais grandezas.
+  - `MinuteBuffer`/`MinuteBucket`/`MinuteBucketSnapshot` estendidos para acumular soma ponderada por tempo de cada campo novo presente; campo nunca recebido no balde permanece `NULL` no snapshot.
+  - `MeterReadingRepository.upsertMinute` (SQL raw) estende o merge ponderado (`CASE WHEN`) para os 22 campos novos — maior risco técnico do item pelo volume de expressões; avaliar na implementação se compensa extrair um helper de merge genérico em vez de repetir o padrão 22 vezes.
+  - Evento SSE `reading` (`iot/iot-stream.routes.ts`) carrega os campos novos automaticamente, por já serializar o `MeterReadingSample` inteiro — sem mudança de código além do tipo.
+  - Migração Prisma só aditiva (colunas nullable); nenhum dado existente é tocado, medidores em produção continuam funcionando sem alteração de comportamento.
+  - Testes: unitários de `IoTDataProcessor` (validação por campo, cálculo de desequilíbrio, amostra parcial), `MinuteBuffer` (ponderação com campos ausentes), `MeterReadingRepository` (merge SQL com campos parciais em dois flushes concorrentes — mesmo padrão de teste já usado para os 4 campos atuais).
+- **Depende de:** —.
+- **Risco/observações:** alto — mesma classe da Fase 19 (mexe no pipeline de todo medidor já em produção); o merge SQL ponderado é o ponto de maior chance de corromper histórico com um peso errado.
+
+### Telemetria: simulador IoT — geração sintética por fase
+
+- **Comportamento:** o `iot-simulator` passa a publicar, por dispositivo MQTT, as 9 grandezas novas com variação sintética plausível — pequeno desequilíbrio entre fases (ex.: ±3–5% entre A/B/C), THD com ruído realista, frequência com jitter em torno de 60Hz — permitindo testar o pipeline e a UI da fase de ponta a ponta sem hardware real.
+- **Cobre:** FNC009 (dado de teste), valida RF37/item 1 end-to-end.
+- **Priority:** P0 · **Size:** M
+- **Critérios de aceite:**
+  - `ElectricalSample`/`DeviceParams` (`iot-simulator/server/src/simulation/types.ts`) crescem com os campos novos.
+  - `signalGenerator.ts` gera cada grandeza nova com a mesma técnica já usada (senoide de período longo + ruído gaussiano + clamps mínimos), sem introduzir `NaN`/`Infinity`.
+  - UI do simulador (`iot-simulator/ui/`) permite ver os novos valores por dispositivo, reaproveitando o padrão de injeção de parâmetros já existente (RF47).
+  - Dispositivo simulado publica os campos novos via MQTT no mesmo tópico já usado; teste de integração ponta a ponta confirma que `IoTDataProcessor` processa e persiste corretamente.
+- **Depende de:** item 1 (shape da amostra).
+- **Risco/observações:** médio — trabalho mecânico, mas em volume (9 grandezas × lógica de geração cada).
+
+### Telemetria: endpoint de série configurável com mínimo/média/máximo
+
+- **Comportamento:** dado um alvo (Propriedade/Área/Dispositivo) e uma das 9 grandezas do seletor (tensão, corrente, potência ativa, reativa, aparente, fator de potência, THD de tensão, THD de corrente, frequência), o backend devolve, para a janela **Hora** (agregação configurável 1/5/15/30min) ou **Dia** (fixo, hora a hora — 24 baldes), cada bucket com mínimo, média e máximo — calculados a partir das linhas de `MeterReading` por minuto dentro do bucket, nunca inventados (com agregação de 1 minuto, mín=média=máx do próprio minuto, já que não há sub-minuto persistido).
+- **Cobre:** RF38 (leitura), FNC005 itens 5–6.
+- **Priority:** P0 · **Size:** L
+- **Critérios de aceite:**
+  - Rota nova (ex. `GET /api/meter-readings/series`) com `targetType`, `targetId`, `metric` (enum das 9 grandezas), `window` (`hora`|`dia`), `day`, `hour` (obrigatório se `window=hora`), `aggregationMinutes` (1/5/15/30, só se `window=hora`).
+  - `window=dia`: 24 buckets fixos (`date_trunc('hour', ...)`), sem depender de `hour`/`aggregationMinutes` — mesmo padrão de "campos desabilitados" que o design já define (FNC005 item 6).
+  - `window=hora`: bucket de N minutos dentro da hora escolhida — expressão SQL nova (não é `date_trunc` puro, que só bucketiza em unidades fixas; precisa de bucket por múltiplo de N minutos) — maior novidade técnica do item, sem precedente direto no código atual.
+  - `metric=thdv`/`thdi`: como o seletor não distingue fase, o valor por bucket é a **média das 3 fases** — mesmo tratamento já dado ao fator de potência, que também expõe "Média" em destaque no card (decisão de interpretação registrada aqui para não ficar implícita na implementação).
+  - Grandeza sem dado no período (coluna `NULL` em todas as linhas do bucket) devolve `null` no bucket — a UI mostra "-" (RN34), nunca 0.
+  - Autorização: mesma cadeia de resolução de alvo/ownership já usada em `/api/meter-readings` (`resolveRootProperty`).
+  - Teste de cada combinação (hora com as 4 agregações × dia), grandeza ausente, e o caso de fronteira "minuto único" (mín=média=máx).
+- **Depende de:** item 1 (colunas novas).
+- **Risco/observações:** médio-alto — bucket configurável por N minutos é construção de query nova, sem padrão existente para copiar.
+
+### Telemetria: aba "Grandezas Elétricas" — seletor de abas + cards em tempo real
+
+- **Comportamento:** as 3 páginas de detalhe de Análise (Propriedade/Área/Dispositivo) ganham o seletor "Consumo e Custos" / "Grandezas Elétricas" (primeira aparição de abas de seção no produto); a aba nova mostra 5 cards ao vivo (Tensão, Corrente, Potência, Fator de potência, Distorção harmônica) atualizados segundo a segundo via SSE, replicando o layout do protótipo (`LumiTrack Home v2`, bloco `gzCards`). Grandeza ausente aparece como "-" em vez de valor ou zero.
+- **Cobre:** FNC005 item 4, parte de RF37 (leitura em tempo real).
+- **Priority:** P0 · **Size:** M
+- **Critérios de aceite:**
+  - Tab selector reaproveita o padrão visual/acessível já usado em `GranularityTabs` (`role="tablist"`, `lt-selbtn`, `data-on`), mas trocando o **conteúdo da seção** em vez de granularidade — construção nova (não existe hoje no projeto).
+  - Cards consomem o stream SSE já existente, estendido pelo item 1 — sem endpoint novo.
+  - Layout por card: Tensão (fase A/B/C, fase-neutro média, desequilíbrio), Corrente (fase A/B/C, neutro sempre "-", média), Potência (hero: ativa total; linhas: reativa, aparente, ativa por fase, frequência), Fator de potência (hero: média; linhas: por fase), Distorção harmônica (THD tensão e corrente por fase).
+  - Sem leitura (SSE ainda não chegou) usa o mesmo padrão de estado "aguardando" já usado em `RealtimeChartCard`, nunca mostrando 0.
+  - Acessibilidade: abas com `role="tablist"`/`tab`/`tabpanel`, foco visível, navegável por teclado (WCAG 2.2 AA).
+- **Depende de:** item 1 (SSE estendido).
+- **Risco/observações:** baixo-médio — composição de UI sobre dado já disponível; o risco real é o volume de linhas/estados (5 cards × várias linhas cada).
+
+### Telemetria: área de análise configurável (gráfico + tabela)
+
+- **Comportamento:** abaixo dos cards, formulário com janela (Hora/Dia), dia, hora (desabilitado em Dia), agregação (desabilitado em Dia), grandeza e botão "Gerar análise"; ao submeter, plota gráfico de linha da grandeza escolhida e tabela com colunas Mínimo/Média/Máximo por bucket — replica `LumiTrack Home v2` (bloco `gzView`/formulário `runGz`).
+- **Cobre:** RF38, FNC005 itens 5–6.
+- **Priority:** P0 · **Size:** M
+- **Critérios de aceite:**
+  - Consome o endpoint do item 3; estado vazio inicial "Defina os parâmetros e clique em Gerar análise" (mesmo texto do protótipo) antes do primeiro submit.
+  - Gráfico reaproveita o padrão `recharts`/`LineChart` já usado em `RealtimePowerChart` (troca de `dataKey`/unidade, não o componente inteiro).
+  - Tabela com scroll horizontal se necessário (24 linhas no caso "Dia"), unidade formatada em pt-BR (RNF10) conforme a grandeza escolhida.
+  - Trocar `window` para "Dia" desabilita e limpa `hour`/`aggregationMinutes`, replicando o comportamento do protótipo.
+- **Depende de:** item 3 (endpoint) e item 4 (a aba onde a área vive).
+- **Risco/observações:** baixo — peça mais isolada da fase, sem descoberta técnica nova.
+
+### Fase 26 — Histórico e comparações
+
+**Entrega (milestone):** `App v2 — navegação, histórico, relatórios e metas` (Fases 23–30).
+
+> **Fase concluída** (PR #463 → `staging`, 2026-09-28T22:58:29Z; épico #458 fechado manualmente ~4 min após o merge, convenção de 2026-09-17). A milestone `App v2` segue aberta até a Fase 30. **O texto dos itens abaixo é o plano original**; o que a implementação fez diferente (seletor `<select>` no lugar de `AnalysisTree`, componente próprio no lugar de `VerdictCard`/`resolveDiffToneClass`, baldes relativos ao início do período, entre outros) está em "Replanejamento de 2026-09-28 (fechamento da Fase 26)".
+
+> **Detalhada em 2026-09-27** — ver "Replanejamento de 2026-09-27 (detalhamento da Fase 26)" no fim do documento. Nenhuma decisão do `07` bloqueia esta fase. **Acrescenta o item "Histórico" à navegação** (a Fase 23 não o cria — sem rota-esqueleto, `NAV_ITEMS` em `frontend/src/config/navigation.ts` já registra em comentário que ele "entra junto com a tela"). Cobre RF39 e FNC006.
+>
+> **Duas decisões de escopo tomadas na sessão de detalhamento** (evitam ambiguidade de alinhamento sem precedente no design): período A e B devem ter a **mesma duração** (validado em schema, refletido na UI); granularidade de bucket **automática por duração** — período ≤ 1 dia → hora, período > 1 dia → dia — em vez de escolhida pelo usuário.
+>
+> **Ordem interna 1 → 2 → 3 → 4:** o item 1 é o endpoint que os demais consomem; o item 2 (navegação + formulário) e o item 3 (gráfico) podem correr em paralelo depois do item 1; o item 4 (diferenças) depende dos dados que o item 1 já devolve, mas vive na mesma tela do item 3.
+
+### Histórico: endpoint de comparação de dois períodos
+
+- **Comportamento:** dado um alvo (Propriedade/Área/Dispositivo), uma grandeza (mesmo enum de 9 grandezas da Fase 25) e dois períodos A/B de mesma duração, devolve para cada período a série de buckets (mínimo/média/máximo, RN34 para grandeza ausente) mais o total/média agregado do período inteiro e a diferença (absoluta e percentual) de B sobre A.
+- **Cobre:** RF39 (cálculo), FNC006.
+- **Priority:** P0 · **Size:** L
+- **Critérios de aceite:**
+  - Rota nova (ex. `GET /api/meter-readings/compare-periods`), estendendo o módulo da Fase 25 (`meter-reading.routes.ts`, `meter-reading.schema.ts`) — o endpoint de série existente só aceita `window=dia|hora`, não intervalo livre, e não é reaproveitável como está.
+  - Schema valida `periodA{from,to}` e `periodB{from,to}` com a mesma duração (refine) e um teto de tamanho por período, inspirado em `MAX_COMPARISON_MONTHS` (`consumption.schema.ts`) — ex. máx. 92 dias.
+  - Granularidade derivada da duração, não escolhida pelo usuário: ≤1 dia → bucket por hora; >1 dia → bucket por dia — mesmo padrão de bucket mín/média/máx já construído na Fase 25.
+  - Grandeza ausente em algum bucket devolve `null` (RN34), nunca 0.
+  - Autorização: mesma cadeia de resolução de alvo/ownership (`resolveRootProperty`) já usada em `/api/meter-readings`.
+  - Testes: combinação hora/dia conforme duração, teto de intervalo, grandeza ausente, período sem nenhuma leitura.
+- **Depende de:** Fase 25 (schema/pipeline das grandezas por fase).
+- **Risco/observações:** médio — reaproveita a agregação mín/média/máx já construída na Fase 25, mas a granularidade automática por duração é regra nova, sem precedente direto no código atual.
+
+### Histórico: navegação + página (seleção de alvo, grandeza e períodos)
+
+- **Comportamento:** novo item "Histórico" em `NAV_ITEMS`, abrindo página com seleção de alvo (reaproveitando `AnalysisTree`/`useAnalysisTree`, mesmo padrão de Análise), grandeza (mesmo `SERIES_METRICS` da Fase 25) e dois seletores de período (início/fim de A e de B).
+- **Cobre:** FNC006 itens 1–2.
+- **Priority:** P0 · **Size:** M
+- **Critérios de aceite:**
+  - Rota nova adicionada a `APP_SHELL_ROUTES` (`AppRouter.tsx`); `NAV_ITEMS` ganha entrada "Histórico" no mesmo padrão visual dos demais itens.
+  - Formulário valida a mesma duração de A e B no cliente antes de habilitar "Gerar comparação", espelhando a validação do backend.
+  - Estado inicial "Defina os parâmetros e clique em Gerar comparação" — mesmo padrão de texto vazio já usado na área de análise configurável da Fase 25.
+- **Depende de:** Fase 23 (shell), item 1 (endpoint).
+- **Risco/observações:** baixo.
+
+### Histórico: gráfico comparativo (duas séries sobrepostas)
+
+- **Comportamento:** plota as séries A e B no mesmo gráfico de linha, cada uma com cor/legenda própria, eixo X por posição de bucket — não por data absoluta, já que A e B cobrem calendários diferentes por definição.
+- **Cobre:** RF39, FNC006 item 3.
+- **Priority:** P0 · **Size:** S/M
+- **Critérios de aceite:**
+  - Novo componente derivado de `SeriesLineChart`, com duas `<Line dataKey="valueA"/>` e `<Line dataKey="valueB"/>`, reaproveitando `format` por grandeza e `connectNulls={false}`.
+  - Legenda mostra as datas de cada período (ex. "Período A: 01/09–07/09", "Período B: 08/09–14/09").
+  - Bucket sem leitura aparece como lacuna na linha, nunca como 0 (RN34).
+- **Depende de:** item 1 (endpoint).
+- **Risco/observações:** baixo.
+
+### Histórico: seção de diferenças (veredito)
+
+- **Comportamento:** abaixo do gráfico, cards com total/média de cada período, diferença absoluta e percentual de B sobre A, com tom de cor por sinal da diferença.
+- **Cobre:** RF39, FNC006 item 3 (diferenças).
+- **Priority:** P0 · **Size:** S
+- **Critérios de aceite:**
+  - Reaproveita o padrão `VerdictCard` + `resolveDiffToneClass` (`comparisonTone.ts`), já usado em `AclComparisonPage`/`BrancaComparisonPage`, adaptado de "cenário A/B" para "período A/B".
+  - Tolerância de "diferença desprezível" **relativa** (ex. diferença < 1% é neutra) em vez de absoluta em centavos — a grandeza varia entre V/A/kW/Hz, a tolerância em R$ usada hoje só serve às comparações tarifárias.
+- **Depende de:** item 1 (endpoint), item 3 (mesma página).
+- **Risco/observações:** baixo — a tolerância relativa por grandeza é regra nova; validar o valor (1%) na implementação.
+
+### Fase 27 — Relatórios
+
+**Entrega (milestone):** `App v2 — navegação, histórico, relatórios e metas` (Fases 23–30).
+
+> **Fase concluída** (PR #475 → `staging`, 2026-10-04T20:49:52Z; épico #464 fechado manualmente ~3 min após o merge, convenção de 2026-09-17). A milestone `App v2` segue aberta até a Fase 30. **O texto dos itens abaixo é o plano original**; o que a implementação fez diferente (o corte do item 1 em dois, com os tipos alertas, qualidade e demanda virando a issue #470 e entrando também no agendamento; o período dos envios com dia 29 a 31; os tetos por usuário; a edição que preserva o calendário; entre outros) está nas seções de implementação de 2026-09-28 a 2026-10-03 e em "Replanejamento de 2026-10-04 (fechamento da Fase 27)".
+
+> **Detalhada em 2026-09-28** — ver "Replanejamento de 2026-09-28 (detalhamento da Fase 27)" no fim do documento. Três decisões tomadas com o usuário viraram ADRs: **ADR-0023** (arquivo gerado guardado como bytes no PostgreSQL), **ADR-0024** (relatório agendado enviado como anexo) e as **6 periodicidades** do RF41 (o design desenha só 3; o select ganha as outras). Cobre RF40, RF41, RN35, RN36, FNC007 e FNC008 (sub-página Relatórios). **Destino de `/relatorios`:** a consulta de consumo por granularidade é **absorvida** — a rota passa a ser a tela de FNC007. Design: template `LumiTrack Relatório A4` e telas de Relatórios do `Home v2` (handoff `2026-09-06-lumitrack-completo`) — nada aguarda design.
+>
+> **Ordem interna 1 → 2 → 3 → 4 → 5:** o item 1 é a base que todos consomem; o 2 fecha o RF40 e já é entregável sozinho; o 3 valida o CRUD e a tela de agendamento; o 4 concentra o risco (calendário RN36, idempotência, e-mail); o 5 (P1) reaproveita o cálculo de próxima execução do item 3.
+
+### Relatórios: modelo, geração e emissão sob demanda
+
+- **Comportamento:** o usuário escolhe escopo (propriedade, área ou dispositivo), tipo (**mensal e consumo** nesta entrega; alertas, qualidade de energia e demanda ficam no item seguinte), período e formato (PDF ou CSV) e clica em "Gerar relatório"; o arquivo é gravado, imutável, e oferecido para download.
+- **Cobre:** RF40 (geração), RN35, FNC007 itens 1–2.
+- **Priority:** P0 · **Size:** L
+- **Critérios de aceite:**
+  - Modelo novo `Report` (dono, escopo, tipo, período, formato, origem manual/agendada, bytes — ADR-0023), com teto de tamanho por arquivo.
+  - Módulo `report` com um gerador por tipo; PDF reaproveita `pdfkit` no template A4, CSV é formatador novo, sem dependência nova.
+  - Grandeza ou dado ausente aparece como "-", nunca 0 (RN34).
+  - Toda consulta passa por `resolveRootProperty` (ownership) e é parametrizada; alvo de outro usuário devolve 404.
+  - Teto de intervalo do período, no padrão de `compare-periods`.
+  - `/relatorios` refeita com o bloco de emissão; consulta antiga removida.
+  - Testes: cada tipo × formato gera arquivo válido; alvo alheio; dado ausente.
+- **Depende de:** Fase 23 (shell).
+- **Risco/observações:** o corte previsto aconteceu no início da implementação (ver "Replanejamento de 2026-09-28 (implementação do item 1)"): esta entrega cobre a infraestrutura completa e os tipos mensal e consumo; os outros três tipos viram o item seguinte.
+
+### Relatórios: tipos alertas, qualidade de energia e demanda
+
+- **Comportamento:** o usuário também emite relatórios de alertas do período, de qualidade de energia e de demanda (este último só para propriedade do Grupo A), em PDF ou CSV.
+- **Cobre:** RF40 (tipos restantes), RN35.
+- **Priority:** P0 · **Size:** M
+- **Critérios de aceite:**
+  - Um gerador por tipo, no mesmo formato de dados dos geradores existentes; tipos entram em `reportTypeSchema` e no seletor do formulário.
+  - Alertas: episódios de disparo do período (`AlertTriggerEvent`) do alvo. Qualidade de energia: as grandezas elétricas por fase (tensão, fator de potência, THD, desequilíbrio), com "-" para o que o medidor não fornece.
+  - Demanda: rejeitado para propriedade que não é do Grupo A; demanda medida (`MeterDemandRollup`) contra a contratada.
+  - **Sem layout no design** para os três: as tabelas seguem o padrão visual do template A4, e o conteúdo exato é decidido na implementação — perguntar antes de assumir.
+  - Testes: cada tipo × formato gera arquivo válido; demanda × Grupo B; dado ausente.
+- **Depende de:** item anterior (infraestrutura de emissão).
+- **Risco/observações:** o conteúdo dos três tipos não está especificado no handoff — é decisão de produto, não de engenharia.
+
+### Relatórios: histórico — listar, baixar e excluir
+
+- **Comportamento:** o bloco "Relatórios gerados" lista (paginado), baixa e exclui relatórios, manuais e agendados.
+- **Cobre:** RF40 (histórico), FNC007 item 3.
+- **Priority:** P0 · **Size:** S/M
+- **Critérios de aceite:**
+  - Download e exclusão só do dono; a exclusão remove os bytes.
+  - Retenção do `Report` entra no `RetentionPurgeScheduler` (variável `DATA_RETENTION_*`, nunca hardcoded).
+  - O export do titular (RF17/DSAR) inclui os relatórios.
+- **Depende de:** item 1.
+- **Risco/observações:** baixo; retenção e DSAR são o que costuma ser esquecido.
+
+### Relatórios: agendamento — modelo, CRUD e sub-página Configurações → Relatórios
+
+- **Comportamento:** o usuário cria, edita e exclui configurações de envio (escopo, tipo, formato, periodicidade, dia, destinatários) numa sub-página nova, incluída em `SETTINGS_NAV_ITEMS`; cada configuração mostra a próxima execução.
+- **Cobre:** RF41 (gestão), FNC007 item 4, FNC008.
+- **Priority:** P0 · **Size:** M
+- **Critérios de aceite:**
+  - Modelo novo de configuração; periodicidade com as 6 opções do RF41 (diária, semanal, mensal, trimestral, semestral, anual).
+  - Zod valida destinatários (e-mail válido, teto de quantidade) e dia de 1 a 31; configuração é do dono.
+  - Função pura de "próxima execução", com relógio injetado, é a fonte única para a lista e para o item 5.
+  - Testes: cada periodicidade; dia inexistente no mês (cai no último dia — RN36).
+- **Depende de:** item 1.
+- **Risco/observações:** o design só desenha Mensal/Semanal/Trimestral; as outras três são extensão do select, sem layout novo.
+
+### Relatórios: execução automática e envio por e-mail
+
+- **Comportamento:** um scheduler gera o relatório na data devida, grava no histórico com origem "agendada" e envia aos destinatários como anexo (ADR-0024).
+- **Cobre:** RF41 (execução), RN36, FNC007 item 4.
+- **Priority:** P0 · **Size:** M/L
+- **Critérios de aceite:**
+  - Scheduler no padrão de `TariffFlagSyncScheduler` (roda no boot e periodicamente), iniciado/parado em `server.ts`.
+  - RN36: dia 29, 30 ou 31 em mês curto (fevereiro, bissexto, meses de 30 dias) envia no último dia, testado com relógio injetado; fuso America/Sao_Paulo.
+  - Idempotência: reiniciar o servidor no mesmo dia não duplica o envio.
+  - Falha de SMTP não derruba o processo, é registrada e reprocessada; recupera envios perdidos com o servidor fora do ar.
+  - Limite de tamanho do anexo e de destinatários; endereço de destinatário nunca em log.
+  - ROPA e aviso de privacidade atualizados com o fluxo (destinatários de terceiros).
+- **Depende de:** itens 1 e 3; ADR-0024.
+- **Risco/observações:** mesma classe de armadilha de calendário que RN25 na Fase 19, mais idempotência e fuso. Item mais sensível da fase.
+
+### Relatórios: próximos envios (15 dias)
+
+- **Comportamento:** a tela de Relatórios mostra os envios previstos para os próximos 15 dias.
+- **Cobre:** FNC007 item 1.
+- **Priority:** P1 · **Size:** S
+- **Critérios de aceite:**
+  - Calculado a partir das configurações, reaproveitando a função de próxima execução do item 3; estado vazio explícito.
+- **Depende de:** item 3.
+- **Risco/observações:** baixo; P1 porque não bloqueia emitir nem enviar.
+
+### Fase 28 — Metas
+
+**Entrega (milestone):** `App v2 — navegação, histórico, relatórios e metas` (Fases 23–30).
+
+> **Fase concluída** (PR #488 → `staging`, 2026-10-05T22:35:33Z; épico #481 e as seis sub-issues #482–#487 fechados). A milestone `App v2` segue aberta até a Fase 30. **O texto dos itens abaixo é o plano original**; o que a implementação fez diferente (R$ e demanda entregues na própria fase, com decisões de produto no lugar do design que faltava; kWh, R$ e kW coexistindo no mesmo ano; o mês corrente em R$ contra a meta cheia; a demanda por pico; a API renomeada; o ajuste do link do aviso; entre outros) está em "Replanejamento de 2026-10-05 (fechamento da Fase 28 e detalhamento da Fase 29)".
+
+> **Detalhada em 2026-10-04** — ver "Replanejamento de 2026-10-04 (detalhamento da Fase 28)" no fim do documento. Quatro decisões tomadas com o usuário: só **kWh** na primeira leva (R$ e demanda são os itens 5 e 6, aguardando design); a meta é **por propriedade**; o percentual de alerta vale para o **mês e para o ano acumulado**; meta de ano **vigente e futuros** é editável e excluível, só ano passado é imutável (a RN37 do `02-requisitos.md` é reescrita junto do item 1). Cobre RF42, RN37, RF43, FNC011, FNC013 (item 2) e FNC008 (sub-página Metas). **Design:** Home v2, sub-página Metas (card da meta vigente, gráfico meta × realizado com 4 cards, histórico, modal "Nova meta"); a seção de alertas de meta na página de Alertas e as metas de R$ e de demanda **não têm layout**.
+>
+> **Ordem interna 1 → 2 → 3 → 4, depois 5 e 6:** o 1 é a base de dados e de tela; o 2 acrescenta o realizado e fecha o acompanhamento; o 3 depende do realizado; o 4 depende do `Goal` e do realizado mensal. Os itens 5 e 6 só começam com o design.
+
+### Metas de consumo (kWh): modelo, CRUD e sub-página Configurações → Metas
+
+- **Comportamento:** o usuário cria, edita e exclui metas anuais de consumo em kWh de uma propriedade, com 12 valores mensais, ano de referência e percentual de alerta, e vê o histórico numa tabela. "Metas" entra em `SETTINGS_NAV_ITEMS`.
+- **Cobre:** RF42 (parte kWh), RN37, FNC011 itens 3–4, FNC008 (sub-página Metas).
+- **Priority:** P0 · **Size:** L
+- **Critérios de aceite:**
+  - Modelo novo `Goal` (dono, propriedade, ano, ano de referência, 12 valores mensais em kWh, percentual de alerta, marcas de "já notificado" por mês e por ano para o item 4), único por propriedade e ano.
+  - A meta anual é a soma dos 12 meses. O "consumo específico alvo" do modal é só atalho de preenchimento da interface (repete o valor nos 12 campos), não é persistido.
+  - Posse da propriedade por `resolveRootProperty`; propriedade alheia devolve 404. Escrita em conta de demonstração passa por `blockDemoWrite`.
+  - RN37 imposta no **servidor**, com o ano contado em horário de São Paulo: meta de ano passado não edita nem exclui; criar meta de ano passado é rejeitado; vigente e futuros editam e excluem. O texto da RN37 no `02-requisitos.md` é reescrito para isso.
+  - Percentual de alerta entre 10 e 100 (limites do design); valores mensais não negativos; ano entre 2020 e 2100.
+  - Sub-página na tela de Configurações, filtrada pela propriedade da topbar, com card "Metas de consumo anual", botão "Nova meta", modal conforme o design e tabela de histórico (ano, meta, base de referência, situação; realizado e desvio chegam no item 2).
+  - Rota nova em `AppRouter` e regra de título em `pageTitles.ts`; e2e mocka o backend inteiro, então os `page.route` das chamadas novas entram no mesmo PR.
+  - Testes: RN37 (passado, vigente, futuro), unicidade por propriedade e ano, posse, demo, validação dos limites.
+- **Depende de:** Fase 23 (shell de Configurações) e design existente (Home v2).
+- **Risco/observações:** a unicidade por propriedade e ano é regra de banco, não só de serviço. Sem teto por usuário: a unicidade já limita o volume a um registro por ano e propriedade.
+
+### Metas: acompanhamento (realizado, desvio e situação)
+
+- **Comportamento:** a tela mostra o gráfico de barras meta × realizado por mês, os cards Meta do ano, Realizado até o mês corrente, Desvio acumulado e Meta do mês, e as colunas Realizado, Desvio e Situação do histórico (Em andamento, Cumprida, Não cumprida).
+- **Cobre:** FNC011 item 2.
+- **Priority:** P0 · **Size:** M
+- **Critérios de aceite:**
+  - O realizado mensal vem do `ConsumptionService` (consumo por mês da propriedade), sem recalcular consumo em outro lugar.
+  - Mês sem leitura aparece como "-", nunca 0 (RN34); o desvio só considera meses com leitura.
+  - Desvio acumulado compara o realizado com a meta acumulada, com o **mês corrente proporcional aos dias decorridos**. O design compara o realizado parcial com a meta cheia do mês, o que favorece o usuário no meio do mês; a divergência é deliberada e fica registrada.
+  - Situação: ano vigente e futuros "Em andamento"; ano passado "Cumprida" se realizado ≤ meta, senão "Não cumprida".
+  - Endpoint de acompanhamento por meta, com posse conferida; custo de consulta limitado a 12 meses de uma propriedade.
+  - Testes: ano passado cumprido e não cumprido, mês sem leitura, mês corrente proporcional, ano futuro sem realizado.
+- **Depende de:** item 1.
+- **Risco/observações:** o realizado do mês corrente é parcial por natureza; o texto dos cards deve dizer "até" a data.
+
+### Metas: usar como referência
+
+- **Comportamento:** a ação "Usar como referência" numa meta de ano passado abre o modal de nova meta já preenchido: ano seguinte ao vigente, ano de referência igual ao escolhido e 12 meses preenchidos a partir do realizado daquele ano.
+- **Cobre:** FNC011 item 3.
+- **Priority:** P1 · **Size:** S
+- **Critérios de aceite:**
+  - A ação só aparece em meta de ano passado, como no design.
+  - Os 12 valores vêm do realizado mensal do item 2; mês sem leitura vira campo vazio, não 0.
+  - O ano de referência gravado na nova meta é o do ano escolhido.
+  - Testes de componente: visibilidade da ação, preenchimento, mês sem leitura.
+- **Depende de:** itens 1 e 2.
+- **Risco/observações:** baixo; P1 porque criar a meta à mão já funciona sem ela.
+
+### Metas: alerta de meta
+
+- **Comportamento:** quando o consumo atinge o percentual configurado da meta, o usuário recebe a notificação e vê o alerta na página de Alertas. O percentual vale para a **meta do mês** e para a **meta anual acumulada**.
+- **Cobre:** RF43, FNC013 item 2.
+- **Priority:** P0 · **Size:** M
+- **Critérios de aceite:**
+  - Avaliador periódico a cada 15 minutos, no padrão do `DemandAlertScheduler`: lê o realizado já agregado e nunca varre leituras brutas; nunca rejeita (uma falha de banco é registrada e a passada seguinte tenta de novo).
+  - Idempotência por período: no máximo uma notificação por mês e uma por ano por meta, com atualização condicional das marcas de "já notificado" (duas instâncias do avaliador não notificam duas vezes).
+  - Só metas do ano vigente são avaliadas; propriedade excluída ou alheia é ignorada sem erro.
+  - O tipo da notificação em memória hoje exige `meterId` e `alertId`; meta tem propriedade, não medidor. O tipo é ajustado de forma explícita e o teste cobre a notificação de meta (ADR curta se a mudança tocar o contrato do `NotificationStore`).
+  - A página de Alertas ganha a seção "Alertas de meta" com o estado atual (percentual atingido no mês e no ano, notificado ou não); o alerta de demanda segue sem tela e fica fora desta issue.
+  - Nada de dado pessoal em log: só ids e códigos.
+  - Testes: dispara ao cruzar o percentual, não repete no mesmo período, dispara de novo no mês seguinte, mês e ano independentes, meta sem leitura não dispara.
+- **Depende de:** itens 1 e 2.
+- **Risco/observações:** **a seção na página de Alertas não tem design** — aguardando design, ou o usuário autoriza reaproveitar o padrão visual da `AlertTable`. O alerta anual pode disparar já em setembro ou outubro se o ano andar acima do ritmo, o que é o comportamento pedido.
+
+### Metas: custo (R$)
+
+- **Comportamento:** o usuário define também metas anuais e mensais em reais, com o mesmo modelo e a mesma tela, e acompanha o realizado em custo.
+- **Cobre:** RF42 (parte custo), FNC011 item 1.
+- **Priority:** P1 · **Size:** M
+- **Critérios de aceite:**
+  - Unidade da meta (kWh ou R$) escolhida no formulário; o realizado usa `costBrl` do `ConsumptionService`, sem recalcular tarifa.
+  - O alerta do item 4 também avalia metas em R$.
+  - Ausência de custo (propriedade sem tarifa calculável) aparece como "-".
+- **Depende de:** itens 1, 2 e 4; **aguardando design** do formulário e da tela em reais (o Painel do design já desenha a meta em R$, as Configurações não).
+- **Risco/observações:** decidir na chegada se kWh e R$ coexistem para o mesmo ano e propriedade (a unicidade do item 1 passa a incluir a unidade).
+
+### Metas: demanda (Grupo A)
+
+- **Comportamento:** para propriedade do Grupo A, o usuário define meta mensal de demanda em kW e acompanha a demanda medida contra ela.
+- **Cobre:** RF42 (parte demanda), FNC011 item 1.
+- **Priority:** P2 · **Size:** M
+- **Critérios de aceite:**
+  - Disponível só para propriedade com `tariffGroup` do Grupo A, lido da árvore de cadastro que já traz o campo; propriedade do Grupo B rejeita no servidor.
+  - A demanda medida vem de `MeterDemandRollup`. Ausência de janela medida aparece como "-" (a semântica de `buildDemand`, que respeita a RN34), não como 0 (a de `measuredDemandKwFor`); a Fase 29 usa a mesma, sem criar uma terceira.
+- **Depende de:** itens 1 e 2; **aguardando design**.
+- **Risco/observações:** meta de demanda é um teto mensal de kW, distinto da demanda contratada; o design não os separa, e isso é decisão de produto a confirmar com o desenho.
+
+### Fase 29 — Painel v2: widgets novos
+
+**Entrega (milestone):** `App v2 — navegação, histórico, relatórios e metas` (Fases 23–30).
+
+> **Fase concluída** (PR #495 → `staging`, 2026-10-08T23:07:17Z; épico #489 e as cinco sub-issues #490–#494 fechados). A milestone `App v2` segue aberta até a Fase 30. **O texto dos itens abaixo é o plano original**; o que a implementação fez diferente (kWh diário aberto no backend para o Grupo A e a Branca, R$ do Mês só da parte variável, paleta categórica nova de tokens, demanda do dia vinda das leituras e não do rollup, degrau da contratada na Azul, entre outros) está em "Replanejamento de 2026-10-08 (fechamento da Fase 29 e detalhamento da Fase 30)".
+
+> **Detalhada em 2026-10-05** — ver "Replanejamento de 2026-10-05 (fechamento da Fase 28 e detalhamento da Fase 29)" no fim do documento. Completa o Painel do handoff `Home v2` (FNC004 itens 3–6); a bandeira vigente e os alertas em disparo (itens 1–2) já existem. **Decisão do usuário: os blocos atuais do Painel ficam** (KPIs de consumo e custo, potência em tempo real, histórico e comparação entre propriedades), mesmo que o design v2 não os desenhe — os widgets novos entram na ordem do design (demanda ou bandeiras e alertas, depois consumo de hoje e peso por medidor, depois meta) e os blocos atuais descem, como divergência deliberada, o mesmo critério da Fase 24. **Design:** `Home v2` → Painel, nos blocos "Demanda atual vs. contratada", "Consumo de hoje", "Peso de cada medidor" e "Meta de consumo" (pronto; nada aguarda design). Tudo é filtrado pela propriedade da topbar.
+>
+> **Ordem interna 1 → 2 → 3 → 4 → 5:** a meta primeiro, com a Fase 28 fresca; a tabela de consumo de hoje antes da pizza, que reaproveita os hooks do resumo; a demanda depois, porque é o único item com backend novo; a faixa de ponta por último, e a primeira a sair se a fase apertar.
+
+### Painel: meta de consumo
+
+- **Comportamento:** o Painel ganha o bloco "Meta de consumo" da propriedade, com alternância **Mês | Ano** e **kWh | R$**: os cards Meta do mês (ou do ano), Acumulado até a data, Projeção de fechamento e Situação (±x% vs. meta), e o gráfico do acumulado contra o ritmo da meta. O link "Ver metas" leva a `/configuracoes/metas?propertyId=` da propriedade.
+- **Cobre:** FNC004 item 5, FNC011 (leitura no Painel).
+- **Priority:** P0 · **Size:** M
+- **Critérios de aceite:**
+  - O Ano usa `GET /api/goals/progress`; o Mês usa o consumo diário do mês corrente da propriedade (`GET /api/consumption`, granularidade dia, em kWh e em R$), sem recalcular consumo nem custo em outro lugar.
+  - Propriedade sem meta do ano corrente na unidade escolhida mostra um estado vazio com o link para criá-la; unidade sem meta não esconde a outra.
+  - Mês ou dia sem leitura aparece como "-", nunca 0, e fica fora do acumulado.
+  - A projeção de fechamento e a situação são funções puras com teste (mês no início, no meio e no fim; ano com meses sem leitura; meta zerada).
+  - Gráfico acessível: tabela `sr-only` com os valores e `accessibilityLayer={false}` no desenho oculto (lição do gráfico de Metas).
+  - e2e mocka o backend inteiro: conferir os `page.route` do Painel.
+- **Depende de:** Fase 28 e Fase 23. **Design:** `Home v2` → Painel → "Meta de consumo" (pronto).
+- **Risco/observações:** **a projeção em R$ herda o problema do custo fixo da Fase 28** — o custo do mês já traz cobranças fixas desde o dia 1, então projetar "acumulado ÷ dias × total" infla o fechamento nos primeiros dias; decidir na chegada entre projetar só a parte variável e ocultar a projeção em R$ nos primeiros dias do mês. A meta de demanda (kW) não está no desenho do Painel e fica fora.
+
+### Painel: consumo de hoje (tabela hierárquica)
+
+- **Comportamento:** a tabela "Consumo de hoje" mostra Propriedade → Áreas → Dispositivos, com kWh e R$ do dia, expansível por nível ("abra a hierarquia para ver áreas e dispositivos").
+- **Cobre:** FNC004 item 3.
+- **Priority:** P0 · **Size:** M
+- **Critérios de aceite:**
+  - A hierarquia vem de `usePropertyTree`; os valores, de `GET /api/consumption/summary` com granularidade dia e o dia de hoje em São Paulo, em lotes de até 50 ids por tipo de alvo (propriedade, área e dispositivo), sem backend novo e em número constante de consultas por tipo.
+  - Nó sem medidor mostra "-"; R$ ausente (Grupo A e Branca, onde o custo não é calculável por área) também; o total de um nó não é a soma dos filhos, porque cada nível tem o seu medidor.
+  - Acessível: `role="tree"` ou `treegrid`, `aria-expanded`, navegação por setas e Enter, foco visível (WCAG 2.2 AA).
+  - Estados de carregamento, erro e propriedade sem medidor com os padrões existentes.
+  - Testes de componente (expandir e recolher, nós sem medidor, custo ausente) e e2e com os `page.route` de `summary`.
+- **Depende de:** Fase 23 (`usePropertyTree`). **Design:** `Home v2` → Painel → "Consumo de hoje" (pronto).
+- **Risco/observações:** baixo; o resumo omite quem não tem medidor, então a árvore precisa tratar a ausência sem esconder o nó.
+
+### Painel: peso de cada medidor
+
+- **Comportamento:** a pizza "Peso de cada medidor" mostra a participação de cada **área com medidor** da propriedade no consumo do mês corrente, com legenda em %. O menu "N de M medidores" marca e desmarca áreas, com "Selecionar todos" e "Limpar seleção".
+- **Cobre:** FNC004 item 4.
+- **Priority:** P1 · **Size:** S
+- **Critérios de aceite:**
+  - **Decisão do usuário:** entram só as áreas com medidor, o nível que o design mostra e que não conta o consumo duas vezes; o medidor geral da propriedade e os de dispositivo ficam fora.
+  - Valores de `GET /api/consumption/summary` (granularidade mês, ids das áreas); o percentual é sobre as áreas selecionadas.
+  - Sem seleção: "Selecione ao menos um medidor."; sem área com medidor: estado vazio dedicado.
+  - Cores da paleta de gráficos dos tokens; tabela `sr-only` com nome, kWh e % e desenho fora da árvore de acessibilidade, sem foco por teclado.
+  - Testes: percentuais, seleção e limpeza, área sem medidor.
+- **Depende de:** item de consumo de hoje (hooks do resumo). **Design:** `Home v2` → Painel → "Peso de cada medidor" (pronto).
+- **Risco/observações:** o nome "medidor" no design é, na prática, a área; manter o rótulo do design e dizer "áreas" no texto de apoio.
+
+### Painel: demanda atual × contratada (Grupo A)
+
+- **Comportamento:** só para propriedade do Grupo A, o Painel ganha o bloco "Demanda atual vs. contratada": os cards Demanda atual, Máxima do mês, Contratada e Ultrapassagem, o gráfico do dia com as linhas **Medida** e **Contratada**, e a modalidade na nota ("modalidade Verde · medição a cada 15 min").
+- **Cobre:** FNC004 item 6, RF28 (leitura no Painel).
+- **Priority:** P1 · **Size:** M
+- **Critérios de aceite:**
+  - Endpoint novo, com posse da propriedade conferida e Grupo B recusado no servidor; o bloco nem aparece para Grupo B. Lê `MeterDemandRollup` (maior potência média de 15 minutos entre os postos, ÷ 1000, em kW).
+  - **Semântica de demanda unificada:** janela sem medição é ausência ("-"), nunca 0 kW, a mesma da meta de demanda (`GoalConsumptionReader`) e do relatório de demanda; não nasce uma terceira. A demanda contratada vem de `contractedDemand.ts`.
+  - "Ultrapassagem" mostra o percentual sobre a contratada e "sem ultrapassagem" quando não passou.
+  - Gráfico acessível (tabela `sr-only`, `accessibilityLayer={false}`).
+  - Testes: Grupo B, propriedade alheia, dia sem janela medida, máxima do mês, ultrapassagem.
+- **Depende de:** Fases 19/20 (demanda medida e contratada do Grupo A). **Design:** `Home v2` → Painel → "Demanda atual vs. contratada" (pronto).
+- **Risco/observações:** a modalidade Azul tem demanda contratada na ponta e fora da ponta, e o design desenha uma linha só (o protótipo é Verde); decidir o desenho na chegada. O dia sem leitura do protótipo é sintético; o dado real tem buracos.
+
+### Painel: faixa de horário de ponta (Grupo A)
+
+- **Comportamento:** no bloco de meta, para propriedade do Grupo A, a faixa "Horário de ponta" mostra a janela de ponta e dos dias excluídos e o percentual do consumo do mês que caiu na ponta.
+- **Cobre:** FNC004 (complemento do item 5).
+- **Priority:** P2 · **Size:** S
+- **Critérios de aceite:**
+  - O percentual vem do kWh por posto da conta do Grupo A (a mesma fonte da fatura), e a janela, da configuração da distribuidora — nada de "18h–21h" escrito no código.
+  - Sem consumo no mês ou sem posto calculável, a faixa mostra "-" ou some; nunca 0%.
+  - Não aparece para o Grupo B.
+- **Depende de:** item da meta no Painel. **Design:** `Home v2` → Painel → faixa dentro de "Meta de consumo" (o protótipo traz o percentual fixo em 31%).
+- **Risco/observações:** é o primeiro a sair se a fase apertar, sem afetar o resto.
+
+### Fase 30 — Sessões ativas
+
+**Entrega (milestone):** `App v2 — navegação, histórico, relatórios e metas` (Fases 23–30). **É a última fase da entrega: ao concluí-la, fechar a milestone no GitHub.**
+
+> **Fase concluída** (PRs #502 e #503 → `staging`, 2026-10-09; issues #500 e #501 fechadas, sem épico: 2 itens independentes, um PR por item). A milestone `App v2` ficou com 0 issues abertas e foi fechada no GitHub em 2026-10-12. **O texto dos itens abaixo é o plano original**; o que a implementação fez diferente (`sessionId` nas duas tabelas de token em vez de "visão sem tabela nova", a atual sem botão, a cascata de reuso do refresh, a janela de graça, a auditoria `SESSION_REVOKE`/`REVOKED_TOKEN_USE`, entre outros) está em "Replanejamento de 2026-10-09 (fechamento da Fase 30 e detalhamento da Fase 31)".
+
+> **Detalhada em 2026-10-08** — ver "Replanejamento de 2026-10-08 (fechamento da Fase 29 e detalhamento da Fase 30)" no fim do documento. Lista os dispositivos e origens onde a conta está autenticada e permite encerrar qualquer sessão, ou todas as outras de uma vez (RF44, FNC012). **Onde vive:** dentro da página Segurança (`/seguranca`), como no design — Perfil e Segurança permanecem telas próprias, não migram para Configurações (decisão de 2026-09-19). **Design:** `Home v2` → Segurança → "Sessões ativas" (pronto: título, "Encerrar todas as outras", e por sessão ícone, dispositivo com selo da sessão atual, origem, último acesso e o botão de encerrar). **Achado de 2026-10-08:** a página Segurança de hoje não tem nenhum bloco de sessões, e `AuthToken` (mobile) e `RefreshToken` (web) guardam só canal, validade e datas — nenhum dispositivo, IP ou user-agent. Sem captar algo no login, a lista só diria "Web" ou "Mobile" e a data, o que não cumpre o "dispositivo, origem" do RF44. **A decisão de produto é o primeiro passo da fase** (item 1).
+>
+> **Ordem interna 1 → 2:** ver as sessões primeiro, porque carrega a decisão do que captar e a migração; encerrar depois, que só age sobre o que já está listado.
+
+### Sessões: ver as sessões ativas da conta
+
+- **Comportamento:** o bloco "Sessões ativas" da página Segurança lista cada sessão em que a conta está autenticada — web (refresh token vigente) e mobile (token ativo) —, com o dispositivo, a origem e o último acesso, e o selo "esta sessão" na sessão do próprio navegador. Em modo de demonstração a lista é representativa, como diz o FNC012.
+- **Cobre:** RF44 (leitura), FNC012 itens 1 e 3.
+- **Priority:** P1 · **Size:** M
+- **Critérios de aceite:**
+  - **Decisão registrada antes do código** (ADR e item do `07`): o que se capta no login para "dispositivo, origem" — só canal e data, ou também user-agent resumido e IP. **LGPD (`09`):** IP e user-agent são dado pessoal; se entrarem, definir base legal (segurança da conta, legítimo interesse), minimização (user-agent reduzido a navegador e sistema, IP truncado ou só o suficiente para a pessoa se reconhecer), retenção atrelada à vida da sessão e inclusão no ROPA e na exportação do titular.
+  - Endpoint de listagem só das sessões do próprio usuário, ownership no servidor, sem devolver o valor do token nem o hash; contas de demonstração devolvem uma lista representativa.
+  - Sessão expirada, revogada ou já rotacionada não aparece; a sessão atual é identificada sem expor o token.
+  - Estados de carregamento, erro e conta sem outra sessão, com os padrões existentes; acessível (lista com leitor de tela, rótulo do botão por sessão).
+  - Migração sem quebrar sessões já abertas: sessão antiga sem origem aparece como "Origem não registrada", nunca com dado inventado.
+  - Testes: ownership (sessão alheia nunca listada), expiradas e revogadas fora, sessão atual marcada, sessão antiga sem origem, demonstração; e2e com os `page.route` da Segurança (o app logado cai em 401 se faltar mock).
+- **Depende de:** Fase 23. **Design:** `Home v2` → Segurança → "Sessões ativas" (pronto).
+- **Risco/observações:** o dado que se capta muda o escopo (migração, LGPD, ROPA). A decisão deve sair na chegada, antes de abrir a issue com critérios finais. O `Session` pode ser só uma visão sobre `RefreshToken` e `AuthToken`, sem tabela nova, se a decisão for "canal e data".
+
+### Sessões: encerrar uma sessão ou todas as outras
+
+- **Comportamento:** cada sessão da lista tem o botão de encerrar, e "Encerrar todas as outras" encerra tudo menos a sessão atual, com confirmação. A sessão encerrada deixa de funcionar na hora: o refresh token e o token de acesso dela são revogados.
+- **Cobre:** RF44 (encerramento), FNC012 item 2.
+- **Priority:** P1 · **Size:** S
+- **Critérios de aceite:**
+  - Encerrar uma sessão revoga o refresh token e toda a cadeia de rotação dele (reuso de um token já trocado continua sendo sinal de roubo), ou o `AuthToken` mobile; encerrar a própria sessão atual pede confirmação e leva ao login.
+  - "Encerrar todas as outras" nunca encerra a sessão atual e age só nas sessões do próprio usuário; id de sessão alheio é recusado no servidor (403 ou 404 sem vazar a existência).
+  - Contas de demonstração não encerram sessão (`blockDemoWrite`).
+  - A ação é registrada no log de auditoria existente, sem token nem IP em log.
+  - Testes: ownership, revogação efetiva (a sessão encerrada falha na próxima chamada e no refresh), a atual preservada em "todas as outras", demonstração bloqueada; e2e do encerramento com confirmação.
+- **Depende de:** item 1. **Design:** `Home v2` → Segurança → "Sessões ativas" (botão por sessão e "Encerrar todas as outras"; **a confirmação não está no desenho**, marcar para sincronizar com o Claude Design).
+- **Risco/observações:** baixo, desde que a revogação cubra os dois canais. É a fase de menor valor de produto do bloco (conveniência e segurança da conta, não monitoramento de energia), por isso fica por último.
+
+### Fase 31 — Simulador: suporte a Modbus TCP/RTU
+
+**Entrega (milestone):** `Simulador IoT`, já existente no GitHub (vencimento 2026-10-30, 0 issues); não pertence à `App v2`.
+
+> **Detalhada em 2026-10-09** — ver "Replanejamento de 2026-10-09 (fechamento da Fase 30 e detalhamento da Fase 31)" no fim do documento. Confirmado ao investigar: `iot-simulator/server/src/` **só tem código MQTT** hoje; nenhum dos outros 7 protocolos que o worker suporta (RF09) tem contraparte no simulador. Cobre FNC009 (item pendente) e destrava testes ponta a ponta reais para os adaptadores que hoje só têm cobertura unitária com mock. Independente de todo o resto do roadmap. **Priority:** P2 — zero valor de usuário final, é robustez de teste e demo. **Ordem interna 1 → 2:** a decisão do `07` vem antes de qualquer código.
+
+### Simulador: decidir como o Modbus entra (spike + ADR)
+
+- **Comportamento:** a decisão "Simulador Modbus TCP/RTU embutido × externo × manter só MQTT" do `07` sai com opções, custo e recomendação, e vira ADR. O item resolve também se o RTU (serial) entra, já que emular porta serial sem hardware pode exigir pseudo-terminal.
+- **Cobre:** FNC009 (decisão).
+- **Priority:** P2 · **Size:** S
+- **Critérios de aceite:**
+  - O custo de um servidor Modbus embutido no `iot-simulator/server` (paralelo ao broker `aedes`, ADR-0017) é comparado ao de orquestrar um simulador externo no `docker-compose.yml`, com o que cada caminho exige do CI e do ambiente de demonstração.
+  - Decisão do usuário registrada em ADR e retirada do `07` (vai para a lista de Resolvidas); se for "manter só MQTT", a fase termina aqui, o FNC009 segue pendente com a justificativa e o item 2 é descartado.
+  - Se for "embutido", o ADR diz se o RTU fica dentro ou fora do escopo, e por quê.
+- **Depende de:** —.
+- **Risco/observações:** é decisão de custo e escopo, não de design; sem dependência de handoff.
+
+### Simulador: servidor Modbus TCP embutido (se a decisão for "embutido")
+
+- **Comportamento:** o simulador expõe um servidor Modbus TCP que responde às leituras do adaptador do worker, com os mesmos medidores e grandezas do caminho MQTT, e a UI do simulador (`NetworkCard`/`DeviceCard`, RF47) liga e desliga o servidor como já faz com o broker.
+- **Cobre:** FNC009, RF47 (extensão).
+- **Priority:** P2 · **Size:** L
+- **Critérios de aceite:**
+  - O adaptador Modbus TCP do worker lê, de ponta a ponta, as grandezas do medidor simulado, incluindo as por fase (RN34: o que o medidor não mede segue ausente, nunca 0).
+  - Teste de integração do worker contra o servidor simulado, no CI, sem hardware.
+  - A UI do simulador mostra o estado do servidor Modbus no padrão dos cards existentes, com tokens do Industry.
+  - RTU: só entra se o ADR do item 1 o incluir; do contrário, a limitação fica documentada no `07`/README.
+  - O endereçamento por fase dos adaptadores de polling, adiado na Fase 25 por não ser testável, é reavaliado aqui com o servidor em mãos (decisão do usuário, sem entrar sem pedido).
+- **Depende de:** item 1.
+- **Risco/observações:** o RTU é o ponto de maior incerteza. A UI do simulador tem design próprio na Fase 5; um controle novo sem layout deve ser sinalizado para o Claude Design.
+
+## Remediação das auditorias de outubro (Fases 32–36)
+
+> **Origem:** os três laudos de `.claude/docs/` — `2026-10-10-seguranca-audit.md` (31 achados: 1 Alta, 9 Média, 21 Baixa), `2026-10-10-desempenho-audit.md` (28: 3 Alto, 6 Médio, 19 Baixo) e `2026-10-12-qualidade-audit.md` (26: 3 Alta, 10 Média, 13 Baixa). **85 achados brutos** (o resumo do laudo de segurança dizia 30; a contagem foi corrigida para 31). Eles viraram, em 2026-10-12, a milestone **`Endurecimento pós-Fase 30`** (#7): 5 épicos (#508–#512), 42 issues (#513–#554) e as antigas #444 e #445, que nasceram do incidente de 2026-09-21 e nunca tinham entrado no roadmap. São 49 issues. A #315 (escala Modbus/Profinet) foi movida para a milestone `Simulador IoT`, porque só pode ser decidida com um dispositivo de referência, que a Fase 31 cria.
+>
+> **Nenhuma destas fases entrega RF novo.** Mesma lógica da remediação de agosto (Fases 10–18): o critério de agrupamento é o gate que o item destrava, não a fatia vertical. Nenhum item tem UI nova, então não há dependência de handoff de design.
+>
+> **Executam antes da Fase 31** (decisão do usuário, 2026-10-12): a 31 é P2, não tem valor de usuário final e está bloqueada pela decisão do `07`. Ela não foi renumerada, para não mexer nas referências do `02` e do histórico; ver "Replanejamento de 2026-10-12".
+>
+> **Severidade calibrada pela ADR-0014:** os dois ambientes publicados são permanentemente de demonstração, sem titular real. Os achados que dependem de conta real foram ponderados para baixo nos laudos; os que expõem dado de **visitantes reais** (IP, user-agent) não.
+>
+> **Conferência por amostragem antes de planejar** (laudo de subagente não vira fase sem conferência), contra o código de `staging` em 2026-10-12: a exportação do titular sem nenhum tratamento de conta de demonstração (`export.service.ts:144-148`); `rangeFilter` devolvendo `Prisma.empty` sem `from`/`to` e `DashboardKpiRow` chamando `useConsumption` sem `range` (`:54-56`); `SimulationService` sem nenhuma referência a `tariffGroup`, `groupBModality` ou `contractingEnvironment`; `prisma.meter.findMany` direto em `iot-stream.routes.ts:47`; a regex `/Version\/[\d.]+.*Safari\//` em `sessionOrigin.ts:17`; `markBackupCodeUsed` com `update` por id, sem `usedAt: null` (`auth.repository.ts:417-422`); 24 módulos em `backend/src/modules/`. Todos conferem. As estimativas de custo dos laudos de desempenho (centenas de ms, ~3,1 GiB/ano, ~57 dias no Neon) **não foram medidas**: cada uma tem o `EXPLAIN` ou a medição como critério de aceite do item.
+
+### Sobreposição entre as três auditorias (deduplicação aplicada)
+
+Cada linha é **um conjunto de trabalho**: as auditorias chegaram ao mesmo código por ângulos diferentes.
+
+| Item | Segurança | Desempenho | Qualidade | Issues |
+|---|---|---|---|---|
+| Exportação da conta de demonstração (dado de terceiros e sem teto) | **Alta** | M-03 | — | #534 |
+| `ConsumptionService`: N+1 por mês, `summary` e divisão da classe | — | A-03, M-02 | Q-01, Q-14 | #519, #520, #536 |
+| `iot-stream.routes.ts`: revalidação por polling e acesso direto ao Prisma | — | M-04 | Q-10 | #522, #543 |
+| `MqttConnection.ts`: TLS, retry da conexão inicial e DNS rebinding | Média + Baixa | M-05 | — | #540, #541, #547 |
+| E-mail transacional: escape e TLS, e mover para `shared/` | Baixa | — | Q-12 | #548, #543 |
+| Conta demo sem `blockDemoWrite` em relatórios e notificações | Baixa | B-19 | — | #548 |
+| Refresh grava um `LOGIN` auditado e 4 linhas a cada hora | — | B-11 | — | #551 |
+| Política 403 × 404 para recurso alheio | — | — | Q-14 | #545 |
+| Travas: JSDoc, rastreabilidade, tokens, catálogo do ESLint, regra contra SQL cru | Baixa | — | Q-05, Q-06, Q-09, Q-17 | #512, #548 |
+
+### Regras de execução do bloco (lições das Fases 28–30)
+
+- **Épico com 4 sub-issues ou mais: um PR por sub-issue contra a branch `epic/`**, e PR acima de ~1,2 mil linhas se quebra. Vale para #508, #510 e #512. O #511 é texto e cabe em um PR; o #509 se decide pelo tamanho.
+- **Medir antes de otimizar** (`06`): os itens de desempenho abrem com a medição; só entram otimizações que o número confirmar. O baseline novo nasce no #535 e é reaproveitado pelos demais; o gerador de massa precisa preencher as 22 colunas por fase.
+- **Migração:** coluna nova em tabela de escrita contínua mantém default no banco ou nasce nula (expand/contract, lição da Fase 30); `ADD VALUE` de enum fica sozinho no arquivo.
+- **E2E:** o job roda contra backend real, e o Playwright mocka o backend inteiro; mudança de contrato ou de cookie exige conferir cada `page.route`.
+- **Decisões novas** viram item do `07` e ADR **na chegada** do item que as exige, nunca antes: a ADR retroativa dos caches em processo (#526), o armazenamento de `meter_readings` (#535), a política 403 × 404 (#545) e o `LOGIN` auditado a cada refresh (dentro do #551). O lockout de conta segue como item aberto do `07` e **não** entra nestas fases.
+- **Pacotes de baixa prioridade (#546–#554):** ficam presos à fase em que se mexe nos mesmos arquivos e são feitos junto, nunca antes. **O que sobrar deles ao fim da Fase 36 sai da milestone para o backlog**, em vez de mantê-la aberta.
+
+### Fase 32 — Alto, ajustes baratos e contexto em dia
+
+**Entrega (milestone):** `Endurecimento pós-Fase 30` (Fases 32–36).
+
+> **Fase concluída** (PRs #555, #556, #557, #558 e #559 → `staging`, 2026-10-12; issues #534, #538, #537, #542 e o épico #511 com #525–#529 fechadas). **O texto dos itens abaixo é o plano original**; o que a implementação fez diferente (a demo com conteúdo fixo identificada pelo e-mail no service, o erro de cliente do body-parser generalizado além de `entity.*`, o guard da simulação como lista de permissão, o índice de ADRs que virou canônico em vez de remissões, a ADR-0026 retroativa dos caches, entre outros) está em "Replanejamento de 2026-10-12 (fechamento da Fase 32 e detalhamento da Fase 33)" no fim do documento.
+
+> **Gate que esta fase destrava:** nenhum achado Alto aberto, e um contexto (`03`, `04`, `06`, `10`, índice de ADRs) que descreva o código de hoje, porque contexto desatualizado induz as demais skills a erro. O índice de ADRs falhou em todas as ADRs desde 2026-08-31: o #525 vem antes de qualquer ADR nova (a do #535, na Fase 33). **Ordem interna:** #534 primeiro (única exposição de dado de visitante real), depois os dois ajustes baratos (#538, #537), a correção que falha fechado (#542) e, por fim, o épico de documentação.
+
+### Exportação da conta de demonstração sem dado de terceiros e com teto
+
+- **Comportamento:** a exportação do titular, quando feita pela conta de demonstração compartilhada, nunca devolve o log de auditoria nem as sessões reais dos outros visitantes. Para as contas reais, o log e as sessões passam a ter janela e teto.
+- **Cobre:** OWASP A01; achado [ALTA] de segurança e M-03 de desempenho. A ADR-0025 §5 fechou só a listagem de sessões; a exportação, que passou a incluí-las na Fase 29, ficou de fora. Issue #534.
+- **Priority:** P0 · **Size:** M
+- **Critérios de aceite:**
+  - Conta de demonstração: conteúdo fixo e representativo (padrão do `buildDemoSessions`) ou recusa, nunca consulta de `audit_logs` nem de tokens da conta compartilhada.
+  - Teste de rota que falha se a exportação da demonstração contiver `ipAddress`, `userAgent` ou sessão real.
+  - Janela no log de auditoria do export (ex.: 12 meses, com nota no documento) e `take`/`orderBy` em `findAllForExport`; `Promise.all` do export respeita o pool de 10.
+  - **Medir antes:** `count(*)` de `audit_logs` e `refresh_tokens` do usuário demo na VPS; o número decide o índice `(userId, createdAt)` e o expurgo do acumulado.
+- **Depende de:** —.
+- **Risco/observações:** o único item da fase sem desconto de severidade pela ADR-0014, porque o dado exposto é de visitantes reais. **Pergunta ao usuário na chegada:** conteúdo representativo ou recusa para a demonstração. O expurgo dos `audit_logs` já acumulados cruza com o `09` e vai para a próxima auditoria de conformidade, não se decide aqui.
+
+### Corpo malformado não vira 500 nem loga senha
+
+- **Comportamento:** JSON malformado ou corpo grande demais responde 400 ou 413 genérico, e nenhum trecho do corpo vai para o log.
+- **Cobre:** OWASP A09/A10; achado [MÉDIA] de segurança. Issue #537.
+- **Priority:** P1 · **Size:** S
+- **Critérios de aceite:**
+  - `errorHandler` trata os erros `entity.*` do `body-parser` sem logar `err.body`; `err.body` entra nos `logRedactPaths` como defesa extra.
+  - Teste no padrão de `app.log-redaction.test.ts`: corpo malformado contendo `password` gera 400, e a senha não aparece no stream do logger. O 413 também.
+- **Depende de:** —.
+- **Risco/observações:** baixo.
+
+### `describeDevice` sem backtracking sobre o User-Agent
+
+- **Comportamento:** classificar o navegador a partir do User-Agent tem custo limitado, qualquer que seja o cabeçalho enviado.
+- **Cobre:** OWASP A06; achado [MÉDIA] de segurança. Issue #538.
+- **Priority:** P1 · **Size:** XS
+- **Critérios de aceite:** UA truncado antes de classificar (ex.: 512 caracteres); a regex de Safari sem `.*` intermediário; teste com UA adversarial de 16 KB abaixo de um teto de tempo. **Medir** a estimativa de centenas de ms do laudo com um benchmark local.
+- **Depende de:** —.
+- **Risco/observações:** baixo. Não precisa de credencial para explorar (o login demo é público), por isso entra já.
+
+### Simulação falha fechado fora do Grupo B Convencional
+
+- **Comportamento:** simular uma propriedade do Grupo A, da Tarifa Branca ou do ACL é recusado com erro de validação explicando que o cálculo não existe, em vez de devolver um custo plausível e errado.
+- **Cobre:** RF22 (extensão; hoje implementado só pela API); princípio "falhar fechado" do `06`; achado Q-11 de qualidade. Issue #542.
+- **Priority:** P1 · **Size:** S
+- **Critérios de aceite:** um teste por caso (Grupo A, Branca, ACL) escrito antes e que falha hoje; Grupo B Convencional inalterado; o bloco de 10 linhas repetido (`simulation.service.ts:145-155`, `:160-170`) só é tocado se a correção o exigir. Skill `correcao-bugs`.
+- **Depende de:** —.
+- **Risco/observações:** baixo. O endpoint não tem consumidor no frontend desde a Fase 23 e o `02` marca o RF22 como implementado. **Pergunta ao usuário (não bloqueia):** o endpoint continua sem tela ou vira item de roadmap.
+
+### Documentação viva em dia (épico #511)
+
+- **Comportamento:** o que as skills leem descreve o código de hoje: um índice canônico de ADRs, o `03`, o `04`, o `06`, o `10` e os comentários que declaram inexistente algo que já existe.
+- **Cobre:** achados Q-02, Q-03, Q-04, Q-08, Q-23 e Q-24 de qualidade. Épico #511.
+- **Priority:** P0 · **Size:** M (5 sub-issues de tamanho S)
+- **Critérios de aceite** (um por sub-issue, nesta ordem):
+  1. **#525, índice único de ADRs (P0).** `.claude/docs/README.md` é o índice canônico, com as ADRs 0001–0025; a seção do `03` e a tabela do `04` viram remissão ou recorte declarado; o protocolo de ADR do `CLAUDE.md` lista os arquivos a atualizar; opcional, um script no CI que compare `ls .claude/docs/adr/` com o índice.
+  2. **#526, `03-arquitetura.md` (P0).** 24 módulos (faltam `acl-contract`, `demand`, `demand-alert`, `goal`, `pld-quote`, `report`, `report-schedule`, `session`); os sete schedulers no mesmo processo (`server.ts`); os três caches em processo com TTL; o SMTP com as quatro finalidades, inclusive terceiros; os dados sensíveis novos (e-mails de destinatários, rótulo de dispositivo e IP mascarado); `shared/session/` e `shared/config/` no inventário.
+  3. **#527, `10-design-system.md` (P1).** O inventário de telas e bundles como estado atual: as 4 telas sem handoff (`AboutPage`, `AclComparisonPage`, `BrancaComparisonPage`, `MeterForm`), Histórico, Metas, Configurações e relatórios como implementados, o template A4 existente.
+  4. **#528, `04` e `06` (P1).** O `04` com 15 jobs de CI (nomear os grupos em vez de contar), o Modbus já dividido, `react-markdown` + `remark-gfm` e o React Compiler, nodemailer e pdfkit também nos relatórios, as versões de TypeScript; o `06:86-99` com o escopo real do JSDoc e os termos reais do `no-warning-comments`.
+  5. **#529, comentários desatualizados (P1).** Os 7 pontos do laudo reescritos descrevendo o estado atual, sem número de fase; um item no checklist da skill `nova-feature`: "ao estender uma regra, procure comentários que a declaram inexistente".
+- **Depende de:** — (o #525 antes de qualquer ADR nova).
+- **Risco/observações:** baixo, só texto. **Decisão na chegada do #526:** os caches em processo não têm ADR e o `03:26-29` exige uma; pode ser uma ADR retroativa curta registrando o requisito medido na Fase 15, e vira `status: precisa-adr`. O #528 corrige o `06` para o escopo de hoje do JSDoc; o #533, na Fase 36, o atualiza de novo quando ampliar a trava. O #529 reescreve só os 7 comentários desatualizados; a varredura de rastreabilidade (~45 pontos) é do #532.
+
+### Fase 33 — Desempenho: Painel e banco
+
+**Entrega (milestone):** `Endurecimento pós-Fase 30` (Fases 32–36).
+
+> **Fase concluída** (PRs #566, #567 e #568 → `staging`, 2026-10-14 e 2026-10-15; issues #535, #536 e o épico #509 com #518–#520 fechadas). **O texto dos itens abaixo é o plano original**; o que a implementação fez diferente (a janela como descritor calculado no pedido, as contas do Grupo A e da Branca só com o mês corrente, o `select` do B-13 que virou `omit` do endereço, o `BucketCostCalculator` que não estava no plano, o override do lint removido em vez de trocado, a ADR-0027 que manteve a estrutura, entre outros) está em "Replanejamento de 2026-10-15 (fechamento da Fase 33)" no fim do documento. A fase foi detalhada em 2026-10-12 (ver "Replanejamento de 2026-10-12 (fechamento da Fase 32 e detalhamento da Fase 33)"). Fontes: `2026-10-10-desempenho-audit.md` (A-01, A-02, A-03, M-02) e `2026-10-12-qualidade-audit.md` (Q-01, Q-14). **Nenhum RF novo e nenhuma UI nova**: nenhum item dependeu de handoff de design.
+>
+> **Gate que esta fase destrava:** a carga do Painel deixa de varrer `meter_readings` inteira, o custo do Grupo A e da Branca deixa de ser N+1 por mês, e o crescimento da tabela é medido e decidido antes de o Neon de 0,5 GB do staging encher (estimativa do laudo, ainda não medida: ~57 dias de tempo acordado). **Ordem interna:** #535 abre a fase (o baseline que ele gera é reaproveitado), depois o épico #509 (#518 → #519 → #520) e, por último, o refactor #536, que nunca roda em paralelo ao #509 porque os dois mexem nos mesmos arquivos.
+
+### `meter_readings` medida e decidida (#535)
+
+- **Comportamento:** o custo de leitura e o crescimento da tabela mais quente passam a ser números medidos, e a decisão sobre o armazenamento (manter, retenção por uso, rollup ou tabela irmã) fica numa ADR antes de qualquer implementação.
+- **Cobre:** A-02 (Alto) do laudo de desempenho. Issue #535.
+- **Priority:** P0 · **Size:** M · `precisa-adr`
+- **Critérios de aceite:**
+  1. **Gerador de massa com as 22 colunas.** `backend/scripts/generate-performance-baseline-data.ts` preenche hoje só as 9 colunas originais (conferido); sem as 22 por fase a massa não tem a largura de linha de hoje e toda medição sai subestimada. Massa: 12 meses × 11 medidores (~5,7 M linhas, perto de 3,3 GB; há 21 GB livres) em `lumitrack_perf_baseline` no Postgres local.
+  2. **Baseline novo** em `.claude/docs/` (padrão `AAAA-MM-DD-baseline-desempenho-*.md`): bytes por linha com e sem índices; `EXPLAIN (ANALYZE, BUFFERS)` de `findAggregated` (hora, 1 ano) sem janela × com janela de 3 h, de `findLatestAggregatedForMeters` sem janela × com janela, e do `DELETE` do expurgo (48 s em 31/08 com a linha estreita, contra o `RETENTION_PURGE_STATEMENT_TIMEOUT_MS` de 120 s). O Postgres local é o 18 e a VPS roda o 16: os planos que decidirem algo são conferidos também lá.
+  3. **Números da VPS e do Neon (dependem do usuário):** `pg_total_relation_size('meter_readings')` e `count(*)`, junto da contagem de `audit_logs` e de tokens do usuário demo que ficou pendente do #534. Um bloco de comandos só, entregue pronto no baseline. Repetir após 7 dias para a taxa de crescimento. Conferir nos logs do Render se uma aba esquecida com o SSE aberto impede o staging de hibernar (agravante do laudo).
+  4. **Estimativas desatualizadas corrigidas:** o número medido substitui os "~2 GiB/ano" de `backend/src/config/env.ts:105-108` e do RIPD §3.3.
+  5. **ADR-0027 antes de qualquer rollup ou tabela nova**, com a decisão tomada com o usuário sobre os números. A implementação do que a ADR decidir **vira issue nova ao sair a ADR** e, se mexer em `consumption.repository.ts`, entra depois do #536.
+- **Depende de:** — (os critérios 1 e 2 abrem a fase; o 3 e a ADR dependem do usuário e **não bloqueiam** o épico #509).
+- **Risco/observações:** a medição local não é a de produção (versão do Postgres, hardware, `shared_buffers`); por isso o critério 3. **Pergunta ao usuário na chegada da ADR:** qual opção, com os números na mão. Se a escolha for retenção diferenciada, a ADR precisa dizer como o espaço é recuperado (`UPDATE ... SET coluna = NULL` só libera para reuso depois do vacuum).
+
+### Épico #509 — Painel: janela nas consultas e lote no custo tarifário
+
+- **Priority:** P0 · **Size:** L
+- **Branch:** `epic/509-painel-consultas-e-custo`, a partir de `staging`. Sub-issues nativas #518, #519 e #520.
+- **Pull requests:** são 3 sub-issues, então **um PR para o épico com um commit por sub-issue**; se passar de ~1,2 mil linhas, quebra por sub-issue contra a branch `epic/` (regra do bloco).
+- **Critérios de aceite do conjunto** (da issue): medido antes e depois com `EXPLAIN (ANALYZE, BUFFERS)` e com a contagem de queries, na massa pós-Fase 25; nenhum pedido "últimos N" sem janela; `GET /api/consumption?granularity=month&pageSize=12` no Grupo A sem N+1; sem regressão nos testes de consumo, custo, metas e relatórios.
+
+### Painel: janela nas consultas "últimos N baldes" (#518)
+
+- **Comportamento:** cada pedido de "os últimos N" do Painel e das telas de Análise lê só o período que a tela usa, em vez de agregar o histórico inteiro do medidor.
+- **Cobre:** A-01 (Alto). Issue #518.
+- **Priority:** P0 · **Size:** S (M se a decisão abaixo for ancorar no backend)
+- **Critérios de aceite:**
+  1. Medir antes (do #535): `EXPLAIN` do `findAggregated` hora sem janela × 3 h.
+  2. **Nenhum chamador sem janela.** `useConsumption` sem `range`: `DashboardKpiRow` (hora 3, dia 5, mês 1), `PeakHoursBand`, `ConsumptionHistorySection` (6 e 12 meses) e as duas contas do `ConsumptionSection` (Grupo A e Branca). Resumo sem janela: `useTargetConsumptionKpis`, `PropertyComparisonSection` e `TargetComparison`. Janelas: hora = últimas 3 h; dia = últimos 5 dias; mês = mês corrente nos KPIs e os últimos N meses no histórico; contas do Grupo A e da Branca = mês corrente e anterior; resumo = dia de hoje e mês corrente.
+  3. **A janela é calculada no momento do fetch, dentro do `queryFn`, e fica fora da chave**, como `queryKeys.meterReadings.history` (`frontend/src/lib/queryClient.ts:153-158`). Calculada no render e posta na chave, a consulta refaz a cada render; congelada no mount, fica velha na virada da hora. Junto, o #552 B-09 (a chave da consulta de janela carrega o ISO e mostra skeleton na virada da hora).
+  4. **O tipo trava a reincidência:** `range` deixa de ser opcional em `useConsumption` e `useConsumptionSummary`; um "latest" sem janela não compila.
+  5. Valores iguais nos casos normais; os três casos de borda abaixo decididos antes de codar.
+  6. Junto, no mesmo hook e componentes: #552 B-01 (`staleTime` longo em `useDistributors` e `useTariffFlag`) e, só se `ANALYZE=true npm run build` mostrar o devtools no bundle de produção, B-08.
+  7. e2e: os `page.route` do consumo casam por regex `(\?.*)?$` e aceitam os parâmetros novos; conferir os que respondem por parâmetro em `frontend/tests/e2e/dashboard.spec.ts`.
+- **Depende de:** #535 (baseline).
+- **Risco/observações:** **Pergunta ao usuário na chegada (muda o que a tela mostra em casos de borda):** (1) hoje `resolveTodayKwh` e `resolveMonthFigures` (`frontend/src/lib/targetKpis.ts`) distinguem "sem leitura nenhuma" (item omitido, `null`) de "sem leitura hoje" (bucket de outro dia, 0); com a janela o item some nos dois casos, e a ausência passa a valer 0 para um alvo que tem medidor. (2) A comparação entre propriedades, áreas e dispositivos mostra hoje a última leitura de qualquer mês sob "Consumo do mês"; com a janela passa a omitir quem não tem leitura no mês. (3) A conta do Grupo A ou da Branca de um medidor parado há mais de 2 meses passa a mostrar "sem dados". **Recomendação:** janela no frontend, como a issue, aceitando os três. **Alternativa** se o usuário quiser zero mudança visível: ancorar a janela na última leitura do medidor no backend (consulta por índice a `max(minuteStart)`), que protege também clientes futuros da API, ao custo de SQL mais elaborado.
+
+### N+1 por mês no custo do Grupo A e da Tarifa Branca (#519)
+
+- **Comportamento:** o custo mensal do Grupo A e da Tarifa Branca deixa de ser calculado mês a mês em paralelo; uma página de 12 meses faz um número constante de consultas.
+- **Cobre:** A-03 (Alto). Issue #519.
+- **Priority:** P0 · **Size:** M
+- **Critérios de aceite:**
+  1. Contagem de queries de `GET /api/consumption?granularity=month&pageSize=12` numa propriedade do Grupo A e numa da Branca, antes e depois (hoje, 36 a 48 consultas concorrentes num pool de 10).
+  2. Em `list()`, no ramo mês + PROPERTY de Grupo A ou Branca, o custo de todos os baldes da página sai de uma chamada em lote (`calculateGroupAMonthlyCosts` / `calculateGroupBWhiteMonthlyCosts`, que já existem e que só o caminho anual usa) e vira um `Map<monthMs, MonthCostResult>`, no padrão de `computeYearlyPropertyCosts`.
+  3. `compareBrancaToConvencional` troca o laço de até 24 `findKwhByPost` por um `findKwhByPostGroupedByMonth`.
+  4. Resultados idênticos: a suíte atual (`consumption.service.test.ts`, 2.606 linhas) é a rede, e um teste novo fixa o **número** de consultas (falha se o N+1 voltar). Isso pede um helper de contagem de queries para teste (o `queryCounter.ts` de produção só existe atrás de `DEBUG_QUERY_LOGGING_ENABLED`); ele nasce aqui e o #520 o reaproveita.
+  5. Junto: #551 B-10 (`findMonthlyKwhForYears` com `date_trunc('year', ...) = ANY(...)`, predicado não sargável, em `consumption.repository.ts:237`), com `EXPLAIN` antes e depois.
+- **Depende de:** #518 (ordem do épico; tecnicamente independente).
+- **Risco/observações:** mexe nos mesmos arquivos do #536, então roda antes dele. Beneficia, sem mudança própria, `GoalConsumptionReader.yearCost` (e com ele o `GoalAlertScheduler`, a cada 15 min), a Análise do ano e o relatório mensal.
+
+### `/api/consumption/summary`: posse e medidor em lote, sem engolir erro de pool (#520)
+
+- **Comportamento:** o resumo de consumo resolve posse e medidor de N alvos em lote e nunca esconde uma falha de infraestrutura como se o alvo não tivesse medidor.
+- **Cobre:** M-02 (Médio). Issue #520.
+- **Priority:** P1 · **Size:** M
+- **Critérios de aceite:**
+  1. Posse e medidor em lote: `findMany ... in` com `userId` filtrado na própria query para Propriedade, e variantes com `relationLoadStrategy: "join"` para Área e Dispositivo. Hoje não existe busca em lote em `PropertyRepository`, `AreaRepository`, `DeviceRepository` nem em `MeterRepository.findByTarget` (são 2N consultas concorrentes, até 100 com `MAX_SUMMARY_IDS = 50`).
+  2. O `catch { return null }` do passo de posse (`consumption.service.ts:365-373`) deixa de engolir qualquer erro: id inexistente ou de outro usuário segue excluído em silêncio (sem vazar se existe), e erro de infraestrutura propaga. Com a busca em lote, o `catch` por id deixa de existir.
+  3. Testes: erro de repositório ou de pool não some como "sem medidor"; contagem de consultas com 50 ids, antes e depois (helper do #519).
+  4. Custo do Grupo A agrupado por propriedade **só se a medição do lote mostrar que importa**.
+  5. Junto, no mesmo `meter.repository.ts`: #551 B-13 (`select` enxuto no `METER_TARGET_INCLUDE`) e B-07 (`select` em `findAllConnectionConfigs`).
+- **Depende de:** #519 (o helper de contagem).
+- **Risco/observações:** conferir como cada consumidor do resumo reage a erro: `TargetComparison` mostra mensagem de erro, mas `PropertyComparisonSection` esconde o card. **Recomendação:** propagar o erro (falhar fechado, `06`) e, se preciso, dar a `PropertyComparisonSection` um estado de erro.
+
+### Refatorar o `ConsumptionService` (#536)
+
+- **Comportamento:** o `ConsumptionService` (1.779 linhas, 45 métodos, 12 dependências, seis razões de mudança) é dividido sem mudar comportamento nem contrato de API.
+- **Cobre:** Q-01 (Alta) e Q-14 do laudo de qualidade. Issue #536. Skill `refatoracao`.
+- **Priority:** P0 · **Size:** L
+- **Critérios de aceite** (3 etapas; cada uma verde sozinha, **um PR por etapa, mesclados em sequência**: mover código dobra o diff e o teto é ~1,2 mil linhas):
+  1. **Calculadores de conta** (Grupo A, Tarifa Branca e custo anual) em classes próprias em `backend/src/modules/consumption/billing/`, não em `shared/` (dependem de repositórios; `shared/tariff/` fica com a matemática pura).
+  2. **As duas comparações** (ACR × ACL e Convencional × Branca) num `PropertyComparisonService` com controller próprio e as **mesmas URLs** (`/api/consumption/acl-comparison` e `/branca-comparison`), mais o helper `loadOwnedPropertyBillingContext(userId, propertyId)` para a pré-condição repetida (as duas comparações e `simulation.service.ts`).
+  3. **`ConsumptionService` só com `list` e `summary`**, e o override de `max-lines-per-function: 90` por arquivo (`backend/eslint.config.js:122-139`) trocado por um do método específico, ou removido.
+  - A superfície externa se mantém: `createConsumptionService` (usada por `server.ts`, metas e relatórios) e `list` (metas e relatórios dependem de `Pick<ConsumptionService, "list">`).
+  - Suíte atual (`consumption.service.test.ts` e as rotas) como rede de caracterização, verde antes e depois de cada etapa; dependency-cruiser verde; JSDoc nos exports novos.
+- **Depende de:** o épico #509 (e do #535 se a ADR pedir mudança no repositório). Nunca em paralelo.
+- **Risco/observações:** é o centro de metas, relatórios e Painel; qualquer mudança de comportamento é bug. Sem decisão do usuário prevista.
+
+**Pacotes de baixa prioridade nesta fase** (redistribuição por arquivo, decisão do usuário):
+
+- **#551 (consultas e índices):** ficam na 33 **B-10** (com o #519) e **B-07 e B-13** (com o #520). Saem: **B-04** (índice do expurgo dos tokens) e **B-11** (o `LOGIN` auditado a cada refresh, que carrega a decisão de produto/conformidade) para a Fase 34, junto do épico #508 (`auth.repository.ts` e `auth.controller.ts`); **B-12** (cópia de array O(k²)) para a Fase 35, junto do #553 (`GoalAlertScheduler`); **B-06** (teto de `pageSize`) para a Fase 36, junto do Q-16 do #554 (`shared/pagination.ts`).
+- **#552 (frontend e entrega):** ficam **B-09 e B-01** (com o #518) e **B-08** só se o bundle confirmar. **B-15** (`Cache-Control` do `index.html`) vai para a Fase 34, junto do #539 (`deploy/Caddyfile`).
+
+### Fase 34 — Segurança: sessão, MFA e perímetro
+
+**Entrega (milestone):** `Endurecimento pós-Fase 30` (Fases 32–36).
+
+> **Detalhada em 2026-10-15** (ver "Replanejamento de 2026-10-15 (detalhamento da Fase 34)"). Fonte: `2026-10-10-seguranca-audit.md`. **Nenhum RF novo**; o `02-requisitos.md` é atualizado no PR de cada item que muda comportamento (RNF01, RNF03, RN08 e um RN novo para a exclusão de conta).
+>
+> **Gate:** os três caminhos de revogação (reuso do refresh, logout, encerramento de sessão) cortam os JWTs de acesso; a sessão WEB tem teto absoluto; o código TOTP não é reutilizável; `curl -I` mostra o conjunto de cabeçalhos nos dois ambientes. **Residual declarado:** o stream SSE já aberto sobrevive ao logout até o #522 (Fase 35).
+>
+> **Ordem interna e PRs** (decisão do usuário): #539 abre a fase, em PR próprio (não toca código de auth). Depois o épico #508 em **um PR com um commit por sub-issue**, revisão no fim, na ordem #513 → #514 → #515 → #516 → #517; o #517 sai em PR separado se o diff do épico passar de ~2,5 mil linhas. A regra de ~1,2 mil linhas passa a ser referência, não teto (o teto do `revisao-codigo` é ~5,1 mil). O #545 é decisão antes de qualquer código. **Duas migrações aditivas** (`refresh_tokens.sessionStartedAt`, `users.mfaLastUsedStep`), aplicadas antes do código.
+
+### Cabeçalhos no staging e cache do `index.html` (#539 + #552 B-15)
+
+- **Comportamento:** o site estático do staging e a SPA de produção respondem com o mesmo conjunto de cabeçalhos de segurança, e o `index.html` nunca fica preso a chunks de um deploy anterior.
+- **Cobre:** achados A02 (Média) e de cabeçalhos da SPA (Baixa) do laudo de segurança; B-15 do laudo de desempenho. Issue #539.
+- **Priority:** P1 · **Size:** S
+- **Critérios de aceite:**
+  1. `headers:` no serviço estático do `render.yaml` (hoje não há nenhum): `frame-ancestors`/`X-Frame-Options`, HSTS, `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy`, o mesmo conjunto do `deploy/Caddyfile`. Confirmar a sintaxe na documentação do Render.
+  2. CSP completa por header nos dois (Render e Caddy). A `<meta>` de `frontend/index.html` e o header valem juntos (interseção), então os dois ficam coerentes.
+  3. `'unsafe-inline'` em `style-src` **fica**: o sonner injeta um `<style>` em runtime (conferido em `node_modules/sonner`). Registrado como risco residual aceito, sem trabalho de remoção.
+  4. B-15: `Cache-Control: no-cache` no fallback da SPA; `/assets/*` segue `immutable`.
+  5. `curl -I` nos dois ambientes mostra os cabeçalhos; a SPA do staging recusa ser enquadrada em iframe.
+- **Depende de:** —.
+- **Risco/observações:** o `Referrer-Policy` e o `Permissions-Policy` do Caddy já existem (endurecimento de 2026-10-13, fora do plano); sobra o lado do Render, a CSP por header e o B-15. Só se verifica depois do deploy. O corpo da issue ainda descreve o Caddy como pendente.
+
+### Épico #508 — Sessão e MFA: revogação, expiração e anti-replay
+
+- **Priority:** P1 · **Size:** L
+- **Branch:** `epic/508-sessao-e-mfa`, a partir de `staging`. Sub-issues nativas #513–#517.
+- **Critérios de aceite do conjunto** (da issue): depois do reuso de refresh, do logout e do encerramento de sessão, qualquer JWT anterior da sessão recebe 401 (teste de rota para cada caminho); existe teto absoluto de sessão e o refresh o recusa; cada controle novo tem teste que falha se ele for removido. Linha de base de testes: backend 2.226, frontend 1.492.
+
+### JWTs de acesso revogados no reuso e no logout (#513, + #551 B-11)
+
+- **Comportamento:** reuso de refresh, logout e encerramento de sessão revogam do mesmo jeito: o refresh token e todo JWT de acesso da sessão deixam de valer na hora.
+- **Cobre:** A07 (Média). Issue #513. Toca RF05 e RF06.
+- **Priority:** P1 · **Size:** S
+- **Critérios de aceite:**
+  1. Um único `revokeSessionTokens(userId, sessionId)` no `AuthRepository` (AuthToken e RefreshToken, na mesma transação), usado pelo logout e pelo reuso; o encerramento da Fase 30 já faz o equivalente no módulo `session`.
+  2. Um teste de rota por caminho (reuso, logout, encerramento): JWT anterior da sessão → 401; cada teste falha se a revogação sair.
+  3. Rider: teste de paridade entre `AuditAction` e o schema do admin (filtrar por `SESSION_REVOKE` ou `REVOKED_TOKEN_USE` hoje dá 422).
+  4. B-11 conforme a decisão abaixo.
+- **Depende de:** —.
+- **Risco/observações:** **Decisão na chegada, escopo do reuso.** Hoje o reuso revoga os refresh tokens do usuário inteiro. Nas duas contas demo compartilhadas (as únicas dos ambientes publicados, ADR-0014), um visitante mal-intencionado derrubaria todos os outros, e com os JWTs revogados isso passa de "em até 1 h" para "na hora". **Recomendação:** revogar a **sessão** (a "família" do `05`), igual ao logout; o laudo pede o usuário inteiro. **Decisão na chegada, B-11:** recomendação de parar de gravar `LOGIN` no refresh bem-sucedido (nenhum código lê `refreshed`; é uma linha por renovação com IP e UA completos retidos por 730 dias), mantendo `REFRESH_TOKEN_REUSE_DETECTED` e `REVOKED_TOKEN_USE`; conferir `ROPA §5` e `09`. Registrar a política de sessão numa ADR (0028).
+
+### Teto absoluto de sessão WEB (#514, + #551 B-04)
+
+- **Comportamento:** a sessão WEB termina no teto absoluto mesmo com uso contínuo.
+- **Cobre:** A07 (Média). Issue #514. Toca RNF03.
+- **Priority:** P1 · **Size:** M
+- **Critérios de aceite:**
+  1. Coluna `sessionStartedAt` em `refresh_tokens` (`@default(now())`, migração aditiva), herdada na rotação, inclusive no caminho da janela de graça. Derivar do primeiro token da cadeia não serve: o expurgo apaga refresh token revogado após 30 dias, quase o prazo do teto.
+  2. `SESSION_ABSOLUTE_MAX` (recomendação 30 d); `expiresAt = min(agora + 7 d, início + teto)`; o refresh recusa além do teto, revoga a sessão e responde 401 (o frontend já trata como logout).
+  3. Teste com relógio simulado: uso contínuo a menos de 7 d aceito; recusa depois do teto; a rotação herda o início.
+  4. B-04: `EXPLAIN` do expurgo de `auth_tokens`, `refresh_tokens` e `password_resets` antes de indexar; se não pedir, dispensado com nota; se pedir, o índice vai na mesma migração.
+- **Depende de:** #513 (mesmas funções do `auth.service.ts`).
+- **Risco/observações:** as sessões em voo ganham janela nova no deploy. O MOBILE já tem teto (90 d, sem rotação). Variável nova documentada no `.env.example` e no `DEPLOY.md`.
+
+### MFA: anti-replay, `mfaToken` limitado e backup code atômico (#515)
+
+- **Comportamento:** um código TOTP vale uma vez, o `mfaToken` aceita poucas tentativas e dois pedidos simultâneos não gastam o mesmo backup code.
+- **Cobre:** A07 / MFA (Média). Issue #515. Toca RF03, RF04 e RN08.
+- **Priority:** P1 · **Size:** M
+- **Critérios de aceite:**
+  1. `mfaLastUsedStep` em `users` (nulo, migração aditiva), atualizado com `updateMany` condicional (passo maior que o último); duas requisições com o mesmo código: só uma passa. Vale para login, desativar e o setup. Mensagem "código já utilizado, aguarde o próximo".
+  2. `mfaToken` com `jti` e `aud` próprio, no máximo 5 erros por token e consumido no sucesso; estado em memória com TTL de 5 min (padrão da ADR-0026, sem tabela nova).
+  3. Backup code consumido com `updateMany({ id, usedAt: null })`, aceito só com `count === 1`.
+  4. Riders do #546: `algorithms: ["HS256"]` em todo `jwt.verify`; tempo constante no login (`bcrypt.compare` contra hash falso quando o usuário não existe) e e-mail do forgot-password fora do caminho da resposta.
+  5. Um teste por ponto, que falha se o controle sair.
+- **Depende de:** #514 (mesmo arquivo; ordem, não técnica).
+- **Risco/observações:** o anti-replay muda a experiência (segundo uso em 30 s é recusado). O limite por token não barra quem tem a senha e refaz o login; fechar isso exige limite por conta, que é o lockout do `07` e **fica fora**, como risco residual documentado.
+
+### Limiter por usuário e senha para excluir a conta (#516)
+
+- **Comportamento:** as rotas que conferem a senha atual têm freio próprio por usuário, e excluir a conta exige senha (e código, se houver MFA).
+- **Cobre:** A07 (Média). Issue #516. Toca RNF01; RN novo para a exclusão.
+- **Priority:** P1 · **Size:** M
+- **Critérios de aceite:**
+  1. Limiter por `user.id` (depois do `authenticate`), contando só falhas, em `mfa/disable`, `PUT /api/users/:id` e `DELETE /api/users/:id`; reaproveita `AUTH_RATE_LIMIT_*`, sem variável nova.
+  2. `DELETE /api/users/:id` exige `password` (e `code` com MFA ativo) no corpo; conta demo segue com 403 antes de qualquer checagem; sem senha, senha ou código errados → 401 e a conta permanece.
+  3. Frontend: o diálogo de exclusão ganha os campos (`autocomplete="current-password"`, erro inline); atualizar `ProfilePage.test.tsx` e `tests/e2e/profile.spec.ts` (o e2e mocka o DELETE).
+  4. Testes: 429 por usuário (não por IP) após N erros; exclusão com e sem credencial correta.
+- **Depende de:** — (técnico); UI **sem handoff** do diálogo.
+- **Risco/observações:** **Decisão na chegada, regra de ausência do `10`:** o design traz o botão "Excluir conta" e não o diálogo. Recomendação: versão provisória reaproveitando o padrão do `MfaDisableForm` (senha + código), marcada `TODO(design)`.
+
+### Cookies `__Host-` e CSRF vinculado à sessão (#517, por último)
+
+- **Comportamento:** cookies de sessão e CSRF não podem ser plantados por um subdomínio irmão, e o token CSRF só vale para a sessão que o recebeu.
+- **Cobre:** A07 / segurança de cliente (Média). Issue #517.
+- **Priority:** P1 · **Size:** M
+- **Critérios de aceite:**
+  1. Em produção, `__Host-` nos cookies de path `/` e `__Secure-` nos de `/api/auth`, **aplicado pelo código** sobre os nomes do `.env` (o `.env.example` fixa os nomes explicitamente, então trocar só o default não alcançaria os `.env` existentes); fora de produção, nomes atuais. Função pura testada com `nodeEnv`.
+  2. CSRF = `nonce.HMAC(sessionId)` com subchave derivada do `JWT_SECRET` (sem segredo novo), validado contra a sessão do token em `authenticate` e, no refresh, contra a sessão do refresh token; a checagem cookie == header continua antes de qualquer consulta. `SessionResult` passa a carregar o `sessionId`.
+  3. Frontend (`lib/csrf.ts`) lê o cookie pelos dois nomes.
+  4. Riders: remover `express.urlencoded` (conferir que nenhuma rota recebe formulário) e `iss`/`aud` no JWT de sessão; entram no mesmo deploy, que desloga todos uma vez só.
+  5. Teste que falha se o vínculo CSRF↔sessão sair (token válido de outra sessão → 403); `csrf.test.ts`, `authenticate.test.ts` e os testes de rota atualizados.
+  6. Smoke manual no staging (login, mutação, refresh, logout, cookies conferidos no DevTools) antes da promoção.
+  7. `DEPLOY.md`, `.env.example` e READMEs que citam os nomes atualizados.
+- **Depende de:** #513–#516 (por último).
+- **Risco/observações:** desloga todos no deploy. O e2e mocka a API, então só o staging real prova o `__Host-`. Sem ambiente de produção local (o app recusa host fora do canônico).
+
+### Política 403 × 404 para recurso alheio (#545)
+
+- **Comportamento:** a regra para recurso alheio fica decidida e escrita.
+- **Cobre:** Q-14 (Baixa). Issue #545.
+- **Priority:** P2 · **Size:** XS se mantém o 403; M–L se uniformiza em 404
+- **Critérios de aceite:** decisão do usuário antes de qualquer código. **Recomendação:** manter 403 nas rotas de recurso, registrar a regra numa ADR curta (0029) e no `05`, com os módulos que já respondem 404 (metas, agendamentos, relatórios, sessões) como exceção declarada. Motivos: os ids são UUID, e o 403 alimenta o `ACCESS_DENIED` (RF19). "404 em tudo" são 24 pontos de "Acesso negado" em 15 arquivos e perde essa trilha; vira épico próprio.
+- **Depende de:** —.
+
+### Pacotes de baixa prioridade na fase
+
+- **#546:** entram só os riders que coincidem com arquivos da fase (no #515 e no #517 e a paridade do enum no #513). Ficam de fora: limiter por conta/lockout (`07`) e a política de senha de 72 bytes.
+- **#549 e #550:** entram `DATABASE_URL` com TLS exigido no boot (`env.ts`, que a fase já abre; XS) e o `.dockerignore` da raiz (XS). O resto (digest, Trivy, CodeQL, dependency review, Dependabot de docker, backup off-site, inventário de segredos) não toca arquivo da fase e segue o destino da regra do bloco (backlog ao fim da 36). `no-new-privileges`, `cap_drop` e o `umask` do backup já foram feitos em 2026-10-13.
+- **#551 B-04 e B-11** e **#552 B-15** ficam presos aos itens acima.
+
+### Fase 35 — Tempo real e worker IoT
+
+**Entrega (milestone):** `Endurecimento pós-Fase 30` (Fases 32–36).
+
+> **Gate:** a ingestão deixa de parar em silêncio (o incidente de 2026-09-21 ficou 2,8 dias sem leitura, com o `/health` em 200) e o stream do tempo real fica barato e corta sessão encerrada na hora. **Será detalhada ao chegar.** Fontes: `2026-10-10-desempenho-audit.md`, `2026-10-12-qualidade-audit.md`.
+
+- **Ingestão silenciosa:** #444 simulador perde os devices ao reiniciar (P1 · M) → #445 sinal de "ingestão viva" no `/health` (P1 · M) → #541 retry da conexão MQTT inicial (P1 · S) → #540 MQTT com TLS (P1 · M; os dois últimos editam `MqttConnection.ts`, em sequência).
+- **#543 (P1 · M)** — Prisma só em repository, e-mail para `shared/`, regra no dependency-cruiser. **Antes do #522**: os dois reescrevem `resolveUserMeterIds`.
+- **Épico #510 (P1 · L):** #521 evento `reading` compacto (M) → #522 corte do stream na hora ao encerrar sessão (M) → #523 store externo por medidor (M, **só se o Profiler com 11 medidores confirmar**) → #524 backoff na reconexão SSE (P2 · XS).
+- **Oportunistas:** #547 (logs, proxy, SSE e SSRF) e #553 (jobs, worker IoT e estado em memória; junto, #551 B-12, pelo `GoalAlertScheduler`).
+
+### Fase 36 — Qualidade: componentes e travas
+
+**Entrega (milestone):** `Endurecimento pós-Fase 30` (Fases 32–36). **É a última fase da entrega: ao concluí-la, fechar a milestone no GitHub e mover para o backlog o que sobrar dos pacotes de baixa prioridade.**
+
+> **Gate:** as travas mecânicas fecham a porta da reincidência, depois que o código foi arrumado nas fases anteriores. **Será detalhada ao chegar.** Fonte: `2026-10-12-qualidade-audit.md`.
+
+- **#544 (P1 · M)** — quebrar `PropertyForm` em subcomponentes (e eliminar os casts de `watch`).
+- **Épico #512 (P1 · L), nesta ordem:** #533 escopo do JSDoc (M) → #532 `#NNN` e "Fase N" na trava de rastreabilidade e varredura dos ~45 pontos (M) → #531 regex de tokens de design e tokens de `leading` e título (M) → #530 catálogo de exceções do ESLint, **por último**, porque os tetos só podem ser medidos com o código final.
+- **Oportunistas:** #548 (conta demo, e-mail, lint e simulador; o item de `blockDemoWrite` não subiu para a Fase 32 e continua aqui, e o de e-mail só depois do #543) e #554 (constantes, tipagem e testes; junto, #551 B-06, o teto de `pageSize`, com o Q-16).
 
 ## Fases seguintes (menos detalhadas — serão refinadas ao chegar)
 
-Nenhuma Fase 23 definida. Itens novos exigem novos requisitos ou achados equivalentes.
+Nenhuma fase além da 36 definida; a Fase 31 está adiada (ver acima). Itens novos exigem novos requisitos ou achados equivalentes.
 
 Candidatos conhecidos, ainda sem fase:
 
 - **Handoff de design para "Sobre o projeto"** (Fase 6) — substituiria a versão provisória e fecharia o `TODO(design)`. Depende de um export novo do Claude Design, não de decisão de engenharia.
-- **Handoff de design para as telas de Grupo A / ACL** (Fases 19 e 21) — mesma natureza, mas com impacto maior: é a superfície onde o usuário confere dinheiro.
+- **Manutenção do catálogo tarifário com vigência** (RF45) — tarifas por posto, tributos, postos horários e regra de feriados editáveis pelo admin, preservando histórico para recálculo de períodos anteriores. O handoff `Home v2` já mostra as telas ("Editar postos horários", "Novas tarifas vigentes", "Cadastrar PLD"), mas o item não tem fase própria: é transversal às Fases 19 (catálogo Grupo A) e 22 (postos da Branca), e o RF do seed inicial dessas fases já cobre a criação — RF45 é sobre *editar com histórico versionado* depois disso, escopo maior que cabe melhor como fase própria quando a Fase 19 estiver mais próxima.
 - **Geração Distribuída (solar fotovoltaica)** — o documento de referência cobre o tema (REN 482/2012, REN 1.059/2023, Lei 14.300/2022, Fio B crescente até 2029, custo de disponibilidade não abatível por crédito). Não foi pedido e não entra especulativamente, mas é a expansão de domínio mais provável depois desta.
 - **Tarifa Social e Desconto Social** (Lei 15.235/2025) — subclasses de baixa renda com gratuidade até 80 kWh e isenção de CDE até 120 kWh. Idem: coberto pelo documento, não pedido, não antecipado.
 
 ## RFs/telas adiados do MVP (com justificativa)
 
-- **Relatórios restilizado** — página funcional (`ReportsPage`), mas **sem handoff de design no bundle atual**. Entra no roadmap só quando um export dedicado existir em `.claude/design/`.
-- **Simulações (UI)** — sem handoff **e** sem UI implementada (`SimulationPage` é placeholder hoje). Precisa de handoff + escopo de UX que ainda não foi definido — feature nova completa, não restyle.
+- **Simulações (UI)** — sem handoff **e** sem UI implementada (a página placeholder e o item de navegação foram removidos na Fase 23; o módulo `simulation` do backend segue existindo). Precisa de handoff + escopo de UX que ainda não foi definido — feature nova completa, não restyle.
 - **IoT Login** — tem handoff no bundle, mas `iot-simulator/server` não tem autenticação nenhuma hoje. É decisão de segurança (viraria ADR própria) antes de ser decisão de design; fica fora deste roadmap de UI.
 - **Mobile** — o bundle não especifica breakpoints; ver `07-decisoes-em-aberto.md` (app mobile em si nem existe ainda, item separado).
+
+> **Relatórios saiu desta lista em 2026-09-06:** a justificativa era "sem handoff de design no bundle atual" — deixou de valer com o template `LumiTrack Relatório A4` do handoff `2026-09-06-lumitrack-completo`. Virou a Fase 27.
 
 ## Justificativas de sequenciamento
 
@@ -1956,3 +3127,496 @@ Candidatos conhecidos, ainda sem fase:
 - **Itens "fora do escopo" acabaram resolvidos dentro da própria fase:** o detalhamento de 2026-08-30 tinha registrado #303 (JSDoc, 48 arquivos), #289 (`statement_timeout` do pool), #272 (`RUNBOOK_INCIDENTES.md`) e #269 (ADR-0018, guarda de registros do Marco Civil) como fora dos 16 itens da fase — mas os quatro couberam no mesmo PR #357 por serem pequenos e independentes; não fazia sentido adiar mecanicamente o que já estava pronto para entrar no mesmo lote. #302 (exportação de histórico de consumo, LGPD) foi fechada à parte como adiada, só formalizando a decisão que a ADR-0014 já cobria — não foi implementada, ao contrário dos outros quatro. #315 (fator de escala Modbus/Profinet) segue sem destino, genuinamente em aberto.
 - **Duas correções não planejadas entraram entre o fechamento da 18 e o início da 19, fora da estrutura de fases:** PR #358 (leituras de medidor em tempo real não chegavam ao painel — um medidor com credencial indecifrável derrubava a reconexão IoT de *todos* os medidores no boot, filtro de compressão não excluía de fato o stream SSE, e o formulário de Medidor não expunha os campos de credencial de MODBUS_RTU/ETHERNET_IP/PROFINET) e PR #361 (issues #359/#360, reportadas diretamente pelo usuário: cor do wordmark "LumiTrack" divergente do ícone da logo em uso real — cuja causa raiz só apareceu na validação visual, `cn()`/tailwind-merge descartando a classe de cor ao combinar com tamanho de fonte do Industry — e ausência de seletor de janela de hora no histórico de consumo; mais um texto "Em breve" indevido e a cor das barras do gráfico de consumo, achados/pedidos na mesma branch, mais os bloqueios e sugestões da própria revisão de código do PR). Nenhuma das duas tem RF associado nem abre fase nova — é manutenção reativa (bug relatado pelo usuário), tratada fora do roadmap como correção de bug, e registrada aqui só para o histórico não ficar incompleto.
 - **Por que não viraram uma fase fracionária (ex.: 18.5):** ao contrário da Fase 13.6 (lote coeso de achados de auditoria pós-go-live), PR #358 e PR #361 não compartilham tema entre si — um é IoT/tempo real, o outro é UI de consumo/design system — e cada um já é uma unidade de trabalho fechada e rastreável pelo próprio número de PR e pelas entradas do `CHANGELOG.md`. Agrupar duas correções não relacionadas numa fase seria fase artificial — a mesma armadilha que a Fase 10 já evitou ao separar por gate em vez de forçar fatiamento vertical onde não há.
+
+### Replanejamento de 2026-09-06 (Fases 23–31 inseridas; handoff resolve lacunas de design nas Fases 19–21)
+
+**O que mudou:** o `02-requisitos.md` passou por revisão completa (nova categoria RN, status `[implementado]`/`[planejado — Fase N]`/`[planejado — sem fase]` em todo item, seção "Revisar" absorvida como FNC004–FNC013) a partir de três fontes novas: o handoff `.claude/design/2026-09-06-lumitrack-completo/` (que acrescenta as telas `LumiTrack Home v2` — substitui `Home` como design-alvo do app logado — e `LumiTrack Relatório A4`), a Fase 19 já existente, e o `O-Sistema-Eletrico-Brasileiro.md`. A pedido do usuário, esse escopo novo foi então sequenciado em fases. Nenhuma fase existente foi removida ou renumerada — mesmo princípio já usado nas inserções anteriores (13.5, 13.6, 13.7, 15.5).
+
+- **Achado que corrige as Fases 19–21, não só adiciona fases novas:** o `Home v2` já cobre cadastro de Grupo A, detalhamento binômio por posto, demanda ponta+fora de ponta (Azul) e contrato ACL (comercializadora, volume, submercado, PLD) — as duas afirmações que a seção "Pré-requisito comum" fazia ("`02` precisa de RFs novos" e "nenhuma tela tem handoff") deixaram de ser verdade. O item "UI: cadastro Grupo A" da Fase 19 teve o risco rebaixado de "mais afetado pela ausência de design do roadmap" para risco médio normal de tela nova — **sem mudar prioridade, tamanho nem posição do item**, só a avaliação de risco.
+- **Fases 23–31 entram depois da Fase 22, não antes nem intercaladas** (decisão do usuário, 2026-09-06): a prioridade de Grupo A/ACL/Branca, assumida em 2026-08-05, não muda por causa deste achado — nenhum item das Fases 23–31 depende de nada em 19–22, e vice-versa. A alternativa considerada e descartada foi inserir o redesenho de navegação (Fase 23) como fração antes da 19 (ex.: 18.5), na mesma lógica "shell antes de feature" da Fase 6 — descartada porque a UI de Grupo A da Fase 19 não precisa da nova navegação para existir: ela vive hoje em `/propriedades` e, quando a Fase 24 (Análise) chegar, o que foi construído em Fase 19 se aninha dentro da nova estrutura de abas em vez de ser refeito.
+- **Numeração 23–31 (sem fração), diferente do padrão 13.5/15.5:** o próprio roadmap já registrava "Nenhuma Fase 23 definida" como o próximo slot livre — não havia fase adjacente para inserir uma fração entre elas. Nove fases novas como frações (23.5, 23.6...) seria mais confuso que continuar a sequência inteira.
+- **Duas decisões do `07` viraram bloqueios explícitos, não fases órfãs:** "grandezas medidas × calculadas pelo medidor" bloqueia a Fase 25 (Telemetria ampliada) e "Simulador Modbus TCP/RTU embutido × externo" bloqueia a Fase 31 — ambas abrem com um spike que resolve a decisão e registra ADR, mesmo padrão já usado no "Ponto de validação obrigatório" da Fase 21 (bandeira no ACL). Nenhuma fase depois delas neste bloco depende do resultado, então um bloqueio não trava o bloco inteiro.
+- **Fase 31 (Simulador — Modbus) reaproveita a milestone `Simulador IoT`**, encontrada vazia (0 issues) no GitHub — criada perto da Fase 5 e nunca usada. Evita criar milestone nova para uma fase que não compartilha tema com o resto do bloco "App v2".
+- **Relatórios saiu de "RFs/telas adiados do MVP"**: a justificativa ali era "sem handoff de design no bundle atual" — resolvida pelo template `LumiTrack Relatório A4`. Virou a Fase 27.
+- **RF45 (catálogo tarifário com vigência) permanece sem fase**, registrado como candidato: é transversal às Fases 19 e 22 (edição versionada do que essas fases só semeiam) e maior escopo do que caberia como item de qualquer uma delas — decidir a fase quando a 19 estiver mais perto.
+- **Duas correções de status no `02`, sem impacto de fase:** RF47 (gestão de redes/medidores do simulador) estava `[planejado — sem fase]` mas já está implementado desde a Fase 5 (`iot-simulator/server/src/api/routes/networks.routes.ts`, `devices.routes.ts`); RF34 (PLD) ganhou `[planejado — Fase 21]` em vez de "sem fase", por ser insumo direto da comparação ACR×ACL.
+
+### Replanejamento de 2026-09-07 (fechamento da Fase 19; detalhamento da Fase 20)
+
+**O que mudou:** a Fase 19 fechou (épico #379: sub-issues #380–#384, PR #385 — modelo de dados, postos tarifários, demanda medida, cálculo binômio Verde e a UI de cadastro/detalhamento) e a Fase 20 foi detalhada de objetivo para 7 itens completos, com investigação direta do código (`schema.prisma`, `TariffService`, `MeterDemandRollup`) em vez de reaproveitar cegamente o esboço de 2026-08-05/2026-09-06.
+
+- **Épico #379 segue *open* no GitHub apesar do PR #385 mesclado e das 5 sub-issues fechadas:** o PR foi mesclado em `staging`, não em `main` (a branch default do repositório) — o `Closes #379` de um PR só fecha a issue automaticamente quando o merge acontece na branch default. Mesma convenção já observada nas fases anteriores (ex.: PR #354/#355/#357 da Fase 18); o épico fecha sozinho na próxima promoção `staging → main`. Registrado aqui para não ser confundido com pendência real de escopo.
+- **Achado que reduz o tamanho do item "modelo de dados" da Fase 20 de L (na Fase 19) para S:** o PR #385 já deixou `TariffEnergyRate.post` e `TariffDemandRate.post` prontos para `PEAK`/`OFF_PEAK` (o próprio comentário do schema, escrito na Fase 19, já previa "Azul popula PEAK/OFF_PEAK") e o `MeterDemandRollup` já persiste demanda medida por posto desde o `DemandRollupScheduler` (#382) — sem leitor de produção até agora. A Fase 20 portanto liga infraestrutura pronta em vez de construir modelo novo, ao contrário do que o objetivo original (2026-08-05) previa implicitamente ao tratá-la como extensão simétrica da Fase 19.
+- **Ultrapassagem (RN20) desacoplada da modalidade Azul:** o objetivo original descrevia ultrapassagem e ERE como parte do pacote "Azul" da fase, mas a regra vale igualmente para a Verde (nenhuma modalidade cobra ultrapassagem hoje) — por isso virou item próprio, implementado de forma genérica por posto, para servir as duas modalidades sem retrabalho quando a Azul ligar.
+- **Item novo, ausente do objetivo original:** "Alerta de ultrapassagem de demanda contratada" (RF31) — o objetivo de 2026-08-05 citava só o cálculo (RN20); a leitura do `02-requisitos.md` mostrou que RF31 pede explicitamente a *configuração* de um alerta pelo usuário, capacidade distinta do cálculo em si e que não se encaixa diretamente no modelo `Alert` existente (histerese de série contínua, RN32) — decisão de como implementar fica registrada no próprio item, por não bloquear nada.
+- **Risco de fórmula sinalizado no item de ERE:** o documento de referência (`O-Sistema-Eletrico-Brasileiro.md`) só dá uma aproximação para o Exemplo 7 ("~2% do consumo"), não a fórmula exata de energia reativa excedente a partir do fator de potência de referência — diferente da ultrapassagem e do cálculo binômio, que têm fórmula fechada. Registrado como o maior risco de especificação da fase (não um bloqueio do `07`, porque não impede começar — o item pode e deve pesquisar a fórmula normativa exata como parte do próprio trabalho).
+- **"Convencional Binômia" mantida como item de decisão de escopo (P2/XS)**, como o objetivo original já sinalizava — sem novidade, só formalizada como item da fase em vez de nota solta.
+
+### Replanejamento de 2026-09-07 (detalhamento antecipado da Fase 21)
+
+**O que mudou:** a pedido do usuário, a Fase 21 (Mercado Livre de Energia — ACL) foi detalhada de objetivo para 6 itens completos **antes** da conclusão da Fase 20 — desvio do planejamento just-in-time que o roadmap normalmente segue (detalhar só a fase atual). Decisão registrada aqui, não como exceção silenciosa.
+
+- **Por que foi possível adiantar:** o ACL depende tecnicamente só da fundação da Fase 19 (já concluída), não da Fase 20 — a sequência 20-antes-de-21 é uma decisão de **conteúdo** (entregar uma conta de mercado livre completa, com ultrapassagem/ERE incluídos), não um bloqueio técnico de planejamento.
+- **Ressalva registrada na própria Fase 21:** o item "Cálculo binômio ACL" depende de como a Fase 20 vier a estruturar ultrapassagem/ERE dentro de `calculateForGroupA` — se a composição interna mudar durante a implementação da Fase 20, esse item específico pode precisar de ajuste antes de codar. Os outros cinco itens (spike de bandeira, modelo de dados, PLD, comparação ACR×ACL, UI) não têm essa dependência e podem seguir sem retrabalho esperado.
+- **Lacuna de oráculo, diferente das Fases 19/20:** o documento de referência não traz nenhum exemplo numérico de ACL — nem PLD, nem submercado, nem comparação ACR×ACL resolvida ponta-a-ponta. Os itens de cálculo e comparação desta fase não têm número externo para conferir contra (ao contrário do Exemplo 6/7 usados até aqui); a fórmula precisa ser validada por revisão cuidadosa, não por oráculo.
+- **Elegibilidade "residencial a partir de 2028" tratada como premissa datada, não implementada:** é proposta da ANEEL, não regra vigente — registrada no item de modelo de dados só como nota de acompanhamento futuro.
+
+### Replanejamento de 2026-09-07 (fechamento da Fase 20)
+
+**O que mudou:** os 7 itens da Fase 20 concluíram na mesma sessão de implementação que a detalhou — épico #386 (issues #387–#391: demanda contratada Azul, ultrapassagem RN20, ERE RN21, parcela de demanda dupla, UI de cadastro/detalhamento) mais as duas issues avulsas #392 e #393. A Fase 21 (Mercado Livre — ACL, detalhada acima) passa a ser a fase atual.
+
+- **#392 (alerta de ultrapassagem, RF31) implementado com um mecanismo próprio, não reaproveitando `Alert`/`AlertEvaluator`:** a decisão que o item já deixava em aberto (histerese de RN32, pensada para potência instantânea amostra a amostra, não serve a um agregado mensal que só cresce dentro do ciclo de faturamento) foi resolvida a favor de um scheduler novo (`DemandAlertScheduler`, irmão do `DemandRollupScheduler`) com idempotência por `lastNotifiedPeriodStart` em vez de máquina de episódio — notificando pelo mesmo canal já existente (`NotificationStore`/`UserEventHub`), sem inventar infraestrutura nova. Detalhe registrado no `CHANGELOG.md`, não em ADR (decisão de módulo, não estrutural).
+- **#393 (Convencional Binômia) decidida como adiada** — ver a justificativa completa no próprio item da fase, acima. Resumo: apesar de ser tarifariamente a modalidade mais simples do Grupo A, implementar exigiria tornar `TariffEnergyRate.post` nulável e um caminho de código novo para consumo sem distinção de posto — modelagem nova, não wiring de infraestrutura já pronta (diferença chave em relação à Azul). Nenhum RF numerado exige a modalidade, e o documento de referência já a trata como em extinção gradual.
+- **Divergência de branch resolvida por este mesmo merge:** toda a Fase 20 (épico #386 e as issues avulsas #392/#393) foi implementada em `epic/386-grupo-a-azul-ultrapassagem-ere`, criada a partir de `staging` entre dois commits diretos do usuário no roadmap — a branch tinha o fechamento da Fase 19/detalhamento da Fase 20, mas não o detalhamento da Fase 21 (feito só em `staging`). Reconciliado via merge de `staging` nesta branch antes do PR fechar — as duas seções de replanejamento acima convivem porque nenhuma invalida a outra.
+
+### Replanejamento de 2026-09-09 (PR #401 mescla a Fase 20; ressalva de sequenciamento da Fase 21 resolvida)
+
+**O que mudou:** o PR #401 (branch `epic/386-grupo-a-azul-ultrapassagem-ere`) mesclou em `staging`, absorvendo também os bloqueios e sugestões da `revisao-codigo` (rastreabilidade RF/RN em comentário, ramificação de janela reativa por sinal, `GroupABillCard` somando as duas demandas da Azul num único stat, observabilidade/desempenho/validação do `DemandAlertScheduler`, ADR-0020). A Fase 20 estava marcada "concluída" no roadmap desde a sessão de implementação (2026-09-07), mas sem PR próprio até agora — este replanejamento só formaliza o fechamento com o artefato real do GitHub, sem mudar o que já estava registrado sobre o conteúdo da fase.
+
+- **Ressalva de sequenciamento da Fase 21 resolvida:** o item "Cálculo binômio ACL" (#398) estava marcado como dependente da forma final de `TariffService.calculateForGroupA` na Fase 20. O PR #401 confirma que a generalização para `demandPosts`/`reactiveWindows` (listas, feita para servir ultrapassagem/ERE antes mesmo da Azul chegar) não exigiu nenhuma mudança de assinatura quando a Azul foi ligada — "zero mudanças em `TariffService`", nas palavras do próprio PR. O item ACL herda a mesma garantia: só precisa substituir `tePerKwh` do catálogo pelo valor do `AclContract`, sem risco de integração residual. Risco do item rebaixado de médio-alto para médio (ver o próprio item, acima).
+- **Épico #386 segue *open* no GitHub apesar do PR #401 mesclado:** mesma convenção das fases anteriores (PR mesclado em `staging`, não em `main` — `Closes` só fecha na branch default); fecha sozinho na próxima promoção `staging → main`.
+- **Fase 21 ainda não iniciada:** épico #394 e sub-issues #395–#400 existem no GitHub desde 2026-09-07, todas abertas; branch `epic/394-mercado-livre-acl` ainda não criada. Nenhuma implementação começou.
+
+### Replanejamento de 2026-09-15 (fechamento da Fase 21; detalhamento da Fase 22; correção de convenção)
+
+**O que mudou:** o PR #415 (branch `epic/394-mercado-livre-acl`) mesclou em `staging`, fechando os 6 itens do épico #394 (issues #395–#400) mais dois commits de correção na mesma branch — bloqueios/sugestões do laudo de `revisao-codigo` (contrato ACL não cobria o mês de criação, `PUT` aceitava vigência invertida, comentário com rastreabilidade indevida, mais 10 sugestões) e uma regressão de e2e causada por uma dessas correções (query do contrato ACL disparando em todo mount de `PropertyFormDialog`, não só ao abrir o modal). A Fase 22 (Tarifa Branca — Grupo B, detalhada acima) passa a ser a fase atual — última fase da entrega `Tarifação Grupo A, Mercado Livre e Tarifa Branca` (Fases 19–22).
+
+- ~~**Correção de convenção — a premissa "épico só fecha na promoção `staging → main`" estava errada:** registrada como fato nas entradas de 2026-09-07/2026-09-09 ("`Closes` só fecha na branch default"), essa afirmação nunca foi verificada contra o GitHub real. Checado agora: os épicos **#379 (Fase 19), #386 (Fase 20) e #394 (Fase 21) aparecem CLOSED**, todos fechados no momento do merge do respectivo PR em `staging` — o GitHub fecha a issue referenciada por `Closes #N` ao mesclar na branch-base **do próprio PR**, não exige que essa branch seja a default do repositório. Não há mais nenhuma dependência de promoção `staging → main` para o estado dos épicos — a partir de agora, uma fase concluída (PR mesclado em `staging`, `Closes` no corpo) já fecha o épico e as sub-issues no GitHub, sem passo adicional.**~~ **Esta conclusão estava errada — corrigida em "Replanejamento de 2026-09-17" no fim do documento.** O épico #416 (Fase 22) permaneceu `OPEN` apesar do mesmo padrão (`Closes #416`, merge em `staging`); a timeline do GitHub mostrou que #394 foi fechado por um evento **manual** (ator `viniciussartini`, sem `commit_id`), não por automação — o `Closes #N` só fecha automaticamente na branch **default** do repositório, comportamento padrão do GitHub que nunca tinha sido checado a esse nível de detalhe. Fechar o épico à mão depois do merge é, e sempre foi, um passo manual.
+- **Decisão de modelagem tomada com o usuário (2026-09-15):** RN28 ("Branca vedada a B4, baixa renda e quem recebe outros descontos") não tinha como ser cumprida — nenhum desses três conceitos existe no schema hoje. Perguntado diretamente, o usuário escolheu modelar agora (não adiar): um campo booleano genérico de desconto em `Property` (cobre baixa renda + "outros descontos" da RN28) mais a exclusão de B4 do `BillingClass` por ausência de caso de uso real (iluminação pública faturada à prefeitura, fora do público-alvo do produto) — sem taxonomia completa de subclasses (BPC, indígena, quilombola, rural 10–73% do documento de referência), proporcional ao que a RN pede. Registrado no item "Modelo de dados" da Fase 22, sem ADR (decisão de modelagem pontual, não estrutural).
+- **Achado que evita reincidência da conflação da ADR-0019:** o catálogo de tarifa por posto do Grupo B (Branca) não reaproveita `TariffEnergyRate` — essa tabela é indexada por `TariffSubgroup`, dimensão que a própria ADR-0019 já isolou como exclusiva do Grupo A. Um catálogo novo, dedicado ao Grupo B, evita reabrir a mesma mistura de conceitos que aquela ADR corrigiu.
+- **Item novo antes dos demais — extensão da classificação de posto:** diferente das Fases 20/21 (que ligaram infraestrutura já pronta), a Fase 22 precisa de uma peça de fundação genuinamente nova — o valor `INTERMEDIATE` de `TariffPost` e a janela de 1h antes/depois da ponta, hoje inexistente em `classifyPost` e nas duas queries SQL equivalentes. Entra primeiro por ser pré-requisito de todo o resto e por tocar código compartilhado com o Grupo A (que precisa continuar sem produzir `INTERMEDIATE`, provado por teste de regressão).
+- **Lacuna de oráculo, ao contrário da Fase 21:** o documento de referência traz o Exemplo 3 (450 kWh, R$ 359,55, com bandeira) e o contraexemplo de quando a Branca sai mais cara (100 kWh ponta + 350 fora → R$ 277,50) — os itens de cálculo e comparação desta fase têm número externo para conferir contra nos dois sentidos, diferente do ACL (Fase 21), que não tinha nenhum.
+
+### Replanejamento de 2026-09-17 (fechamento da Fase 22; correção da convenção de fechamento de épico)
+
+**O que mudou:** o PR #422 (branch `epic/416-tarifa-branca-grupo-b`) mesclou em `staging` em 2026-09-17T00:33:33Z, fechando os 5 itens do épico #416 (issues #417–#421: janela Intermediária, modelo de dados da modalidade Branca/catálogo por posto/elegibilidade, cálculo por posto com piso pela Convencional, comparação Convencional×Branca, UI) mais um commit de correção na mesma branch — bloqueios/sugestões da `revisao-codigo`: N+1 no caminho anual da Branca, extração da tabela de rotas, correção de RF36/RF49 (o texto anterior mencionava "alerta" onde não há disparo proativo — RF36 já corrigido no próprio `02`) e correção da classificação LGPD no checklist do PR (o campo `groupBModality`/`receivesBillingDiscount` é dado pessoal comum, não "não aplicável" como o PR afirmava originalmente). `02-requisitos.md` foi atualizado no mesmo commit da feature (RF36, RF49, RN27, RN28, RN40, RN41), sem pendência para esta sessão de fechamento. **Fecha a entrega `Tarifação Grupo A, Mercado Livre e Tarifa Branca` (Fases 19–22)** — milestone a fechar no GitHub. A Fase 23 (Shell v2, App v2) passa a ser a fase atual, ainda em nível de objetivo — detalhamento completo fica para uma sessão dedicada de planejamento, por decisão do usuário (não faz parte deste fechamento).
+
+- **Correção de convenção — épico não fecha sozinho ao mesclar em `staging`:** a entrada de 2026-09-15 (acima, riscada) concluiu que `Closes #N` fecha o épico automaticamente ao mesclar em qualquer branch-base, inclusive não-default, com base em #379/#386/#394 aparecerem `CLOSED`. O épico **#416 permaneceu `OPEN`** após o merge do PR #422 com `Closes #416` no corpo — mesmo padrão exato dos três anteriores. Investigada a timeline do GitHub (`gh api repos/.../issues/394/timeline`): o evento `closed` de #394 tem `commit_id: null` e ator `viniciussartini` — fechamento **manual**, não automático. O comportamento real e padrão do GitHub é: closing keywords (`Closes #N`) só disparam fechamento automático quando o PR é mesclado na branch **default** do repositório (`main`, não `staging`). A leitura de 15/09 nunca tinha sido checada nesse nível — presumiu automação a partir de uma coincidência (o usuário fechava o épico manualmente, na prática, logo após cada merge). #416 foi fechado manualmente nesta sessão (`gh issue close 416`, a pedido do usuário). **Convenção corrigida, valendo a partir de agora:** ao concluir uma fase com épico, fechar o épico manualmente após o merge do PR em `staging` — não presumir que `Closes #N` resolve sozinho fora da branch default.
+
+### Replanejamento de 2026-09-19 (detalhamento da Fase 23)
+
+**O que mudou:** a Fase 23 (Shell v2), que estava em nível de objetivo desde 2026-09-06, foi detalhada em 3 itens verticais — Navegação v2 (P0·S), Configurações: casca + Cadastro (P0·M) e Cadastro: estrutura hierárquica com editar/excluir (P0·L, backend S + frontend M). Ao cruzar o texto da fase com o handoff `Home v2` e o código atual, seis pontos do plano de 2026-09-06 não se sustentavam e foram corrigidos (as três primeiras por decisão do usuário nesta sessão):
+
+- **Conta:** o roadmap e o `02` (FNC008) previam "Configurações → Conta" juntando Perfil e Segurança. O `Home v2` mantém as duas como telas próprias (menu do usuário: Perfil · Segurança · Configurações) e a Configurações tem 4 sub-páginas — Cadastro, Relatórios, Metas e Cálculos e tarifas. Seguido o design (regra de autoridade do `10`): `/perfil` e `/seguranca` ficam onde estão, sem migração, e as sessões ativas da Fase 30 vivem dentro de Segurança. FNC008 corrigido no `02`.
+- **Esqueletos:** as rotas-esqueleto de Histórico, Relatórios e Metas foram descartadas. Cada item de navegação entra junto com o conteúdo (Histórico na Fase 26, sub-páginas de Configurações nas Fases 27/28) — um item "em breve" num ambiente de demo público é beco sem saída, e o `PlaceholderPage` só serviria a isso.
+- **Simulações:** o item não existe na navegação do `Home v2`. Removido da sidebar, com a rota `/simulacao` e a `SimulationPage` apagadas; segue listado em "RFs/telas adiados do MVP".
+- **Medidor no Cadastro:** RF46 listava "Medidor" entre o que o Cadastro gerencia. No design o medidor é cadastrado nas páginas de detalhe da Análise (botão "Cadastrar medidor"); o Cadastro tem só Propriedade, Área e Dispositivo. Removido do texto do RF46.
+- **Componente compartilhado:** o roadmap dizia que Análise e Cadastro compartilhavam um componente de hierarquia navegável. No design os dois têm visual e função distintos (Análise: seleção com busca; Cadastro: expansível com editar/excluir). O que se compartilha de fato é o **endpoint de árvore e o hook de dados** (item 3). A UI da árvore de Análise e a flag "tem medidor" ficam na Fase 24.
+- **Relatórios:** a página atual de `/relatorios` (consulta de consumo por granularidade) **não** é esvaziada por um esqueleto — segue funcionando até a Fase 27, que decide o destino dela.
+- **"Cálculos e tarifas":** o design traz essa 4ª sub-página (visível só para Grupo A) — é o RF45, ainda sem fase. Fora do escopo da Fase 23, sem entrar em `SETTINGS_NAV_ITEMS`.
+
+- **Decisões de sequenciamento assumidas, registradas para o usuário contestar:** (a) `/propriedades` mantém a URL — a Fase 24 reconstrói a tela e decide o renome; (b) os pontos de entrada de criar/editar/excluir dentro de `/propriedades` (menus e botões dos cards e das páginas de detalhe) ficam até a Fase 24, que reescreve essas páginas de qualquer forma — durante a Fase 23 o cadastro tem duas entradas, e o "concentrar" do RF46 só fecha na 24 (critério de aceite dela); (c) a sub-nav de Configurações nasce com uma única entrada, mantendo o layout do design para as Fases 27/28 apenas acrescentarem itens.
+- **Ordem interna 1 → 2 → 3:** a navegação destrava as demais e tem o menor risco; o Item 3 fica por último por ser o único com backend, e o Cadastro já entrega valor ao fim do Item 2 (criar).
+- **Sem estimativa de calendário e sem bloqueio do `07`:** nenhuma das decisões em aberto afeta esta fase.
+
+### Replanejamento de 2026-09-20 (fechamento da Fase 23)
+
+**O que mudou:** o PR #427 (branch `epic/423-shell-v2-navegacao`) mesclou em `staging` em 2026-09-19T19:20:27Z, fechando os 3 itens do épico #423 (issues #424–#426: navegação v2; Configurações: casca + Cadastro; Cadastro com estrutura hierárquica, editar e excluir) mais dois commits de remediação na mesma branch, vindos do laudo de `revisao-codigo` — um `fix` (5 achados de comportamento) e um `refactor` (legibilidade do alternar da árvore). O épico #423 foi fechado à mão 30 segundos após o merge, conforme a convenção de 2026-09-17. `02-requisitos.md` foi atualizado no próprio PR (RF46 e FNC008 → `[implementado]`), sem pendência para esta sessão. A milestone `App v2 — navegação, histórico, relatórios e metas` **não fecha aqui**: fecha na Fase 30, e hoje não tem nenhuma issue aberta. A Fase 24 (Análise — consumo e custos) passa a ser a fase atual, ainda em nível de objetivo — detalhá-la fica para uma sessão dedicada, mesmo precedente do fechamento da Fase 22.
+
+- **Diferença em relação ao plano de 2026-09-19 — seletores de pai:** o item "Configurações: casca + Cadastro" previa que os modais de Área e Dispositivo buscassem as áreas com uma consulta por propriedade, com teto de 31 itens, e que o endpoint de árvore "pudesse substituir" essa busca depois. A revisão apontou duas falhas: até 31 requisições em paralelo ao abrir o modal, e seletores cortados em 31 sem aviso enquanto a árvore da mesma tela mostrava até 100. Entregue: `RegistrationPage` usa `usePropertyTree()` como fonte única (cards, modais e lista), `useAreasByProperties` foi removido, e o serviço da árvore só lê áreas e dispositivos das propriedades que entraram no teto (`findAllByUserInProperties`, com o filtro de dono na consulta). O texto do item foi corrigido acima.
+- **Falhar fechado no modal de Área:** sem propriedades, o `AreaCreateDialog` oferecia o formulário com `propertyId` vazio (o envio montaria `POST /properties//areas`). Agora explica e não oferece o formulário, como o de Dispositivo já fazia.
+- **Divergências deliberadas do protótipo (registradas no PR):** propriedade ou área sem filhos não mostra botão de expandir (o protótipo exibe um botão que não faz nada); o ícone dos cards usa 46 px em vez dos 44 px do design, o token mais próximo da escala.
+- **RF46 segue parcial até a Fase 24, como planejado:** o Cadastro concentra criar, editar e excluir, mas os pontos de entrada equivalentes dentro de `/propriedades` só saem quando a Fase 24 reconstruir essas páginas (critério de aceite dela, já registrado).
+
+**PR #438 — backlog de correções, fora da estrutura de fases (mesclado em `staging` em 2026-09-20T21:32:33Z):** trata as issues #428–#433 e #437 (a #437 nasceu na própria sessão, do E2E de exclusão de área da árvore de Cadastro) — todas abertas a partir das instabilidades e dos defeitos observados durante a revisão do PR #427, exceto a #315 (fator de escala Modbus/Profinet), que segue em aberto de propósito. Mesmo tratamento dos PRs #358/#361: correção pedida diretamente, sem item de roadmap. O que a Fase 24 herda dele:
+
+- **Toasts no canto inferior direito:** o `Toaster` saiu de `top-right` para `bottom-right`, porque a pilha de toasts cobria os menus que abrem do canto superior direito (usuário, sino, ⋯ das páginas). Risco aceito e registrado: os toasts embaixo podem cobrir controles do canto inferior direito, o rodapé de modal em viewport abaixo de ~1280 px e o CTA de formulário no mobile. **Ao reconstruir as páginas de Análise, conferir que o botão "Gerar análise" e qualquer paginação do canto inferior direito continuam alcançáveis com toasts na tela**; se incomodar, `offset`/`mobileOffset` no `Toaster` resolve sem mexer no layout.
+- **Paginação com ordem total:** as 11 listagens paginadas ordenadas por coluna não única (audit log e mais 10) ganharam desempate por `id`. Listagem paginada nova, como as que a Análise e o Histórico possam trazer, precisa do mesmo desempate.
+- **E2E em painéis recolhíveis:** o helper `expandAndSettle` (`frontend/tests/e2e/support/collapse.ts`) espera a transição terminar antes de clicar dentro de uma linha expandida; teste novo que clique dentro de painel com animação deve usá-lo em vez de espera fixa.
+- **Índice `(createdAt, id)` do audit log avaliado e não adicionado**, com script de medição versionado em `backend/prisma/benchmarks/`. Os gatilhos para reavaliar (dezenas de milhões de linhas, exportação ou paginação profunda, latência observada) estão no CHANGELOG.
+
+**Pendências que dependem de você (fora do roadmap):** (a) a milestone `Tarifação Grupo A, Mercado Livre e Tarifa Branca` (Fases 19–22) continua *open* no GitHub, com 0 issues abertas e 30 fechadas — o fechamento dela estava registrado como pendente desde 2026-09-17; (b) `origin/staging` está 19 commits à frente de `origin/main` (o mais antigo é de 2026-09-06), então o que veio depois — as Fases 19–23 e o PR #438 — ainda não foi promovido a produção.
+
+### Replanejamento de 2026-09-20 (detalhamento da Fase 24)
+
+**O que mudou:** a Fase 24 (Análise — consumo e custos), em nível de objetivo desde 2026-09-06, foi detalhada em 3 itens verticais — árvore de seleção + detalhe da Propriedade (P0·L, backend S + frontend L), detalhe da Área (P0·M) e detalhe do Dispositivo (P0·S). Ao cruzar o texto da fase e o `02` com o handoff `Home v2` e o código atual, cinco pontos do plano anterior não se sustentavam; os três primeiros foram decididos com o usuário nesta sessão, os outros dois assumidos e apresentados para contestação (aprovados sem mudança):
+
+- **Área de análise configurável → Fase 25 (decidido):** o texto anterior colocava janela/dia/hora/agregação/grandeza/"Gerar análise" na Fase 24 (RF38 parcial). No design ela existe **só na aba Grandezas Elétricas**, que depende de RF37 e nasce na Fase 25. A Fase 24 entrega apenas "Consumo e Custos", sem seletor de abas (nada de aba "em breve" num ambiente público). RF38 e FNC005 itens 4–6 mudaram de fase no `02`.
+- **"Editar" permanece em Análise (decidido):** o critério de 2026-09-19 mandava remover todo criar/editar/excluir de `/propriedades`. O design mantém "Editar", "Editar área" e "Editar dispositivo" nas páginas de detalhe e não tem "Nova …" nem "Excluir". Seguido o design (regra de autoridade do `10`): sai criar e excluir; editar fica nos dois lugares. RF46 ajustado no `02`.
+- **Fases 19–22 sem lugar no design (decidido):** o histórico de consumo por granularidade, a fatura Grupo A/Branca e os botões de comparação ACR×ACL e Convencional×Branca não aparecem no `Home v2` em Análise. Preservados sob os blocos do design, com os componentes atuais e sem layout novo, para não regredir funcionalidade já entregue. Divergência deliberada; a Fase 27 (Relatórios) reavalia o destino do histórico.
+- **Sem flag "tem medidor" na árvore (assumido):** a herança de 2026-09-19 previa estender o endpoint da árvore com essa flag para restringir as comparações. O `GET /api/consumption/summary` já omite quem não tem medidor, então a flag só serviria a um recurso que o design não pede (a árvore do protótipo não esconde itens sem medidor). Em compensação, o resumo tinha um defeito para este uso: omitia o item inteiro, kWh incluído, quando o custo não era calculável — área/dispositivo de propriedade Grupo A ou Tarifa Branca ficariam fora da comparação. `costBrl` passa a ser opcional.
+- **Dados reais no lugar dos fictícios do protótipo (assumido):** "Custo projetado" (kWh × 0,638) vira "Custo do mês" acumulado, onde calculável; a comparação de dispositivos usa o consumo medido de cada um, não a divisão pela potência nominal; o gráfico segue minuto a minuto lendo o banco a cada 30 s (o protótipo mostra "últimos 60 s" num nível e "última hora" em outro). O consumo de uma área ou propriedade é o do medidor do próprio nível — não existe soma hierárquica no backend.
+- **URL mantida:** `/propriedades` não é renomeada (a Fase 23 deixou a decisão para esta fase). Evita quebrar links do Painel e das notificações e os e2e; o rótulo "Análise" já está na sidebar.
+- **Fora do roadmap, sem bloqueio do `07`:** nenhuma decisão em aberto afeta a fase. As heranças do PR #438 (toasts embaixo, desempate por `id`, `expandAndSettle`) viraram regras da fase.
+
+### Replanejamento de 2026-09-23 (fechamento da Fase 24)
+
+**O que mudou:** o PR #443 (branch `epic/439-analise-consumo-e-custos`) mesclou em `staging` em 2026-09-23T22:39:52Z, fechando os 3 itens do épico #439 (issues #440–#442: árvore de seleção + detalhe da Propriedade, detalhe da Área, detalhe do Dispositivo) mais dois commits de correção na mesma branch. O primeiro trata o laudo da `revisao-codigo` sobre o PR (1 bloqueio + 5 sugestões, todas corrigidas como `fix` por pedido explícito do usuário — "faça a opção b com as skills adequadas"): cor de gráfico por hex em vez de token (`--color-chart-amber`/`--color-chart-blue`, os mesmos criados nesta fase para o contraste 3:1 de gráfico); "agora" congelado no KPI "Consumo hoje" atravessando a virada da meia-noite com a página aberta; comparação de áreas/dispositivos cortando acima de 31 itens sem aviso; linhas sem custo calculável somem ao trocar para R$ sem explicação; KPIs sem estado de carregamento distinto de "sem leitura"; número mágico (`max-h-[calc(100vh-268px)]`) na altura da árvore. O segundo commit corrige um teste de CI não relacionado às correções acima — `RealtimeChartCard.test.tsx` montava o `bucketStart` do mock com `new Date()` real e falhava de forma intermitente perto da virada da hora em São Paulo (o balde caía fora da janela densa `startOfSaoPauloPeriod`); corrigido travando o relógio do teste (`vi.useFakeTimers({ toFake: ["Date"] })`). O épico #439 foi fechado à mão 24 segundos após o merge, conforme a convenção de 2026-09-17. `02-requisitos.md` foi atualizado nos próprios commits de feature (RF46 → `[implementado]`, FNC005 → `[parcial — itens 1–3 implementados]`, RF38 → `[planejado — Fase 25]`), sem pendência para esta sessão. A milestone `App v2 — navegação, histórico, relatórios e metas` **não fecha aqui**: fecha na Fase 30, e hoje não tem nenhuma issue aberta (10 fechadas).
+
+- **Teto de comparação resolvido com o `total` do endpoint, não com um número maior:** a sugestão 2 do laudo poderia ter virado "sobe o `pageSize` de 31 para algo maior" — em vez disso, `AreaComparison`/`DeviceComparison` passaram a avisar quantos itens ficaram de fora ("Comparando N de M...") usando o `total` que `areaService.list`/`deviceService.list` já devolviam. Nenhuma mudança de teto de listagem.
+- **Sem achado estrutural na revisão:** diferente da Fase 22 (N+1) e da Fase 23 (seletores de pai, teto do endpoint), o laudo do PR #443 não bloqueou nada de arquitetura — o único bloqueio foi um hex hardcoded onde já existia token. As 5 sugestões eram todas de comportamento observável, não de estilo, daí a correção como `fix` e não `refactor`.
+- **Sem replanejamento das próximas fases neste fechamento:** este fechamento cobre só a Fase 24. No momento em que o PR #443 mesclou, a Fase 25 (Telemetria ampliada) seguia bloqueada pela decisão em aberto do `07` ("grandezas medidas × calculadas pelo medidor") — **resolvida horas depois, ainda na mesma sessão**, quando o usuário trouxe o pedido de detalhar a Fase 25 e forneceu o datasheet real do medidor-alvo; ver "Replanejamento de 2026-09-23 (detalhamento da Fase 25)", logo abaixo.
+
+**Pendências que dependem de você (fora do roadmap):** `origin/staging` segue à frente de `origin/main` (22 commits agora, incluindo a Fase 24 inteira) — o que veio desde a Fase 19 ainda não foi promovido a produção.
+
+### Replanejamento de 2026-09-23 (detalhamento da Fase 25)
+
+**O que mudou:** a Fase 25 (Telemetria ampliada) foi detalhada de objetivo para 5 itens completos, na mesma sessão em que a Fase 24 fechou. O bloqueio do `07` que a segurava desde 2026-09-06 ("grandezas medidas × calculadas pelo medidor") foi resolvido: o usuário forneceu primeiro a classe geral de medidor-alvo e, ao ser questionado sobre a referência concreta, o datasheet real (tabela de especificações técnicas e tabela de grandezas medidas) do medidor cotado para testes físicos futuros — CCK 7200D. **ADR-0022** registra a decisão, com uma investigação de código (schema, pipeline de ingestão, os 8 adaptadores de protocolo, endpoints de leitura, `iot-simulator` e frontend) feita antes do fatiamento, em vez de reaproveitar cegamente o parágrafo-objetivo de 2026-09-06.
+
+- **ADR-0022 passou por duas versões na mesma sessão:** a primeira, com a premissa geral de "medidor mede tudo, nada é calculado" (sem conseguir ler o datasheet do CCK 7200D, publicado como imagem). A segunda, depois que o usuário colou o texto das duas tabelas do datasheet, corrigiu a decisão: **desequilíbrio de tensão** não é medido pelo CCK 7200D (sem registrador na tabela), mas é **calculado** no pipeline a partir das três tensões de fase medidas (fórmula fechada, mesma do protótipo de design) — não é o "campo derivado como se fosse medido" que a decisão original do `07` queria evitar, porque é rotulado como calculado, não como leitura direta. **Corrente de neutro** também não é medida, mas — ao contrário do desequilíbrio — não há fórmula fechada para derivá-la do que o medidor expõe (exigiria ângulo de fase entre as correntes, não disponível); fica permanentemente "-" via RN34. A ADR final é mais precisa que a premissa inicial, e o roadmap reflete a versão final.
+- **Achado que reduz o escopo do item 1 de "8 adaptadores" para 3:** a investigação encontrou que MQTT, RS-232 e RS-485 repassam qualquer payload/linha livre sem parsing estruturado (adaptador agnóstico ao shape) — estender esses três é mudança no tipo/validação do `IoTDataProcessor`, não nos adaptadores em si. Os outros 4 protocolos de polling (Modbus TCP/RTU, EtherNet/IP, PROFINET) exigiriam endereços novos configuráveis por fase em cada um — descartado desta fase por não ter como testar de ponta a ponta: o `iot-simulator` só fala MQTT (mesma lacuna já registrada em FNC009/RF47, e a issue #315 sobre fator de escala Modbus/Profinet segue genuinamente em aberto desde a Fase 18). Escrever código não-testável nesses 4 adaptadores seria dívida silenciosa, não entrega.
+- **Achado que muda o parágrafo-objetivo original:** o texto de 2026-09-06 presumia que "a lista de grandezas cresce conforme a decisão do `07`" e que o mínimo/máximo do bucket seria simulado (±1,2% da média, como no protótipo). A investigação confirmou que dá para calcular mínimo/máximo **reais** a partir das linhas de `MeterReading` por minuto já persistidas dentro de cada bucket maior (SQL `MIN()`/`MAX()`), sem inventar variação sintética — só no caso degenerado de bucket de 1 minuto é que mín=média=máx, porque não há sub-minuto persistido (isso é verdade, não aproximação).
+- **Item 1 fatiado em 5 itens, não 1 (a fase é P0/XL naturalmente)**, seguindo o mesmo raciocínio de "cria-se o primitivo quando um segundo consumidor real pedir" já usado nas Fases 1 e 19: schema/pipeline (fundação, mesma classe de risco da Fase 19) → simulador (valida a fundação ponta a ponta) → endpoint de série (só depende do schema, pode rodar em paralelo ao simulador) → cards em tempo real (consome SSE já estendido pelo item 1, sem endpoint novo) → área de análise configurável (depende do endpoint e da aba). A separação entre "cards em tempo real" e "área de análise" (itens 4 e 5) veio de uma leitura literal do protótipo: os cards são "segundo a segundo" (stream SSE bruto), a área de análise é histórico agregado (endpoint novo) — são duas fontes de dado diferentes, não uma mesma tela dividida arbitrariamente.
+- **`02-requisitos.md` atualizado nesta sessão** (RN34 e FNC010), refletindo o ADR-0022 final — não há mudança de RF/FNC além do texto explicativo entre parênteses.
+
+### Replanejamento de 2026-09-27 (fechamento da Fase 25)
+
+**O que mudou:** os 5 itens da Fase 25 (issues #447–#451) foram implementados em sequência via `nova-feature`, cada um com sua própria entrada de CHANGELOG (`feat: ... item N/5`), na mesma branch `epic/446-telemetria-grandezas-por-fase`. O PR #457 (`epic/446-...` → `staging`) mesclou em `staging` em 2026-09-27T20:31:01Z como um único commit squashed (`e5f16b9`, 60 arquivos, +4900/-170) — a `revisao-codigo` rodou sobre o PR antes do merge e devolveu **3 bloqueios + 11 sugestões**; por decisão explícita do usuário ("bloqueios + sugestões"), as 14 foram corrigidas integralmente antes de mesclar, absorvidas no mesmo commit squashed (não sobra um commit de `fix` separado no histórico, diferente das Fases 20–24). O épico #446 foi fechado à mão ~1 minuto após o merge (20:32:03), conforme a convenção de 2026-09-17. A milestone `App v2 — navegação, histórico, relatórios e metas` **não fecha aqui**: fecha na Fase 30.
+
+- **O bloqueio mais sério do laudo era de segurança, não de estilo:** `IoTDataProcessor.process` construía os campos elétricos opcionais com `...optionalRaw` — um rest-spread do payload inteiro do dispositivo menos 4 chaves conhecidas —, o que deixava qualquer payload malicioso ou defeituoso injetar chaves arbitrárias (`meterId`, `energyKwh`, `deltaSeconds`, ou qualquer nome) que eram persistidas na amostra e retransmitidas no SSE. Corrigido com uma função de extração de lista fechada (`extractOptionalFields`), que só copia campos numéricos conhecidos de `OPTIONAL_ELECTRICAL_FIELD_MAP`. Os outros dois bloqueios eram de correção de cálculo (média ponderada por Δt de cada campo opcional dividida pelo Δt total do balde, não pelo Δt das amostras que de fato trouxeram aquele campo — RN34 mascarava o sintoma, porque o resultado errado ainda não virava zero) e de qualidade mecânica (`any[]` com `eslint-disable` num tipo de gráfico, quando a tipagem estrita já existia mais abaixo no componente).
+- **Direção de dependência corrigida como uma das 11 sugestões:** `OPTIONAL_ELECTRICAL_FIELD_MAP` (o mapa das 22 colunas opcionais) vivia em `iot/iot-worker/MinuteBuffer.ts` e era importado de volta pelo módulo `meter` — invertido, já que o mapa é contrato de persistência do `meter_readings`, não estado interno do worker. Movido para `meter/meter-reading-optional-fields.ts`; o worker agora importa do módulo de domínio, não o contrário.
+- **Achado sem correção de código, só de registro:** o laudo notou que a convenção de sinal de `reactivePowerVar` (positivo = indutivo, negativo = capacitivo) é a convenção padrão de teoria de potência CA, mas não há como confirmá-la contra o datasheet real do CCK 7200D dentro desta sessão — a mudança implementada (aceitar o campo em toda a faixa assinada, em vez de só ≥0) é estritamente mais permissiva que antes e não quebra nada; fica como confirmação pendente, não bloqueio.
+- **`02-requisitos.md` atualizado nesta sessão de fechamento, não nos commits de feature** (diferente da Fase 24): RF37, RF38, RN34, FNC005 e FNC010 → `[implementado]`. É uma lacuna do ciclo `nova-feature` desta fase (não atualizou o `02` a cada item, ao contrário do hábito das fases anteriores) — vale reforçar isso na próxima vez que a skill rodar.
+- **Sem replanejamento da Fase 26 nesta sessão:** o pedido foi só fechar a Fase 25; a Fase 26 (Histórico e comparações) segue em nível de objetivo, sem bloqueio conhecido do `07` — pronta para ser detalhada quando solicitado.
+
+**Pendências que dependem de você (fora do roadmap):** `origin/staging` segue à frente de `origin/main` (o que veio desde a Fase 19, agora incluindo a Fase 25 inteira, ainda não foi promovido a produção); confirmar a convenção de sinal de `reactivePowerVar` contra o datasheet do CCK 7200D quando for prático (não bloqueia nada hoje).
+
+### Replanejamento de 2026-09-27 (detalhamento da Fase 26)
+
+**O que mudou:** a Fase 26 (Histórico e comparações) foi detalhada de objetivo para 4 itens completos, na mesma sessão em que a Fase 25 fechou. Nenhuma decisão do `07` bloqueava esta fase; a investigação de código (endpoint de série da Fase 25, navegação, padrão de comparação existente em `AclComparisonPage`/`BrancaComparisonPage`, `AnalysisTree`, gráfico `SeriesLineChart`, validação de intervalo de datas) precedeu o fatiamento, mesmo padrão já usado na Fase 25.
+
+- **Duas decisões de escopo levadas ao usuário antes de fatiar, não assumidas:** RF39/FNC006 descrevem "dois períodos arbitrários" sem detalhar o que acontece quando A e B têm durações diferentes, nem qual granularidade de bucket usar num período que pode cobrir semanas ou meses — nenhum precedente no design (`Home v2`) resolve isso. Perguntado e confirmado: (1) A e B devem ter a **mesma duração** (validado em schema, mais simples que alinhar por posição com eixo X ambíguo); (2) granularidade **automática por duração** (hora se ≤1 dia, dia caso contrário), em vez de escolha manual do usuário — evita a necessidade de uma trava de nº máximo de pontos que a escolha manual exigiria.
+- **Achado que definiu o item 1 como endpoint novo, não extensão do endpoint de série:** `GET /api/meter-readings/series` (Fase 25) só aceita `window=dia|hora` — uma data (`day`) mais, no máximo, uma hora —, sem `from`/`to` livres. Não é extensível para dois períodos multi-dia sem virar uma variante de shape completamente diferente; o endpoint irmão `GET /api/meter-readings` aceita `from`/`to` livres mas devolve série bruta minuto/hora, sem os buckets de mín/média/máx que RF39 precisa. Dado o pouco reaproveitamento de schema possível, o item 1 é uma rota nova que reaproveita só a camada de agregação (`MeterReadingRepository`) da Fase 25, não a rota em si.
+- **Padrão de "diferenças" emprestado das comparações tarifárias, com uma ressalva registrada:** `AclComparisonPage`/`BrancaComparisonPage` já resolvem "veredito com diferença colorida por tom" (`VerdictCard` + `comparisonTone.ts`), mas a tolerância de "diferença desprezível" delas é absoluta em centavos (R$) — RF39 compara grandezas físicas de unidades diferentes (V, A, kW, Hz, %), então o item 4 troca a tolerância absoluta por uma relativa (ex. 1%), decisão nova sem precedente direto, marcada como risco a validar na implementação.
+- **Sem mudança em `02-requisitos.md`:** RF39 e FNC006 já estavam corretamente marcados `[planejado — Fase 26]`; nenhuma redação precisou de correção nesta sessão.
+
+**Sem replanejamento das fases seguintes:** o pedido cobriu só a Fase 26; Fases 27–31 seguem em nível de objetivo, sem novo achado.
+
+### Replanejamento de 2026-09-28 (fechamento da Fase 26)
+
+**O que mudou:** os 4 itens da Fase 26 (issues #459–#462) foram implementados em sequência via `nova-feature`, cada um com sua entrada de CHANGELOG, na branch `epic/458-historico-e-comparacoes`. O PR #463 (→ `staging`) mesclou em 2026-09-28T22:58:29Z como um único commit squashed (`e7afe5d`). A `revisao-codigo` rodou sobre o PR antes do merge e devolveu **1 bloqueio + 9 sugestões**, todos corrigidos por decisão do usuário ("bloqueio + sugestões"); depois o job `e2e` do CI falhou e teve correção própria (abaixo). O épico #458 foi fechado à mão ~4 minutos após o merge (23:02:12Z). A milestone `App v2 — navegação, histórico, relatórios e metas` **não fecha aqui**: fecha na Fase 30.
+
+- **Divergências do plano, todas decididas com o usuário durante a implementação (não assumidas):** (1) o seletor de alvo é um `<select>` agrupado por propriedade/área/dispositivo, não o `AnalysisTree` que o item 2 previa; (2) as grandezas são as 9 elétricas da Fase 25 (o protótipo tinha 5); (3) as duas séries são **linhas sobrepostas**, não barras; (4) a mesma duração de A e B, prevista no plano, foi mantida e virou regra do schema e do formulário.
+- **Decisão sem consulta, registrada no CHANGELOG e no PR:** o item 4 previa reaproveitar `VerdictCard` e `resolveDiffToneClass`, ambos específicos de R$ (verde = economia). Virou componente próprio, com a cor do design (alta = vermelho, queda = verde) e tolerância **relativa** de 1% (`resolvePeriodVariationToneClass`). **Ressalva de produto em aberto:** a cor indica a direção da variação, não um juízo de valor — fator de potência subindo aparece em vermelho, e THD subindo também. Se confundir, o caminho é neutralizar a cor ou torná-la dependente da grandeza.
+- **Baldes relativos ao início de cada período, não a fronteiras de calendário:** garante a mesma contagem de baldes em A e B, então o gráfico alinha por posição. O plano falava em "posição de balde" sem fixar isso; a implementação escolheu e testou.
+- **O achado mais sério do laudo era de cálculo:** o percentual da variação dividia pela média de A **com sinal**; com potência reativa capacitiva (A = −200 var, B = −100 var) a diferença absoluta dava +100 e o percentual −50%, e a tela mostrava "B abaixo de A" em verde ao lado de "+100 var". Corrigido dividindo pelo módulo. As sugestões incluíram teste do cast `::timestamp` com a sessão do banco fixada em `America/Sao_Paulo` (o Postgres do CI roda em UTC e não pegaria a regressão), fronteira do teto de 92 dias, cada `refine` de período invertido exercitado isoladamente, `0,0%` sem sinal, 404 com mensagem própria e `aria-invalid`/`aria-describedby` nos campos de data. O laudo supôs que voltar para `::timestamptz` passaria verde no CI; a mutação mostrou que só a forma com `AT TIME ZONE 'UTC'` (o bug original, que deslocava os baldes em +3h) é regressão.
+- **Falha de e2e no CI, fora do que o vitest cobre:** o teste da sidebar partia de `/dashboard`, cujas chamadas o spec não mockava; no CI elas vazam para o backend, o 401 devolve ao login e o link some no meio do clique (Chromium e Firefox). Passou a partir de `/sobre`. A falha não foi reproduzida localmente antes da correção; a confirmação foi o run seguinte do CI.
+- **`02-requisitos.md` já saiu atualizado com a implementação** (RF39 e FNC006 → `[implementado]`, com as restrições reais: dias inteiros, mesma duração, até 92 dias, 9 grandezas elétricas) — a lacuna da Fase 25 não se repetiu.
+- **Sem replanejamento das fases seguintes:** Fases 27–31 seguem em nível de objetivo, sem novo achado; a Fase 27 (Relatórios) está pronta para ser detalhada quando solicitado.
+
+**Pendências que dependem de você (fora do roadmap):** `/design-sync` para o Claude Design conhecer `PeriodComparisonForm`, `PeriodComparisonChart` e `PeriodComparisonDifferences` (a memória do projeto registra que o `/design-sync` real é pesado; avalie se compensa); contraste visual nos dois temas; desempenho das quatro consultas em paralelo com 92 dias; fuso da sessão do Postgres de produção; `origin/staging` segue à frente de `origin/main`.
+
+### Replanejamento de 2026-09-28 (detalhamento da Fase 27)
+
+**O que mudou:** a Fase 27 (Relatórios) foi detalhada de objetivo para 5 itens completos, na mesma sessão em que a Fase 26 fechou. Nenhuma decisão do `07` bloqueava a fase, mas três escolhas condicionavam o modelo e foram levadas ao usuário antes de fatiar.
+
+- **Armazenamento do arquivo (ADR-0023):** bytes no PostgreSQL. O disco do Render (staging) é efêmero, então volume local perderia o histórico; regerar no download violaria RN35.
+- **Envio agendado (ADR-0024):** anexo. Link autenticado inviabiliza destinatário terceiro. O custo (dado pessoal indo para caixa de terceiros) está coberto pela ADR-0014 enquanto os ambientes forem só demonstração; ROPA e aviso de privacidade entram no item 4.
+- **Periodicidade:** as 6 do RF41, não as 3 do design (Mensal/Semanal/Trimestral). Divergência deliberada a favor do requisito; `02-requisitos.md` não muda.
+- **Destino de `/relatorios`:** a consulta de consumo por granularidade é absorvida pela nova tela; o histórico de consumo segue acessível em Análise.
+- **Sem mudança em `02-requisitos.md`** nesta sessão: RF40, RF41, RN35, RN36, FNC007 e FNC008 já estavam corretos como `[planejado — Fase 27]`.
+
+**Sem replanejamento das fases seguintes:** Fases 28–31 seguem em nível de objetivo.
+
+**Pendências que dependem de você (fora do roadmap):** validar com a `auditoria-conformidade` o fluxo de destinatários de terceiros antes de qualquer abertura de cadastro real (ADR-0014); `/design-sync` para o Claude Design conhecer os componentes novos, se compensar.
+
+### Replanejamento de 2026-09-28 (implementação do item 1)
+
+**O que mudou:** a implementação do item 1 (modelo, geração e emissão sob demanda) começou na branch `epic/464-relatorios` e cortou o escopo como o plano já previa como saída: **mensal e consumo** entregues; **alertas, qualidade de energia e demanda** viraram um item próprio ("Relatórios: tipos alertas, qualidade de energia e demanda", P0 · M), porque o handoff só especifica o layout do relatório de consumo. Decisão confirmada com o usuário antes de codificar.
+
+- **Custo só no mensal:** o cálculo de custo do módulo de consumo falha fechado para dia/hora e para sub-nível do Grupo A e da Tarifa Branca (a conta é da propriedade inteira no mês). O relatório de consumo, de período livre, mostra só kWh e potência média; o mensal traz o custo do mês (bucket mensal) e, onde não há custo calculável, "-" em vez de falhar.
+- **Endereço fora do arquivo:** o template mostra o endereço da propriedade; o relatório omite (minimização — o arquivo pode ser enviado a terceiros no agendamento). Divergência deliberada do design.
+- **Mês por seletor, não `<input type="month">`:** o Firefox de desktop não tem seletor de mês. O relatório mensal é pedido por `AAAA-MM` e o intervalo é derivado no servidor.
+- **Sem alertas do período nem observações no PDF:** dependem dos tipos que ficaram para o item seguinte.
+
+### Replanejamento de 2026-09-29 (implementação do item 3)
+
+**O que mudou:** o item 3 (agendamento: modelo, CRUD e sub-página Configurações → Relatórios) foi implementado na branch `epic/464-relatorios`, sem corte de escopo. O design e os requisitos deixavam pontos em aberto que a implementação fechou; **o item 4 (execução e envio) herda todos eles**.
+
+- **Alvo único por configuração:** o design oferece "Todas as propriedades" no escopo; o modelo aceita um alvo (propriedade, área ou dispositivo), como o formulário de emissão. "Todas" exigiria um escopo por usuário — feature à parte, sem demanda declarada.
+- **Dia do envio depende da frequência:** nenhum na diária; **dia da semana 1–7 (segunda a domingo)** na semanal; dia do mês 1–31 nas demais, com o mês mais curto caindo no último dia. O design usa um número livre de 1 a 28.
+- **Trimestral, semestral e anual são de calendário, ancorados em janeiro** (trimestral: jan/abr/jul/out; semestral: jan/jul; anual: janeiro). O design só desenha a trimestral e ancora do mesmo jeito; semestral e anual seguem a mesma lógica. **Pergunta em aberto para o usuário:** se o anual deveria ter mês configurável.
+- **O relatório mensal só combina com frequência mensal** (validado no schema e travado no formulário); os demais usam o tipo consumo.
+- **Envio às 06:00 de São Paulo, fixo** (o histórico do design mostra 06:00). É a função pura `computeNextRun` (`report-schedule/nextRun.ts`) que decide, e o item 4 e o item 5 (próximos envios) devem usá-la, não reimplementar.
+- **Tetos contra abuso:** 10 destinatários por configuração e 20 configurações por usuário — cada envio sai para endereços de terceiros.
+- **Contas de demonstração só leem** (`blockDemoWrite`): a escrita guarda e-mail digitado pelo usuário, possivelmente de terceiros.
+- **Destinatários em texto simples**, como `User.email` — não há cifra de e-mail em nenhuma tabela do projeto; registrado no ROPA (operação 8).
+- **Sem chave estrangeira para o alvo** (coluna polimórfica, como em `Report`): alvo excluído depois deixa a configuração órfã. **O item 4 precisa tratar alvo que sumiu** — pausar a configuração e registrar, sem derrubar o processo.
+- **Atenção ao item 4 — período do relatório agendado:** o relatório mensal cobre o mês anterior; o de consumo deve cobrir o período decorrido desde o último envio (dia, semana, mês, trimestre, semestre, ano). O teto de 92 dias do relatório manual **não cabe** em semestral (~184 dias) e anual (~365): o schema de execução precisa de um teto próprio (sugestão: 366 dias) e o limite de baldes diários da emissão manual (100) acompanhar.
+- **Export do titular:** as configurações (com destinatários) entram no payload e no PDF do export.
+
+
+### Replanejamento de 2026-09-29 (implementação do item 4)
+
+**O que mudou:** o item 4 (execução automática e envio por e-mail) foi implementado na branch `epic/464-relatorios`, sem corte de escopo. Decisões tomadas na implementação, que o item 5 e qualquer evolução do envio herdam:
+
+- **`nextRunAt` gravado:** a configuração guarda a próxima execução (nula se pausada), recalculada por `computeNextRun` a cada criação ou edição. Só avança depois do envio concluído, ou de esgotar as tentativas — é isso que dá idempotência e recuperação. Editar ou reativar reancora o calendário a partir de agora. O item 5 pode ler `nextRunAt` e projetar os envios seguintes com `computeNextRun`.
+- **Uma passada a cada 15 minutos**, além do boot: o envio sai até 15 minutos depois das 06:00. Falha de SMTP ou de banco deixa a execução vencida e a passada seguinte tenta de novo, até **4 tentativas** por execução; depois disso ela é descartada (log de erro) e a configuração segue para a próxima.
+- **Servidor fora do ar por vários períodos envia um relatório só**, o do slot mais recente vencido — não um por período perdido.
+- **Período do relatório agendado:** o mensal cobre o mês-calendário anterior ao slot; o de consumo cobre o intervalo desde o envio anterior (1 dia, 7 dias, 1/3/6/12 meses), terminando à meia-noite local do dia do slot. Teto de 366 dias para agendados; o de 92 dias da emissão manual não mudou.
+- **Alvo excluído, de outro dono ou sem medidor pausa a configuração** (`active=false`, `nextRunAt=null`) e registra o motivo no log; as demais configurações seguem.
+- **Envio em cópia oculta**, com o remetente em "Para", para um destinatário não ver o endereço do outro. Só nome e código do erro vão para o log, porque a mensagem de um erro de SMTP costuma repetir o endereço.
+- **Auditoria:** o envio agendado grava `REPORT_GENERATE` com origem `SCHEDULED` e o número de destinatários, sem novo valor no enum.
+- **Política de privacidade passou para a versão 1.6** (envio a terceiros é mudança material), o que dispara o reaceite dos usuários; o ROPA (operação 8) lista o SMTP como operador e os destinatários como terceiros.
+
+### Replanejamento de 2026-10-03 (implementação do item 5)
+
+**O que mudou:** o item 5 (próximos envios) foi implementado só no frontend, sem endpoint novo. O bloco lê a lista de configurações e filtra por `nextRunAt`, que o servidor grava a cada criação, edição ou execução. Mostra uma linha por configuração ativa com envio em até 15 dias (uma diária aparece uma vez, não 15), incluindo a que já venceu e ainda não saiu. Com isso o épico #464 só deixa pendente o fechamento da fase: requisitos (RF41 e FNC007 ainda `[planejado — Fase 27]`) e o PR.
+
+### Replanejamento de 2026-10-03 (implementação do item 2 — tipos restantes)
+
+**O que mudou:** o item "tipos alertas, qualidade de energia e demanda" foi implementado na branch `epic/464-relatorios`, e com ele a Fase 27 fecha todos os itens (1 a 5 mais este). O handoff não especificava o conteúdo, então foi decidido com o usuário antes de codificar:
+
+- **Qualidade de energia:** resumo do período (mínimo, média e máximo por grandeza e fase) mais tabela diária de médias.
+- **Demanda:** o usuário escolhe o mês (a demanda é apurada por mês de faturamento); só propriedade do Grupo A; por posto, contratada contra medida.
+- **Alertas:** episódios iniciados no período, já encerrados.
+- **Os três também são agendáveis**, ampliando o escopo original: alertas e qualidade seguem o período livre desde o envio anterior; demanda cobre o mês anterior e só combina com frequência mensal.
+- **`GET /api/properties/tree` devolve `tariffGroup`**, para a tela só oferecer a demanda onde ela existe; a regra é conferida de novo no servidor.
+
+### Replanejamento de 2026-10-04 (fechamento da Fase 27)
+
+**O que mudou:** os 6 itens da Fase 27 (issues #465–#470) foram implementados em sequência via `nova-feature`, cada um com sua entrada de CHANGELOG, na branch `epic/464-relatorios` (de 2026-09-28 a 2026-10-03). O PR #475 (→ `staging`) abriu com 6 commits de feature, recebeu 2 de correção e mesclou em 2026-10-04T20:49:52Z como um único commit squashed (`21323fa`): 137 arquivos, +11.769/−373 linhas, cerca de dez vezes o limite de ~1.200 do `08`. A `revisao-codigo` rodou sobre o PR antes do merge e o CI falhou duas vezes antes de passar; os 15 checks estavam verdes no commit final. O épico #464 foi fechado à mão (20:53:03Z, ~3 min após o merge) e as sub-issues foram fechadas à mão a cada entrega, como nas fases anteriores. A milestone `App v2 — navegação, histórico, relatórios e metas` **não fecha aqui** (cobre as Fases 23–30): está com 31 issues fechadas e 0 abertas porque as Fases 28–30 ainda não têm issues, e a data de entrega configurada no GitHub é 2026-10-04 — vale reajustá-la.
+
+- **Divergências do plano decididas com o usuário antes de codificar:** (1) o item 1 foi cortado em dois no início: mensal e consumo ficaram nele, e alertas, qualidade de energia e demanda viraram a issue #470, porque o handoff só especifica o layout do relatório de consumo; (2) o conteúdo dos três tipos, sem layout no design: **qualidade** = resumo por fase (mínimo, média e máximo) mais tabela diária, **demanda** = por mês, só propriedade do Grupo A, contratada contra medida por posto, **alertas** = episódios que começaram no período e já terminaram — com um renderer único de resumo e tabelas, não três layouts; (3) os cinco tipos ficaram **agendáveis**, o que ampliou o escopo da #470 (mensal e demanda só combinam com frequência mensal); (4) `GET /api/properties/tree` passou a devolver `tariffGroup` (campo aditivo, não é dado pessoal) para a tela só oferecer a demanda onde ela existe — 17 arquivos de teste e de suporte do frontend precisaram do campo novo nas fixtures.
+- **Divergências tomadas na implementação, sem consulta, e registradas no CHANGELOG e nas seções de implementação:** (5) o arquivo omite o endereço da propriedade que o template mostra (minimização: o arquivo pode ir a terceiros); (6) o escopo "Todas as propriedades" do design não existe, a configuração aceita um alvo; (7) o dia do envio depende da frequência (o design usa um número livre de 1 a 28) e trimestral, semestral e anual ancoram em janeiro; (8) o item 5 saiu só no frontend, lendo o `nextRunAt` do servidor, uma linha por configuração, sem endpoint novo.
+- **O laudo da revisão (`MUDANÇAS NECESSÁRIAS`, 3 bloqueios + 10 sugestões), corrigido por decisão do usuário ("bloqueios + sugestões"):**
+  - **O achado mais sério era de calendário, justamente o caso que o RN36 existe para proteger.** Com `sendDay` entre 29 e 31, o início do período de consumo, alertas e qualidade recuava a partir do dia do slot já ajustado ao mês curto, e relatórios seguidos se sobrepunham: no mensal com dia 31, os dias 28 a 30/01 entravam em dois relatórios, e o trimestral tinha o mesmo defeito, o que mandaria kWh em dobro para quem soma os relatórios (um contador, por exemplo). Os testes de RN36 cobriam a data do envio, mas os do período só olhavam um slot isolado, nunca a continuidade entre dois — a mesma classe de armadilha do RN25 que o plano da fase já apontava como risco do item 4. Corrigido passando o `sendDay` ao cálculo do período, com teste de continuidade (`sendDay` 1 a 31 × mensal, trimestral, semestral e anual × 24 envios seguidos) que falhava antes.
+  - **LGPD:** o ROPA (operação 8) listava só "Usuários" e "execução de contrato", sem cobrir os e-mails de terceiros. Os destinatários passaram a constar como titulares, com **legítimo interesse (Art. 7º, IX)** e balanceamento escrito. **Essa base foi a escolha do projeto nesta sessão e precisa de confirmação** na `auditoria-conformidade` que a ADR-0014 exige antes de titular real.
+  - **Controles de privacidade sem teste:** nada falhava se o log passasse a carregar o endereço do destinatário (a mensagem de um erro de SMTP costuma repeti-lo) ou se os destinatários saíssem em `to` em vez de `bcc`. Testes escritos e **mutação verificada**; a primeira versão do teste de log não pegava a regressão porque `JSON.stringify` descarta a `message` de um `Error`.
+  - **Sugestões que mudaram comportamento:** erro de validação determinístico (relatório grande demais) descarta só a execução, sem gerar o relatório 4 vezes; tetos de 20 configurações e de 100 relatórios manuais guardados por usuário, checados sob trava (advisory lock) para pedidos simultâneos não passarem — a conta de demonstração continua podendo emitir e excluir, decisão registrada no ADR-0023; **editar só destinatário, formato ou tipo mantém o `nextRunAt`, e só mudar frequência ou dia e reativar reancoram o calendário** (a seção de 2026-09-29, que diz "editar ou reativar reancora", vale agora só para esses casos); o PDF do export do titular mostra o fim exclusivo do período no fuso de São Paulo.
+  - **Sem mudança de comportamento:** código sem uso removido (o caminho "ativa sem `nextRunAt`"), comentários fiéis à garantia real de envio — **"pelo menos uma vez, com uma instância só"**, anotada no ADR-0024 — e `MAX_SCHEDULED_REPORT_PERIOD_DAYS` renomeado para `LONGEST_SCHEDULED_PERIOD_DAYS`, com teste de que o limite de baldes diários da emissão comporta o relatório anual (o "teto de 366 dias" da seção de 2026-09-29 é uma invariante testada, não um limite aplicado).
+  - **Não feito de propósito:** juntar as duas migrações de agendamento — os bancos locais já aplicaram as duas e alterar uma migração aplicada exige reset; a fase termina com três migrações (`relatorios_emitidos`, `agendamento_de_relatorios`, `execucao_de_relatorios_agendados`). A sugestão de saída da lista pelo destinatário virou item do `07`, não código.
+- **Falhas de CI, fora do que o vitest cobre:**
+  - **e2e (2 de 178, o mesmo teste nos dois navegadores):** a sub-navegação de Configurações → Relatórios partia do Cadastro sem mockar `/api/distributors` e `/api/properties`; no CI as chamadas chegam ao backend real, o 401 devolve ao login e o link some no meio do clique — a mesma classe da Fase 26, documentada em `support/appShell.ts`. Desta vez **foi reproduzida localmente antes de corrigir**, simulando 401 nas chamadas sem mock: falhava antes e passa depois.
+  - **Os três `npm audit --audit-level=high` (backend, frontend e simulador):** avisos novos publicados depois do último PR verde (`brace-expansion`, `undici`, `nodemailer`, `braces`), sem relação com a branch — nenhum `package.json` dela os causou. `npm audit fix` nos três pacotes e `nodemailer` do 9 para o 10 (a API usada não mudou). O `braces` não tem versão corrigida (afeta até a 3.0.3, a última) e só entra pela ferramenta de build `tsc-alias`; **decisão do usuário: `backend-audit` e `iot-simulator-audit` passam a bloquear só por dependência de produção (`--omit=dev`)**, com o relatório completo não bloqueante, e o `frontend-audit` segue auditando tudo. Voltar ao gate completo quando sair uma versão corrigida do `braces` (o Dependabot avisa).
+- **Heranças para a Fase 28 e a 29:** (1) `tariffGroup` na árvore de cadastro permite esconder a meta de demanda (o RF42 a prevê para o Grupo A) em propriedade do Grupo B sem consulta nova; (2) a comparação de demanda contratada × medida por posto agora existe em dois lugares com semânticas diferentes — `measuredDemandKwFor` devolve 0 sem janela medida e `ReportService.buildDemand` devolve ausência ("-") —, então a meta de demanda e o gráfico de demanda da Fase 29 devem escolher uma e unificar, não criar uma terceira; (3) se o alerta de meta precisar de avaliação periódica, o padrão `nextRunAt` + runner + trava por passada do envio agendado, e o teto por usuário sob advisory lock, são o modelo a reutilizar (nota técnica: o Prisma não desserializa o retorno `void` de `pg_advisory_xact_lock` em `$queryRaw`, use `$executeRaw`).
+- **Sem replanejamento das fases seguintes:** Fases 28–31 seguem em nível de objetivo. Nenhuma decisão do `07` bloqueia a Fase 28 (Metas); ela foi detalhada em 2026-10-04 (ver seção abaixo).
+
+**Pendências que dependem de você (fora do roadmap):**
+- Confirmar o **legítimo interesse** como base legal dos destinatários e rodar a `auditoria-conformidade` antes de qualquer titular real (ADR-0014).
+- **Testar o envio com um SMTP de verdade** (por exemplo Mailtrap): o envio só foi exercitado com a função de envio simulada; aceite parcial, rejeição e o limite de anexo do provedor nunca foram observados.
+- Item novo do `07` (saída da lista pelo destinatário, identificação de quem programou o envio, verificação do e-mail do titular) a decidir **antes de contratar SMTP ou abrir cadastro real**.
+- A **política de privacidade v1.6** dispara o reaceite de todos os usuários na próxima promoção `staging → main`, que segue pendente: `origin/staging` está 34 commits à frente de `origin/main`, agora com 3 migrações novas de relatórios.
+- Pergunta em aberto desde o item 3: o relatório **anual** deveria ter mês configurável (hoje ancora em janeiro)?
+- **Processo:** o revisor recomendou um PR por sub-issue contra a branch do épico, deixando o PR do épico só para a promoção, dado o tamanho (~10× o limite). Contradiz a convenção atual do `08` (um PR por épico); decidir se vale mudá-la antes do próximo épico grande.
+- `/design-sync` para o Claude Design conhecer `ReportEmissionForm`, `ReportHistory`, `ReportScheduleForm`, `ReportScheduleList` e `ReportUpcoming`, se compensar (a memória do projeto registra que o `/design-sync` real é pesado).
+- Não avaliados em nenhum ponto da fase: fidelidade visual do PDF A4 ao handoff, desempenho do relatório anual de qualidade de energia (cerca de 525 mil leituras por medidor) e precisão da demanda contra uma fatura real do Grupo A.
+
+### Replanejamento de 2026-10-04 (detalhamento da Fase 28)
+
+**O que mudou:** a Fase 28 (Metas) foi detalhada de objetivo para 6 itens, na mesma sessão em que a Fase 27 fechou. Nenhuma decisão do `07` bloqueava a fase. Quatro escolhas condicionavam o modelo e foram levadas ao usuário antes de fatiar.
+
+- **Tipos de meta:** só kWh na primeira leva (itens 1–4, com o design existente). Custo (R$, P1) e demanda (Grupo A, P2) são os itens 5 e 6, aguardando design. RF42 fica parcial até lá; `02-requisitos.md` marca a parte kWh como implementada quando o item 1 sair.
+- **Escopo:** a meta é **por propriedade**, única por propriedade e ano e filtrada pela propriedade da topbar. Combina com o Painel da Fase 29 (que já é por propriedade) e comporta a meta de demanda do Grupo A depois.
+- **Alerta:** um só percentual por meta (o design tem um campo só), avaliado contra a meta do **mês** e contra o **acumulado do ano**. O `Goal` guarda duas marcas de "já notificado". Um mês e um ano notificam no máximo uma vez cada.
+- **RN37:** ano vigente e futuros são editáveis e excluíveis; só ano passado é imutável, e segue como base de referência. O texto atual da RN37 só libera o vigente, o que travaria quem cria a meta de 2027 em dezembro; a reescrita acontece junto do item 1.
+- **Padrão do avaliador:** o `DemandAlertScheduler` (leitura do agregado, idempotência por período), não o runner de relatórios que a herança da Fase 27 sugeria. O alerta é idempotente e não envia nada externo, então `nextRunAt` e a trava por passada não se justificam. A trava por usuário também fica de fora, porque a unicidade por propriedade e ano já limita o volume.
+- **Divergências do design, deliberadas:** o desvio acumulado usa o mês corrente proporcional aos dias decorridos (o design compara realizado parcial com meta cheia); o "consumo específico alvo" é só atalho de preenchimento, não persiste; a meta anual é a soma dos 12 meses.
+- **Lacunas de design:** seção "Alertas de meta" na página de Alertas, formulário e tela em R$ e meta de demanda. O alerta de demanda existente continua sem tela, fora do escopo.
+- **Ponto técnico a tratar no item 4:** o tipo da notificação em memória (`alertId`, `meterId` obrigatórios) não comporta uma meta, que pertence a uma propriedade.
+
+**Pendências que dependem de você (fora do roadmap):**
+- Produzir o design da seção de alertas de meta (ou autorizar reaproveitar a `AlertTable`) antes do item 4, e o de R$ e demanda antes dos itens 5 e 6.
+- As pendências da Fase 27 seguem valendo (legítimo interesse, SMTP real, política v1.6 e promoção `staging → main`, item do `07` sobre e-mail a terceiros).
+- Reajustar o vencimento da milestone `App v2` (2026-10-04, já passou): ela só fecha na Fase 30.
+
+### Replanejamento de 2026-10-05 (fechamento da Fase 28 e detalhamento da Fase 29)
+
+**O que mudou:** os 6 itens da Fase 28 (issues #482–#487) foram implementados em sequência via `nova-feature`, cada um com sua entrada de CHANGELOG e um commit, na branch `epic/481-metas`. O PR #488 (→ `staging`) abriu com 73 arquivos e cerca de 9,4 mil linhas, recebeu duas passadas de `revisao-codigo` e mesclou em 2026-10-05T22:35:33Z; o épico #481 e as seis sub-issues estão fechados. O `02-requisitos.md` saiu atualizado no próprio PR (RF42, RF43, RN37, FNC008, FNC011 e FNC013 → `[implementado]`).
+
+- **R$ e demanda saíram de "aguardando design":** em vez de esperar o desenho, o usuário decidiu em cada item: o seletor de unidade reaproveita o toggle kWh | R$ do Painel; a demanda é a terceira aba do seletor, só para Grupo A; o bloco "Alertas de meta" reaproveita o padrão da `AlertTable`. Nenhum desses três tem layout no design e todos estão marcados para sincronizar com o Claude Design.
+- **kWh, R$ e kW coexistem:** a unicidade passou de (propriedade, ano) para (propriedade, ano, unidade), e a API renomeou `monthlyKwh` para `monthlyTargets` e os campos do acompanhamento (`targetKwh`, `realizedKwh` → `target`, `realized`). Foram **quatro migrações** (tabela `goals`, marcas de aviso, unidade com `RENAME COLUMN` e o valor `KW` do enum, sozinho na migração).
+- **Demanda por pico, não por soma:** a meta do mês é um teto de kW; no ano, a "meta" é a maior meta mensal, o "realizado" é a maior demanda medida e o desvio é o do pior mês, sem proporcional ao mês corrente. O alerta de demanda é só mensal (pico não acumula) e a meta só existe para o Grupo A, recusada no servidor nos demais.
+- **R$ no mês corrente conta contra a meta cheia** (mudou em relação ao critério do item 2): o custo já traz as cobranças fixas (iluminação pública, piso de disponibilidade, demanda contratada) desde o dia 1, então compará-lo com a meta proporcional aos dias inflava o desvio e disparava aviso falso. Achado da revisão do PR, decidido com o usuário; kWh segue proporcional aos dias, e o custo fixo já incorrido conta para atingir o percentual de alerta.
+- **Notificação sem medidor:** o tipo da notificação em memória passou a aceitar `meterId` nulo (backend e frontend), sem ADR; o aviso de meta leva a `/configuracoes/metas?propertyId=` e a página abre na propriedade do aviso, sem alterar a que o Painel guardou.
+- **Corrigido na revisão, por decisão do usuário ("bloqueios + sugestões", duas vezes):** o valor de kW que abria 12 vezes menor na edição; a reivindicação do aviso passou a exigir a versão (`updatedAt`) lida pelo avaliador, para uma edição no meio da avaliação não gerar aviso da meta antiga; o histórico que cortava nas 31 primeiras metas; o avaliador que disparava todos os grupos em paralelo, agora sequencial; o gráfico de metas, com tabela `sr-only` e sem foco no desenho oculto; a meta do ano por unidade, que estava em dois lugares, virou `yearlyTarget`.
+- **Lição de processo:** com 9,4 mil linhas, o PR passou muito do ponto em que a revisão rende. Num épico longo, abrir um PR por sub-issue contra a branch `epic/` mantém cada leitura pequena.
+- **Limitações registradas:** a meta de demanda não é validada contra a demanda contratada; o custo em R$ é recalculado a cada carga da página e a cada passada do avaliador (cachear os anos passados se pesar); as notificações seguem em memória por instância.
+
+**Fase 29 detalhada de objetivo para 5 itens**, depois de três decisões do usuário:
+- **Blocos atuais do Painel ficam:** KPIs, tempo real, histórico e comparação seguem, abaixo dos widgets novos; o design v2 não os desenha, e a divergência é deliberada, como na Fase 24.
+- **Peso de cada medidor = áreas com medidor da propriedade**, o nível que o design mostra e que não conta o consumo duas vezes; o medidor geral e os de dispositivo ficam fora.
+- **Faixa de horário de ponta (Grupo A) é item próprio, P2**, o último da fase.
+
+Só o item de demanda tem backend novo certo; a tabela de consumo de hoje e a pizza reaproveitam `GET /api/consumption/summary` (até 50 ids por tipo de alvo), a meta reaproveita `GET /api/goals/progress`, e a faixa de ponta pode precisar expor o kWh por posto que a conta do Grupo A já calcula.
+
+- **Heranças da Fase 28 para a 29:** (1) a leitura de demanda mensal por rollup já existe no `GoalConsumptionReader` (maior potência entre os postos ÷ 1000, mês sem janela é ausência), e o gráfico de demanda deve reaproveitar essa semântica, não criar outra; (2) `yearlyTarget` e `computeGoalProgress` servem às contas do widget de meta; (3) `usePropertySelection` aceita `preferredId`, útil para links com a propriedade; (4) o gráfico de metas ensinou que o Recharts 3 deixa o `<svg>` focável por teclado, então todo gráfico novo leva `accessibilityLayer={false}` com tabela `sr-only` quando o desenho fica oculto.
+- **Risco aberto da Fase 29:** a projeção de fechamento em R$ no Painel herda o problema do custo fixo; a decisão fica para a chegada do item.
+
+**Pendências que dependem de você (fora do roadmap):**
+- Tirar a label `status: bloqueada` das issues #486 e #487, que seguem com ela mesmo fechadas.
+- Sincronizar o Claude Design: bloco "Alertas de meta", seletor de unidade, aba de demanda (Grupo A) e os textos em R$ e kW.
+- Reajustar o vencimento da milestone `App v2` (2026-10-04, já passou): ela só fecha na Fase 30.
+- As pendências da Fase 27 seguem valendo (legítimo interesse, SMTP real, política v1.6 e promoção `staging → main`, item do `07` sobre e-mail a terceiros).
+
+### Replanejamento de 2026-10-08 (fechamento da Fase 29 e detalhamento da Fase 30)
+
+**O que mudou:** os 5 itens da Fase 29 (issues #490–#494) foram implementados em sequência via `nova-feature`, cada um com sua entrada de CHANGELOG e um commit, na branch `epic/489-painel-v2`. O PR #495 (→ `staging`) abriu com 71 arquivos e cerca de 6,7 mil linhas, recebeu uma passada de `revisao-codigo` (0 bloqueios e 9 sugestões, todas aplicadas por decisão do usuário, "opção b") e mesclou em 2026-10-08T23:07:17Z; o épico #489 foi fechado à mão ~40 segundos depois (convenção de 2026-09-17), e a milestone `App v2` segue aberta até a Fase 30.
+
+- **Backend não era zero, e o primeiro item o descobriu:** o plano dizia "sem backend novo" para a meta. Mas `GET /api/consumption` recusava o bucket diário (e de hora e minuto) de propriedade do Grupo A e da Tarifa Branca, o que derrubava o Mês do Painel e o "Consumo hoje" nesses grupos. **Decisão do usuário:** abrir o kWh sub-mensal sem custo. `costBrl` virou opcional na lista de consumo (ausência é "não calculável", nunca 0), tratado em todos os consumidores do frontend e do backend.
+- **R$ no Mês é só a parte variável (risco aberto da Fase 29, resolvido):** o custo diário não traz piso, iluminação pública nem demanda. **Decisão do usuário:** somar o custo diário e projetar só a parte variável, com nota na tela. A revisão apontou que a Situação (projeção variável contra a meta cheia) erra sempre a favor do usuário; ela deixou de aparecer no Mês em R$, e a página Metas e o alerta, que contam o mês cheio, seguem mostrando um número maior.
+- **Peso de cada medidor ganhou tokens:** o design pinta a pizza com 16 hex soltos e o tema só tinha 2 tokens de gráfico. **Decisão do usuário:** `--color-chart-cat-1` a `16` no `industry.css`, os tons do protótipo no claro e clareados com `color-mix` no escuro. "Área com medidor" é a que o resumo do mês devolve (o resumo não distingue "sem medidor" de "sem leitura no mês").
+- **Demanda: o rollup não tem série do dia.** `MeterDemandRollup` guarda um máximo por medidor × mês × posto; a Máxima do mês e a Ultrapassagem saem dele, mas a Demanda atual e a curva do dia saem das leituras por minuto de hoje, pela mesma regra de janela (15 leituras consecutivas, buraco é ausência). Endpoint novo `GET /api/demand/overview` (posse, Grupo B recusado, 422 para modalidade sem cálculo e para distribuidora sem janela de ponta, nas duas modalidades). **Decisão do usuário:** na Azul a contratada é um degrau por posto. A semântica "sem medição é ausência" ficou unificada em `measuredDemandKwOrNull` (`measuredDemandKwFor` segue 0 para custo e alerta); relatório e meta reaproveitam a mesma base. A faixa de ponta desenhada no gráfico sai do posto de cada janela.
+- **Faixa de horário de ponta (#494) não precisou de backend:** o resumo mensal do Grupo A já traz o kWh por posto e a API de distribuidoras já devolvia a janela; só o tipo do frontend não a declarava. A label `área: backend` daquela issue não se aplicava.
+- **Corrigido na revisão e no CI, por decisão do usuário:** a Máxima do mês na Azul pintada de vermelho pelo posto errado (a resposta ganhou `monthMax.post`); a releitura de 60 s que continuava depois de erro permanente; e, só refatoração, `resolveMonthMax` e `summaryBatch` em módulos compartilhados, `SectionParts` no lugar de quatro cópias de esqueleto e alerta, e o README da API.
+- **Lição de processo (repetida):** com 6,7 mil linhas o PR passou do ponto em que a revisão rende, de novo, como na Fase 28. A recomendação do laudo e da Fase 28 não foi aplicada: **em épico longo, um PR por sub-issue contra a branch `epic/`**. A Fase 30 tem só dois itens pequenos, então um PR único é razoável, mas qualquer épico com 4 itens ou mais deve abrir um PR por sub-issue.
+- **Lição de CI:** o job e2e roda contra um backend real. Toda chamada nova do app logado sem `page.route` volta 401 e derruba o teste no login, e localmente isso só aparece como erro de proxy. Os mocks padrão do Painel moram em `mockAppShellBackground` e `setupDashboard` (goals, árvore de cadastro, medidor por alvo), e a Fase 30 precisa dos da Segurança. Além disso, um teste frágil da Fase 28 (`goal.repository`, versão da meta por `updatedAt` com precisão de milissegundo) falhou no runner mais rápido e foi estabilizado, e três jobs de `npm audit` quebraram por advisories novos, resolvidos com `npm audit fix`.
+- **`02-requisitos.md` saiu atualizado nesta sessão de fechamento** (FNC004 → `[implementado]`), não nos commits de feature.
+
+**Fase 30 detalhada de objetivo para 2 itens:** ver as sessões (decisão do que captar no login, migração e LGPD) e encerrá-las (individual e "todas as outras"). A decisão de produto sobre "dispositivo, origem" é o primeiro passo e deve virar item do `07` e ADR na chegada: IP e user-agent são dado pessoal e exigem base legal, minimização, retenção, ROPA e exportação do titular antes de qualquer migração.
+
+- **Heranças da Fase 29 para a 30:** (1) mockar no e2e toda rota nova da Segurança, no padrão de `mockAppShellBackground`; (2) contas de demonstração: leitura representativa e escrita bloqueada por `blockDemoWrite`; (3) o encerramento da própria sessão leva ao login, e o reuso de refresh token já trocado continua sendo sinal de roubo; (4) estados de carregamento, erro e vazio com `SectionSkeleton` e `SectionError` (`components/dashboard/SectionParts.tsx`) ou o equivalente da Segurança.
+- **Risco aberto da Fase 30:** o escopo depende da decisão de captura. "Canal e data" é uma visão sobre `RefreshToken` e `AuthToken` sem tabela nova; com user-agent e IP entra migração, ROPA e retenção.
+
+**Pendências que dependem de você (fora do roadmap):**
+- Sincronizar o Claude Design com o que a fase criou sem layout: a paleta `--color-chart-cat-*`, a classe `lt-today-row` e os estados da tabela de consumo de hoje, o menu de seleção da pizza, o bloco "Meta de consumo" no Painel (e o aviso de R$ sem situação), o degrau da contratada na Azul, os avisos de estado da demanda e a faixa "Horário de ponta" também sem meta cadastrada.
+- Reajustar o vencimento da milestone `App v2` (2026-10-04, já passou) e fechá-la ao concluir a Fase 30.
+- Acompanhar o advisory do `braces` (alta severidade, sem versão corrigida, só em devDependency via `tsc-alias`): não bloqueia o gate de produção; quando houver correção, atualizar.
+- As pendências da Fase 27 seguem valendo (legítimo interesse, SMTP real, política v1.6 e promoção `staging → main`, item do `07` sobre e-mail a terceiros).
+
+### Replanejamento de 2026-10-09 (fechamento da Fase 30 e detalhamento da Fase 31)
+
+**O que mudou:** os 2 itens da Fase 30 (issues #500 e #501) foram implementados via `nova-feature`, **um PR por item, sem épico**: o PR #502 (ver as sessões; 50 arquivos, cerca de 1,9 mil linhas) e o PR #503 (encerrar; 27 arquivos, cerca de 1,3 mil linhas), ambos contra `staging`, ambos com uma passada de `revisao-codigo` e mesclados em 2026-10-09 (#502 às 21:36 UTC, #503 às 23:25 UTC). Com isso a milestone `App v2` ficou com 0 issues abertas e 48 fechadas.
+
+- **A decisão de captura virou ADR-0025 antes do código, como o plano mandava:** o login e o refresh gravam só um rótulo reduzido de navegador e sistema (`Chrome · Windows`) e o IP mascarado (`189.45.xx.xx`; IPv6 só pelo prefixo); user-agent e IP brutos não são gravados. **Decisões do usuário:** rótulo reduzido e IP mascarado; `sessionId` nas duas tabelas de token, sem tabela `Session`; cidade e UF do desenho ficaram de fora (exigiriam geolocalização por IP). O plano previa que a lista podia ser "só uma visão sobre `RefreshToken` e `AuthToken`, sem tabela nova", mas a visão **não bastava**: sem um id de sessão que ligue o JWT de acesso ao refresh token não existe "sessão atual" nem revogação por sessão, e a migração do `sessionId` entrou de qualquer jeito.
+- **"Último acesso" é a emissão do token vigente** (web: o último refresh, em geral há menos de 1 h; mobile: o login), sem escrita por requisição. Em produção a origem vem de `trust proxy`; no staging (Render) pode ser a do proxy.
+- **Conta de demonstração:** a conta é compartilhada entre visitantes, então a lista real exporia sessões de terceiros; recebe uma lista fixa representativa, e o encerramento é bloqueado por `blockDemoWrite`.
+- **O item 2 (Size S, risco "baixo") foi bem maior que o plano:** a revogação por sessão mexeu em três regras do refresh que o plano não previa. (1) **Cascata de reuso:** qualquer refresh token revogado fora da graça revogava todos os do usuário, então o aparelho encerrado por outra sessão (que ainda tem o cookie) derrubaria também a sessão atual; agora só token **rotacionado** é reuso. (2) **Janela de graça:** o laudo da revisão achou que um token rotacionado há menos de 5 s reativava a sessão já encerrada (e o logout e o reset de senha tinham a mesma brecha); a graça só reemite se a sessão ainda tem refresh vigente. (3) **Auditoria:** `SESSION_REVOKE` por ação e `REVOKED_TOKEN_USE` (falha, sem token) para o uso de um token já cortado, em duas migrações `ADD VALUE`. A revogação cobre também os JWTs de acesso da sessão, que valem até 1 h; o logout passou a revogar todos os refresh vigentes da sessão.
+- **Divergência do critério da issue, por decisão do usuário:** a sessão atual **não** tem botão de encerrar (como no desenho; o "Sair" do menu já a encerra). O servidor aceita o id da atual e a encerra como logout, com teste.
+- **Corrigido na revisão, por decisão do usuário ("opção b"):** no #502, 1 bloqueio e 6 sugestões (a migração sem default no banco quebraria login e refresh do backend anterior no deploy e no rollback; a exportação do titular listava um "refresh token" por rotação em vez de uma linha por sessão; o token substituído na rotação perde dispositivo e origem; logout revoga todos os refresh da sessão; `sessionId` no `Omit` do cast de `authenticate`; fuso de São Paulo no fallback de data; teste do canal web); no #503, 1 bloqueio (a janela de graça) e 3 sugestões (auditoria do token cortado, encerramento atômico com 404 quando nada é revogado, teste da graça em "Encerrar todas as outras").
+- **Lição de processo (aplicada, com ressalva):** a recomendação de um PR por sub-issue foi seguida e a revisão rendeu: em cada PR o revisor achou um bloqueio real de segurança ou de deploy que o autor não viu. Os dois PRs ainda passaram de ~1,2 mil linhas (metade teste e documentação), então "um PR por item" não basta para um item que cruza banco, auth, exportação e UI; o #502 podia ter sido três (migração e `sessionId`, módulo `session` e exportação, frontend).
+- **Lição de deploy (expand/contract):** migração que tira o default depois de adicionar a coluna `NOT NULL` quebra o backend anterior durante o deploy (a migração roda com o container antigo ainda servindo). Coluna nova em tabela de escrita contínua mantém o default no banco, ou nasce nula e vira `NOT NULL` numa migração seguinte.
+- **Incidente de staging, fora das fases:** o login de demonstração do staging deu 500 depois do merge do #502. O log do Render mostrou o banco do Neon **sem as migrações de pelo menos três fases** (`reports`, `goals` e `avgVoltagePhaseA` não existiam, além do `sessionId`): o Render redeploya a cada push em `staging` mas não aplica migração (sem release hook no plano gratuito), e o passo manual do `DEPLOY.md` ("Atualizar o staging depois de um merge") não era repetido desde a Fase 25. A correção é operacional: `npx prisma migrate status` e `npm run db:migrate:deploy` com a connection string administrativa do Neon, mais `npm run db:seed` (idempotente) por causa dos catálogos do Grupo A e da Branca. Pendência do usuário abaixo; vale automatizar o aviso.
+- **`02-requisitos.md` saiu atualizado nos próprios PRs** (RF44 e FNC012 → `[implementado]`, com o "Hoje" da Segurança), não neste fechamento. No `02`, o que segue `[planejado]` é o Modbus do simulador (FNC009, Fase 31) e, sem fase, o catálogo tarifário com vigência (RF45) e a tarifa efetiva em R$/kWh (RN16).
+
+**Fase 31 detalhada de objetivo para 2 itens:** a decisão do `07` ("Simulador Modbus TCP/RTU embutido × externo × manter só MQTT") vira ADR no primeiro item, e o servidor Modbus TCP embutido (se a decisão for essa) é o segundo. Nenhuma outra fase está definida depois dela.
+
+- **Heranças da Fase 30 para a 31:** (1) todo teste e2e do app logado precisa de `page.route` para a rota nova (o job roda contra backend real); (2) ADR antes do código quando o item abre com decisão; (3) migração com `ADD VALUE` de enum fica sozinha no arquivo; (4) a UI do simulador é separada do app (`iot-simulator/ui`, tokens duplicados localmente por decisão da Fase 5): controle novo sem layout vai para a lista de sincronização do Claude Design.
+- **Risco aberto da Fase 31:** o RTU (serial) e o endereçamento por fase dos adaptadores de polling, adiado na Fase 25 por não ser testável. Ambos dependem do ADR do item 1.
+
+**Pendências que dependem de você (fora do roadmap):**
+- **Aplicar as migrações no Neon (urgente):** o login de demonstração do staging só volta depois disso (comandos acima e no `DEPLOY.md`). Vale um aviso "este PR traz migração" no `preparar-pr` ou uma checagem de `migrate status` no CI de `staging`; diga se quer.
+- **Fechar a milestone `App v2` no GitHub** (0 issues abertas, vencimento atual 2026-10-11).
+- Sincronizar o Claude Design com o que a fase criou sem layout: o bloco "Sessões ativas" sem cidade/UF, os estados de carregamento, erro e "sem outra sessão", os diálogos de confirmação de "Encerrar" e "Encerrar todas as outras" (textos e botões) e os avisos de sucesso e erro.
+- **Contraste no tema escuro:** `.tag-accent` fica ilegível (o escuro redefine `--color-accent-100` e `--color-accent-700`, mas o tag usa `--color-accent-800`, só definido no claro; o desenho tem o mesmo par), o que já afeta Perfil, Dispositivo, Alertas de meta e agora o selo "Esta sessão"; o "Encerrar" em `--color-status-danger` também tem contraste baixo no escuro. É decisão de tokens do design, não alterei.
+- Acompanhar o advisory do `braces` (alta severidade, sem versão corrigida, só em devDependency via `tsc-alias`).
+- As pendências da Fase 27 seguem valendo (legítimo interesse, SMTP real, política v1.6 e promoção `staging → main`, item do `07` sobre e-mail a terceiros).
+- A promoção `staging → main` leva agora as Fases 25 a 30, com várias migrações: aplicá-las na VPS de produção antes de subir o código (ordem do `DEPLOY.md`).
+
+### Remediação das auditorias de outubro (Fases 32–36, planejadas em 2026-10-12)
+
+- **O Alto e o contexto primeiro (Fase 32):** a exportação da demonstração (#534) é a única exposição de dado de visitante real e abre a fase. O índice de ADRs (#525) vem antes de qualquer ADR nova, porque o esquecimento se repetiu em todas as ADRs desde agosto e a Fase 33 já cria uma (#535). Os ajustes baratos e sem decisão (#537, #538, #542) entram na mesma fase para não ficarem esperando um bloco inteiro.
+- **Desempenho antes da segurança de sessão (33 antes de 34):** os itens de desempenho são P0 e o armazenamento tem um teto físico (Neon, 0,5 GB), enquanto o épico de sessão e MFA é P1 e já tem a severidade reduzida pela ADR-0014. A segurança de sessão não fica para depois por ser menos séria em abstrato, e sim porque o dado exposto hoje não é de titular real.
+- **Medir, depois otimizar, depois dividir (dentro da 33):** o #535 gera o baseline que os demais reaproveitam; o épico #509 otimiza em cima do código medido; o refactor #536 roda por último, sobre arquivos que o #509 já terminou de mexer. Fazer o refactor primeiro adiaria o ganho mais barato (#518, só frontend); fazê-lo em paralelo geraria conflito nos mesmos arquivos.
+- **#543 antes do #522:** o acesso direto ao Prisma em `iot-stream.routes.ts` e a revalidação por polling vivem na mesma função; mover a consulta para o repository primeiro evita reescrever o mesmo trecho duas vezes. Pelo mesmo motivo, #541 e #540 (retry e TLS do MQTT) vão em sequência, e o item de e-mail do #548 espera a mudança para `shared/` do #543.
+- **Travas por último (Fase 36):** a varredura dos ~45 comentários (#532), a ampliação do JSDoc (#533) e a medição de tetos (#530) só fazem sentido com o código já arrumado pelas fases anteriores; ampliar as regras antes obrigaria cada PR intermediário a carregar a dívida do arquivo que toca.
+- **Fase 31 depois da 36:** é P2, não entrega valor de usuário final e está bloqueada por uma decisão do `07`. Não foi renumerada, para não alterar as referências do `02` (FNC009) e do histórico. A #315 foi para a milestone `Simulador IoT` pelo mesmo vínculo.
+
+### Replanejamento de 2026-10-12 (auditorias de outubro; fechamento da milestone `App v2`)
+
+**O que mudou:** as auditorias de segurança e desempenho (2026-10-10) e de qualidade (2026-10-12) foram rodadas a partir de `staging` e salvas em `.claude/docs/`. Os 85 achados viraram 47 issues novas (5 épicos, 21 sub-issues, 12 individuais e 9 pacotes de baixa prioridade) na milestone `Endurecimento pós-Fase 30` (#7), mais as antigas #444 e #445, que ficaram 19 dias abertas fora de qualquer fase. A milestone `App v2` foi fechada no GitHub em 2026-10-12, depois de a Fase 30 terminar com 0 issues abertas.
+
+- **A remediação deste bloco é diferente da de agosto em um ponto:** os laudos de agosto apontavam lacunas do que existia; estes apontam, em boa parte, **custos que as Fases 25 a 30 criaram** (linha de `meter_readings` 2× mais larga, evento SSE ~3,7× maior, exportação que ganhou sessões, cálculo tarifário concentrado numa classe de 1779 linhas). Nenhum problema novo apareceu no código que já existia; as travas mecânicas das Fases 12 e 15.5 passaram a funcionar de fato.
+- **Fases 32–36 inseridas, com a 31 adiada.** Decisão do usuário: executar o bloco antes da Fase 31, sem renumerá-la.
+- **Decisões do usuário nesta sessão:** (1) bloco antes da Fase 31; (2) na Fase 33, o épico #509 antes do refactor #536; (3) #315 movida para a milestone `Simulador IoT`; (4) o que sobrar dos pacotes de baixa prioridade ao fim da Fase 36 sai da milestone para o backlog.
+- **Correções feitas junto:** a contagem do laudo de segurança passou de 30 para 31 achados (a tabela do resumo listava 20 Baixas; são 21).
+- **Estimativas de custo dos laudos de desempenho não foram medidas** (centenas de ms na varredura sem janela, ~3,1 GiB/ano, ~57 dias no Neon): o primeiro passo da Fase 33 é medi-las, e a implementação de qualquer rollup ou retenção só nasce depois de uma ADR.
+- **Pontos de atenção no código, registrados nos itens:** o #517 (cookies `__Host-`) desloga todos no deploy e exige conferir os mocks do e2e; o #515 adiciona coluna em tabela de escrita contínua e segue a lição de expand/contract da Fase 30; o #523 só entra se o Profiler com 11 medidores confirmar.
+- **`02-requisitos.md`:** nenhuma mudança. As fases não criam RF; o RF22 (simulação) segue como implementado só pela API, e o #542 só o faz falhar fechado fora do Grupo B Convencional.
+
+**Pendências que dependem de você (fora do roadmap):**
+- **Na chegada de cada item, uma decisão:** conteúdo representativo ou recusa na exportação da demonstração (#534); a ADR retroativa dos caches em processo (#526); o destino do endpoint de simulação (#542, não bloqueia); a decisão do `LOGIN` auditado a cada refresh (#551); a política 403 × 404 (#545); o armazenamento de `meter_readings` (#535). Cada uma vira item do `07` e ADR quando o item chega.
+- As pendências do replanejamento de 2026-10-09 seguem valendo, exceto o fechamento da milestone `App v2`: aplicar as migrações no Neon antes de depender do login de demonstração do staging, sincronizar o Claude Design com o que as fases criaram sem layout, o contraste do `.tag-accent` no tema escuro, o advisory do `braces`, as pendências da Fase 27 e a promoção `staging` → `main` (que agora leva as Fases 25 a 30, com várias migrações a aplicar na VPS antes do código).
+
+### Replanejamento de 2026-10-12 (fechamento da Fase 32 e detalhamento da Fase 33)
+
+**O que mudou:** os itens da Fase 32 foram implementados **um PR por item**, todos contra `staging`, todos com uma passada de `revisao-codigo`, e mesclados em 2026-10-12: #555 (#534, 12 arquivos, +333 linhas) às 16:15 UTC, #556 (#538, 3 arquivos) às 17:09, #557 (#537, 7 arquivos) às 20:36, #558 (#542, 4 arquivos) às 21:41 e #559 (épico #511, 20 arquivos de texto, 6 commits) às 00:13 UTC de 13/10 (21:13 em São Paulo). As issues #534, #538, #537, #542, #511 e #525–#529 estão fechadas; a milestone `Endurecimento pós-Fase 30` fica com 39 issues abertas. A suíte do backend fechou a fase com 2.191 testes (eram 2.147 depois do primeiro item) e a do frontend com 1.485.
+
+- **Revisão de cada PR (todas as correções aplicadas por decisão do usuário):** #555: 0 bloqueios e 5 sugestões (teste do teto de tokens, nota de truncamento das sessões, a janela de 12 meses do export contra a retenção de 730 dias registrada no `09`, comentário das levas, nota do PDF testável); #556: 0 e 4 (cada defesa presa a um teste próprio: o teste de tempo virou comparação de custo 16 KB × 64 KB, que falha se só a regex ou só o truncamento for revertido); #557: 0 e 3 (status vindo do próprio erro, os demais erros do body-parser, logger injetável); #558: 0 e 3 (mensagem por ramo, `groupBModality` nulo, lista de permissão); #559: 2 bloqueios e 4 sugestões, todos de texto.
+- **Decisões do usuário nesta fase:** (1) exportação da demo com conteúdo fixo representativo, em vez de recusa; (2) o endpoint de simulação segue sem tela; (3) um PR por item, na ordem do roadmap; (4) ADR-0026 retroativa e curta para os caches em processo; (5) todas as sugestões de cada revisão.
+- **O que a implementação fez diferente do plano:** (a) **#534:** a demo é identificada pelo e-mail no service (não pelo controller), para falhar fechado; os tokens também ganharam teto (2.000 por canal) e o PDF informa a janela; a janela do log (12 meses) ficou menor que a retenção (730 dias), aceito sob a ADR-0014. (b) **#538:** medido 105 ms → 0,1 ms; truncamento em 512 caracteres; fora do corte, Edge e Opera apareceriam como Chrome (documentado). (c) **#537:** generalizado para todo erro de cliente do http-errors (400, 413, 415, 403), não só `entity.*`; o `createErrorHandler` passou a receber o logger da aplicação; um teste instável do login ("Ao vivo", passo aleatório do ticker) derrubou o CI e foi corrigido na mesma branch. (d) **#542:** o guard é lista de permissão (Convencional ou nulo), vale para qualquer alvo, e uma modalidade nova do Grupo B exige rótulo em tempo de compilação. (e) **#511:** o `.claude/docs/README.md` virou o índice canônico (26 ADRs) e o `03`, o `04` e a seção "Resolvidas" do `07` só remetem a ele; o protocolo de ADR do `CLAUDE.md` e de quatro skills manda acrescentar a linha no índice; o `10` ganhou a aba "Cálculos e tarifas" (desenhada e sem código); o `04` e o `06` foram reescritos contra `ci.yml`, `package.json` e `eslint.config.js`.
+- **Lição — documentação também introduz drift:** o PR de documentação teve 2 bloqueios, e os dois eram afirmações novas nossas (o e2e "contra backend real", quando os 19 specs mockam a API com `page.route`; e a origem e os mapas da ADR-0026). Contagem copiada de laudo deve ser reconferida no código, e o que se infere de um arquivo só (o `ci.yml`) precisa ser conferido do outro lado (os specs).
+- **Incidente — o `CHANGELOG.md` foi truncado no PR #557 (erro do assistente, reparado):** a correção da revisão do #537 reescreveu o arquivo gravando só o trecho final, e o squash levou isso (de 4.736 para 16 linhas). O histórico estava íntegro em `18cebd7` e foi restaurado em commit próprio, só com acréscimo (nenhuma linha anterior perdida, verificado com `diff`). **Lição aplicada:** o CHANGELOG só recebe acréscimo (`>>`), e o `git diff --stat` do arquivo é conferido antes de entregar o commit. Decisão do usuário: sem trava no CI.
+- **`02-requisitos.md`:** nenhuma mudança (a fase não criou RF; o RF22 segue implementado só pela API, agora falhando fechado fora do Grupo B Convencional). **ADRs:** a 0026 nasceu na fase; a próxima é a 0027, a do #535.
+
+**Fase 33 detalhada de objetivo para 3 itens e 1 épico:** medir e decidir o armazenamento (#535), o épico do Painel (#518 → #519 → #520) e o refactor do `ConsumptionService` (#536), com parte dos pacotes #551 e #552 colada aos itens que mexem nos mesmos arquivos.
+
+- **Por que esta ordem:** o #535 abre porque gera o baseline que o épico reaproveita (a massa de hoje tem 9 colunas, não 22). No épico, o #518 vem primeiro por ser a maior alavanca e a menor mudança; o #519 antes do #520 porque cria o helper de contagem de queries. O #536 fica por último e em etapas: fazê-lo antes adiaria o ganho barato, e em paralelo geraria conflito nos mesmos arquivos. A parte do #535 que depende do usuário (VPS e Neon) não bloqueia o épico; só a implementação do que a ADR decidir.
+- **Por que a redistribuição dos pacotes:** a regra do bloco é que os pacotes ficam presos à fase em que se mexe nos mesmos arquivos. Cinco itens dos pacotes #551 e #552 tocam auth, Caddy, o scheduler de metas e a paginação, que as Fases 34, 35 e 36 vão abrir de qualquer forma.
+- **Heranças da Fase 32 para a 33:** (1) mudou endpoint ou parâmetro que uma página chama? conferir os `page.route` do e2e; (2) "medir antes" (`06`): o baseline do #535 é a referência de todo ganho declarado; (3) cada afirmação nova em documento é conferida no código antes de escrever; (4) um PR por etapa e `revisao-codigo` em cada um; (5) o CHANGELOG só recebe acréscimo.
+- **Riscos abertos da Fase 33:** (1) o #518 muda o que a tela mostra em três casos de borda (pergunta na chegada); (2) a ADR do #535 pode gerar um item grande (rollup ou tabela irmã) que não cabe nesta fase; (3) o #536 em três PRs sequenciais segura qualquer outra mudança em `consumption`.
+
+**Pendências que dependem de você (fora do roadmap):**
+- **Números da VPS e do Neon** (comandos prontos no baseline do #535), incluindo a contagem de `audit_logs` e de tokens do usuário demo que ficou pendente do #534; repetir após 7 dias.
+- **Na chegada de cada item, uma decisão:** a semântica das janelas do #518 (os três casos de borda); se o erro de infraestrutura do resumo propaga, no #520; a opção de armazenamento da ADR-0027, no #535. As decisões antigas seguem: o `LOGIN` auditado a cada refresh (agora na Fase 34, com o #551 B-11), a política 403 × 404 (#545).
+- As pendências do replanejamento de 2026-10-12 anterior seguem valendo: aplicar as migrações no Neon antes de depender do login de demonstração do staging, sincronizar o Claude Design com o que as fases criaram sem layout, o contraste do `.tag-accent` no tema escuro, o advisory do `braces`, as pendências da Fase 27 e a promoção `staging` → `main`, que agora leva as Fases 25 a 32 (a 32 não trouxe migração).
+
+### Replanejamento de 2026-10-15 (fechamento da Fase 33)
+
+**O que mudou:** os três itens da Fase 33 foram implementados **um PR por item do roadmap** (o épico #509 conta como um), todos contra `staging`, na ordem planejada, todos revisados pelo `revisao-codigo` e com os 15 checks do CI verdes (o e2e inclusive): #566 (#535, 8 arquivos, +304/−28, 3 commits) mesclado em 2026-10-14 às 21:57 UTC, #567 (épico #509, 34 arquivos, +1.262/−191, 4 commits: um por sub-issue e um das correções da revisão) às 23:56 UTC e #568 (#536, 24 arquivos, +3.363/−2.420, 4 commits) em 2026-10-15 às 22:41 UTC. As issues #535, #518, #519, #520, #509 e #536 estão fechadas, todas à mão (convenção de 2026-09-17: `Closes #N` não fecha a partir de branch que não é a padrão). A milestone `Endurecimento pós-Fase 30` fica com 35 issues abertas e 20 fechadas (eram 39 abertas ao fim da Fase 32: seis fechadas e duas novas, #564 e #565) e segue aberta até a Fase 36. A suíte do backend fechou a fase com 2.226 testes (2.191 ao fim da Fase 32) e a do frontend com 1.492 (1.485). A fase não trouxe migração.
+
+- **Gate da fase: atingido para o Painel e o custo, parcial no armazenamento.** O Painel deixou de agregar o histórico inteiro do medidor, o custo mensal do Grupo A e da Branca deixou de ser N+1, e o armazenamento de `meter_readings` está medido e decidido (ADR-0027). O que ficou de fora é a proteção do Neon: o expurgo em lotes (#564) e a retenção menor do staging (#565) são as duas ações da ADR e seguem abertas, e o tamanho real do Neon ainda não foi medido (o usuário dispensou a medição nesta fase).
+- **Riscos do plano, como terminaram:** (1) os três casos de borda do #518 foram aceitos pelo usuário, sem a alternativa de ancorar a janela no backend; (2) a ADR não gerou item grande: manteve a estrutura e deixou dois ajustes pequenos, ainda abertos; (3) o #536 não segurou nenhuma outra mudança em `consumption`, porque rodou no fim, num PR só.
+
+**Medições (o ganho):**
+
+| Consulta ou operação | Antes | Depois |
+|---|---|---|
+| `findAggregated` por hora, 1 medidor (janela de 3 h) | ~200 ms | 0,1 ms |
+| `findAggregated` por dia (janela de 5 dias) | ~195 ms | ~2 ms (32–41 ms na VPS, com 40 dias de dado) |
+| `findAggregated` por mês (janela de 1 mês) | ~196 ms | ~15 ms |
+| `findLatestAggregatedForMeters` por hora, 11 medidores (janela de 3 h) | 702–1.048 ms | ~0,8 ms |
+| Lista mensal do Grupo A, 6 meses | 35 queries | 10 |
+| Lista mensal da Tarifa Branca, 6 meses | 17 queries | 7 |
+| Comparação Convencional × Branca, 6 meses | 11 queries | 6 |
+| Resumo de 50 áreas | 54 queries | 5 |
+
+- **Como ler os números:** os tempos são os do baseline do #535 (Postgres local 18, 5,7 M linhas, execução quente, duas rodadas), comparando a mesma consulta sem e com a janela que o #518 passou a mandar; **não houve remedição no Painel depois da implementação**. As contagens de queries vêm de `countQueries` nos testes de integração, com 6 meses e somando as consultas de contexto (propriedade, medidor, distribuidora, bandeira, catálogo): o lote não cresce com os meses, mas o critério do #519 pedia 12 meses pelo endpoint, com o log de queries ligado, e a medição não foi feita assim. O resumo de 50 áreas subestima o ganho com propriedades, porque o Prisma já agrupa a busca de áreas por id.
+- **Limites que seguem:** o histórico de 12 meses lê o ano inteiro do medidor (a janela é o próprio período); o resumo mensal de vários medidores ainda varre ~8% da tabela mesmo com janela (223–560 ms com 11 medidores, no local), porque o planner prefere varrer; o `EXPLAIN` do B-10 não foi refeito (com retenção de 365 dias o ganho só aparece com histórico de vários anos).
+
+- **Revisão de cada PR (todas as correções aplicadas por decisão do usuário, "bloqueios + sugestões"):** #566: duas passadas, 1 bloqueio e 11 sugestões, depois 1 bloqueio e 6 sugestões (vários números e afirmações do baseline estavam errados: os blocos lidos pela varredura, o índice de um plano, uma porcentagem e o tempo da janela de hora e de dia); #567: 1 bloqueio e 8 sugestões (o teste do filtro de posse por Dispositivo passava com o controle removido; `mapWithConcurrency` só cumpria o contrato com limite 1; as consultas de posse liam o endereço sem precisar; a chave de cache não carregava o tamanho da janela); #568: 1 bloqueio e 8 sugestões, todas aplicadas menos a de levar a mudança do teto do revisor para um `chore` à parte. O bloqueio do #568 foi a regra de JSDoc, que deixou de enxergar o código movido; a sugestão de maior valor foi uma regressão de desempenho introduzida na própria divisão (o índice de consumo por posto do Grupo A reconstruído a cada mês), que a igualdade dos resultados não acusava.
+- **Decisões do usuário nesta fase:** (1) ADR-0027: manter 365 dias e as 22 colunas, com dois ajustes baratos, em vez de rollup, tabela irmã ou zerar colunas antigas; (2) medir a VPS só em leitura e **não** medir o Neon nem os logs do Render; (3) #518 com a janela no frontend, aceitando os três casos de borda; (4) o épico #509 num PR só, com revisão e PR no fim dele; (5) o #536 num **PR só**, em vez de um por etapa, e o teto de diff do `revisao-codigo` subiu de ~1,2 mil para ~2,5 mil e depois para ~5,1 mil linhas; (6) todas as sugestões de cada revisão.
+- **O que a implementação fez diferente do plano:**
+  - **#535:** o gerador de massa passou a preencher as 22 colunas e o baseline nasceu em `2026-10-13-baseline-desempenho-meter-readings.md`; as estimativas de `backend/src/config/env.ts` e do RIPD §3.3 foram corrigidas (~3,1 GiB/ano no esquema novo; ~2,0 GiB extrapolados na VPS, que ainda roda o esquema antigo). A opção de zerar as grandezas por fase depois de N dias caiu (ganho de ~23%, `UPDATE` pesado, espaço só volta ao reúso depois do vacuum, e os 92 dias do laudo são o tamanho máximo do período, `MAX_COMPARE_PERIOD_DAYS`, não a idade do dado). Os critérios do Neon e dos logs do Render não foram feitos, por decisão do usuário. A ADR-0027 traz a condição de revisão (disco da VPS, expurgo sem margem, Análise de períodos longos pesada, usuário real).
+  - **#518:** `latestRange(bucketSize, N)` devolve um descritor; as datas só são calculadas no `queryFn` e a chave da consulta leva o tamanho da janela, não as datas (o que resolve o B-09); `range` é obrigatório em `useConsumption` e `useConsumptionSummary`. As contas do Grupo A e da Branca usam **só o mês corrente** (o plano dizia corrente e anterior): mais barato, e o caso "sem dados" já estava aceito. `staleTime` de 1 h em `useDistributors` e `useTariffFlag` (B-01). O B-08 foi conferido e dispensado: o devtools não entra no bundle de produção. Mudanças visíveis aceitas: o "Consumo hoje" de um alvo com medidor e sem leitura no dia passa de 0 kWh para "—"; as comparações omitem quem não tem leitura no mês; a conta do Grupo A ou da Branca sem leitura no mês cai no estado vazio.
+  - **#519:** o B-10 (`findMonthlyKwhForYears` com faixa em `minuteStart`) ficou aqui, como previsto; o helper `countQueries` nasceu em `queryCounter.ts` (o `prismaTest` repassa os eventos de query a ele); `list()` calcula o mês de Grupo A e Branca em lote e `compareBrancaToConvencional` usa um só `findKwhByPostGroupedByMonth`. Os testes comparam a página de 6 meses com 6 chamadas de 1 mês (resultado idêntico) e fixam um teto de queries.
+  - **#520:** posse por `findMany` com `userId` no `where` para Propriedade, Área e Dispositivo (`resolveOwnedRootProperties`), medidores em lote (`findMeterIdsByTargets`) e cada distribuidora buscada uma vez. Custo dos itens em paralelo limitado: **um item por vez quando o lote tem Grupo A** (pico de seis conexões contra um pool de dez) e três por vez nos demais. **O `catch` que escondia erro de banco saiu**: id inexistente ou alheio segue fora do resultado, erro de pool propaga (há teste). O B-13 virou outro desenho: a propriedade lida pelo medidor sai sem os quatro campos de endereço cifrados (`PropertyWithoutAddress`), e não com o `select` de cinco campos do plano, porque os schedulers de demanda precisam dos campos de tarifa e demanda; o B-07 virou `select` das colunas de conexão. Agrupar o custo do Grupo A por propriedade não foi feito: cada propriedade tem o próprio medidor e nenhuma medição mostrou que importa.
+  - **#536:** as três etapas num PR só: `ConsumptionService` de 1.856 linhas (1.779 quando o laudo o mediu) para 402, e de 12 para 9 dependências (7 repositórios e 2 calculadoras). Nasceram `billing/` (`GroupABillCalculator`, `GroupBWhiteBillCalculator`, `PropertyMonthCostCalculator`, `YearlyPropertyCostCalculator`, `BucketCostCalculator`, que não estava no plano, mais `createBillCalculators`, `monthWindow` e `billing.types`), `comparison/` (`PropertyComparisonService` e controller, mesmas URLs) e `shared/propertyBillingContext.ts`. O `loadOwnedPropertyBillingContext` serve às duas comparações; a `SimulationService` reaproveita só os passos soltos (`loadOwnedProperty`, `requireDistributor`, `requireFlagPer100Kwh`), porque não tem medidor e lê distribuidora e bandeira depois de validar o alvo, e o helper inteiro mudaria qual erro vence. O override de `max-lines-per-function: 90` foi **removido**, não trocado: `summary()` e `list()` foram divididos para caber no teto global de 60. A regra `jsdoc/require-jsdoc` passou a cobrir `billing/`, `comparison/` e `propertyBillingContext.ts`.
+- **Pacotes #551 e #552:** feitos na fase B-07, B-10 e B-13 (#551) e B-01 e B-09 (#552); o B-08 foi dispensado. Seguem com a fase planejada: B-04, B-11 e B-15 (Fase 34), B-12 (Fase 35) e B-06 (Fase 36). Os itens feitos **ainda estão sem marca** nas listas das duas issues no GitHub.
+- **Fora do plano, por pedido direto do usuário:** auditoria e endurecimento da produção (contêineres, proxy e backup), o guia `SEGURANCA-VPS.md` e o reinício do simulador da VPS, que apagou os medidores em memória até serem recriados (o seed não é idempotente, e isso está no guia). Entraram por commits diretos em `staging` em 2026-10-13 e foram revisados depois (2 bloqueios e 8 sugestões, aplicados). As ações que dependem do operador seguem no próprio guia.
+- **Lições (heranças para as Fases 34–36):**
+  1. **Mover código tira a trava de onde ela estava.** A regra de JSDoc cobria `src/modules/*/*.{service,repository,controller}.ts`; ao mover mais de mil linhas para subpastas, elas saíram da cobertura sem que o lint dissesse nada, e estendê-la expôs `@param` de objeto faltando em duas funções. O #533 (Fase 36) parte da cobertura real, e quem mover código para pasta nova confere os globs do `eslint.config.js`.
+  2. **Resultado igual não é custo igual.** Dividir um método para caber no limite de linhas pode mudar o custo sem mudar a resposta; refactor puro pede revisão método a método, não só a suíte verde.
+  3. **Teste de controle de acesso tem de falhar sem o controle.** O teste de posse do #567 passava com o filtro removido porque o dado do usuário alheio nunca chegava até o resultado; agora os dois lados têm medidor e leitura, e o controle é removido de verdade para ver o teste cair.
+  4. **Número em documento é conferido de novo.** O baseline do #535 saiu com números e afirmações errados na primeira passada (mesma lição da Fase 32: documentação também introduz drift). Contagem ou plano copiado, inferido ou lembrado é reconferido na fonte antes de escrever.
+  5. **Repositório público:** nenhum host, IP, usuário, nome de contêiner, caminho de deploy, URL de banco, credencial ou e-mail real em arquivo, PR, issue, comentário ou CHANGELOG; usar marcadores (`<usuario>@<host-da-vps>`), varrer o diff antes de entregar e dizer o mesmo aos subagentes de revisão. Vale para as Fases 34 e 35, que tocam perímetro, Caddy e operação.
+  6. **Tamanho de PR:** o #567 passou da regra de ~1,2 mil linhas e o #568 chegou a ~5,8 mil, com a revisão feita commit a commit; o revisor pediu que a mudança de regra de governança (o teto novo) fosse num `chore` próprio, e o usuário manteve no PR. O que sobra é uma divergência a decidir (ver as pendências).
+- **`02-requisitos.md`, `03-arquitetura.md` e ADRs:** nenhum RF novo. Os ponteiros de RN20, RN38, RN39 e RN41 do `02` passaram para `billing/GroupABillCalculator.ts` e `comparison/property-comparison.service.ts`, e o `03` lista `propertyBillingContext.ts` entre os helpers de resolução de `shared/`. A ADR-0027 nasceu na fase e o índice canônico tem 27 ADRs; a próxima é a 0028.
+
+**A Fase 34 (Segurança: sessão, MFA e perímetro) é a próxima e continua como está no plano, "será detalhada ao chegar"; este fechamento não a detalha.**
+
+**Pendências abertas ao fechar a fase (sem fase no plano):**
+- **#564 (expurgo de `meter_readings` em lotes, P1 · S) e #565 (retenção menor no staging, P1 · XS).** São as duas ações da ADR-0027 e nasceram depois do plano da fase. Têm ordem fixa (o #565 depende do #564 e do número do Neon). **Proposta, ainda não decidida:** o #564 entra na Fase 35, junto do #553 B-14 (o mesmo expurgo de retenção: o B-14 isola cada etapa do `retention.service.ts`, o #564 apaga `meter_readings` em lotes) e o #565 logo depois; se a medição do Neon mostrar que o plano gratuito enche antes disso (a estimativa do baseline é de ~59 dias a 8,6 MiB/dia só de `meter_readings`), os dois passam à frente da Fase 34.
+
+**Pendências que dependem de você (fora do roadmap):**
+- **O tamanho do Neon**, para fechar o #565: `SELECT pg_size_pretty(pg_database_size(current_database()))` no banco do staging.
+- **Depois da promoção `staging` → `main`:** repetir na VPS o bloco de comandos do baseline (tamanho com as 22 colunas) e o `EXPLAIN` do `findAggregated` por dia, porque com 40 dias de dado o planner da VPS escolheu o índice por `minuteStart`, pior que o composto por medidor (o #518 pedia remedir).
+- **Uma decisão de processo:** a regra do bloco ("PR acima de ~1,2 mil linhas se quebra") e o teto do `revisao-codigo` (~5,1 mil) divergem; dizer qual vale para o planejamento das Fases 34–36.
+- **Marcar nas issues #551 e #552** os itens feitos (B-07, B-10, B-13; B-01, B-09; B-08 dispensado).
+- As pendências do replanejamento de 2026-10-12 anterior seguem valendo: aplicar as migrações no Neon antes de depender do login de demonstração do staging, sincronizar o Claude Design com o que as fases criaram sem layout, o contraste do `.tag-accent` no tema escuro, o advisory do `braces`, as pendências da Fase 27 e a promoção `staging` → `main`, que agora leva as Fases 25 a 33 (a 32 e a 33 não trouxeram migração).
+
+### Replanejamento de 2026-10-15 (detalhamento da Fase 34)
+
+**O que mudou:** a Fase 34 deixou de ser "será detalhada ao chegar" e passou a 6 itens de execução mais uma decisão (#545): #539 (+ B-15), e o épico #508 com #513 (+ B-11), #514 (+ B-04), #515, #516 e #517. Nenhuma issue nova; nenhum RF novo. Todas as afirmações abaixo foram conferidas no código de `staging` (HEAD `9d99192`), salvo o que está marcado como não medido.
+
+- **Por que esta ordem:** o #539 não toca código de auth e dá retorno rápido no staging, então abre. No épico, #513 e #514 mexem nas mesmas funções do `auth.service.ts` (ordem para evitar conflito); o #515 vem depois pelo mesmo arquivo; o #516 é a única UI; o #517 fica por último porque renomeia cookies e desloga todos no deploy, e leva junto `iss`/`aud` do JWT de sessão e a remoção do `express.urlencoded` para um único evento de logout.
+- **O que o código mostrou e difere do plano anterior:**
+  1. **#539 já estava pela metade:** o Caddy ganhou `Referrer-Policy` e `Permissions-Policy` no endurecimento de 2026-10-13, fora do plano; sobram o `headers:` do Render, a CSP por header e o B-15. `'unsafe-inline'` em `style-src` fica (o sonner injeta `<style>` em runtime).
+  2. **#549 e #550 em parte também:** `no-new-privileges`, `cap_drop` (simulador e proxy) e o `umask` do backup já entraram no mesmo commit; os corpos das issues não dizem isso.
+  3. **#514 não deriva o início da sessão do primeiro token**, como o laudo sugere: o expurgo apaga refresh token revogado após 30 dias, quase o prazo do teto. Coluna `sessionStartedAt`.
+  4. **#513 e as contas demo compartilhadas:** o reuso hoje revoga o usuário inteiro; com os JWTs revogados, um visitante derrubaria todos os outros na hora. Recomendação de escopo por sessão (decisão na chegada, ADR 0028).
+  5. **#545 não é XS se a resposta for "404 em tudo":** 24 pontos de "Acesso negado" em 15 arquivos, e o `errorHandler` grava `ACCESS_DENIED` de cada `ForbiddenError`. Os módulos novos (metas, agendamentos, relatórios, sessões) já respondem 404 por filtrar o dono na query.
+  6. **#516 mexe em UI sem handoff** (regra de ausência do `10`); `DELETE` passa a ter corpo.
+  7. **#517:** o `.env.example` fixa os nomes dos cookies, então o prefixo é aplicado pelo código em produção; o e2e mocka a API e só o staging real prova o `__Host-`.
+  8. **#515:** o limite por `mfaToken` não barra quem tem a senha e refaz o login; o limite por conta é o lockout do `07` e fica fora.
+- **Decisões do usuário nesta sessão (aprovou as recomendações):** (1) PR: #539 próprio e o épico #508 num PR com um commit por sub-issue; a regra de ~1,2 mil linhas vira referência (resolve a pendência de processo da Fase 33 para as Fases 34–36, e o #517 sai separado acima de ~2,5 mil linhas); (2) #564 e #565 ficam na Fase 35 (o tamanho do Neon não foi informado, e a proposta só muda se ele encher antes); (3) dos pacotes #549 e #550 entram só `DATABASE_URL` com TLS no boot e o `.dockerignore` da raiz.
+- **Decisões que continuam para a chegada do item (com recomendação):** escopo da revogação no reuso e B-11 (#513); valor do teto (#514, 30 d); freio do `mfaToken` só por token (#515); diálogo de exclusão provisório com `TODO(design)` (#516); manter 403 e registrar a regra (#545).
+- **ADRs previstas:** 0028 (ciclo de vida da sessão WEB: teto absoluto e escopo da revogação) e 0029 (recurso alheio: 403 × 404, se a decisão for registrar a regra). A próxima livre hoje é a 0028.
+- **Não medido:** o `EXPLAIN` do expurgo de tokens (B-04) e a sintaxe de `headers:` do Render, que se confirma na documentação ao implementar.
+
+**Riscos abertos da Fase 34:** (1) a promoção `staging` → `main` segue pendente com as Fases 25–33; as 2 migrações da 34 vão juntas (antes do código) e o logout global do #517 chegaria misturado a 9 fases, então a sugestão é promover as Fases 25–33 antes de mesclar o #517; (2) o anti-replay muda a experiência (segundo uso do código em 30 s é recusado); (3) o stream SSE aberto sobrevive ao logout até o #522.
+
+**Pendências que dependem de você (fora do roadmap):**
+- O tamanho do Neon, para fechar o #565 e decidir se #564/#565 sobem antes da Fase 35.
+- Autorizar a edição dos corpos de #539, #549 e #550 (trechos já feitos) e a marcação dos itens feitos em #551 e #552.
+- As pendências do replanejamento de 2026-10-15 (fechamento da Fase 33) seguem valendo, exceto a decisão de processo sobre o tamanho de PR, que ficou resolvida acima.

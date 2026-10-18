@@ -12,6 +12,9 @@ export async function cleanHttpDatabase(): Promise<void> {
         // Por isso precisam ser limpos explicitamente, não seriam removidos
         // automaticamente pelo delete de User.
         prismaHttpTest.auditLog.deleteMany(),
+        prismaHttpTest.report.deleteMany(),
+        prismaHttpTest.reportSchedule.deleteMany(),
+        prismaHttpTest.goal.deleteMany(),
         prismaHttpTest.tariffFlagHistory.deleteMany(),
         prismaHttpTest.alertTriggerEvent.deleteMany(),
         prismaHttpTest.alert.deleteMany(),
@@ -20,8 +23,16 @@ export async function cleanHttpDatabase(): Promise<void> {
         prismaHttpTest.device.deleteMany(),
         prismaHttpTest.area.deleteMany(),
         prismaHttpTest.property.deleteMany(),
+        // Catálogo tarifário Grupo A (ADR-0019) e da Tarifa Branca do Grupo B
+        // (Fase 22) — referenciam EnergyDistributor com onDelete padrão
+        // (RESTRICT), precisam ser limpos antes dele.
+        prismaHttpTest.tariffEnergyRate.deleteMany(),
+        prismaHttpTest.tariffDemandRate.deleteMany(),
+        prismaHttpTest.groupBEnergyRate.deleteMany(),
         prismaHttpTest.energyDistributor.deleteMany(),
         prismaHttpTest.tariffFlagConfig.deleteMany(),
+        // Catálogo global de PLD (Fase 21) — sem dono, ver clean-database.ts.
+        prismaHttpTest.pldQuote.deleteMany(),
         prismaHttpTest.authToken.deleteMany(),
         prismaHttpTest.passwordReset.deleteMany(),
         prismaHttpTest.mfaBackupCode.deleteMany(),

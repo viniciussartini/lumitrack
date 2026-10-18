@@ -33,6 +33,10 @@ export function meterReadingRoutes(
     const controller = new MeterReadingController(meterReadingService)
 
     router.get("/", authenticate, (req, res, next) => controller.list(req, res, next))
+    router.get("/series", authenticate, (req, res, next) => controller.series(req, res, next))
+    router.get("/compare-periods", authenticate, (req, res, next) =>
+        controller.comparePeriods(req, res, next),
+    )
 
     return router
 }

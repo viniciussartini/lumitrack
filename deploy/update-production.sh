@@ -242,14 +242,26 @@ fi
 # compose já sabe o que precisa recriar sem depender da heurística de
 # `grep` acima cobrir cada arquivo relevante.
 echo "==> Sincronizando serviços com a configuração e as imagens atuais..."
+# O reseed dos medidores depende de o contêiner do simulador ter sido
+# recriado, não de qual arquivo mudou: uma alteração só no docker-compose.yml
+# (limites, opções de segurança) também o recria e apaga o estado em memória.
+SIMULATOR_BEFORE="$(docker compose "${COMPOSE_ENV[@]}" ps -q simulator || true)"
 docker compose "${COMPOSE_ENV[@]}" up -d
 
 if [ "$rebuild_caddy" = true ]; then
+    # O Caddy roda sem DAC_OVERRIDE (docker-compose.yml): só lê o Caddyfile e o
+    # build do frontend se os arquivos tiverem leitura para "outros". Um umask
+    # mais restritivo de quem roda o `git pull` ou o build tiraria essa leitura
+    # e o site cairia na recriação; garantir aqui é idempotente.
+    chmod o+r "$REPO_DIR/deploy/Caddyfile"
+    [ -d "$REPO_DIR/frontend/dist" ] && chmod -R o+rX "$REPO_DIR/frontend/dist"
+
     echo "==> Caddyfile mudou e/ou frontend foi rebuildado — forçando recriação do Caddy (bind mount, o compose não detecta sozinho)..."
     docker compose "${COMPOSE_ENV[@]}" up -d --force-recreate caddy
 fi
 
-if [ "$rebuild_simulator" = true ]; then
+SIMULATOR_AFTER="$(docker compose "${COMPOSE_ENV[@]}" ps -q simulator || true)"
+if [ "$rebuild_simulator" = true ] || [ "$SIMULATOR_BEFORE" != "$SIMULATOR_AFTER" ]; then
     echo "==> Aguardando a API do simulador responder..."
     wait_for "API do simulador" docker compose "${COMPOSE_ENV[@]}" exec -T simulator \
         node -e "require('http').get('http://localhost:4100/health',(r)=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))"

@@ -24,6 +24,7 @@ export const useCreateProperty = () => {
             void queryClient.invalidateQueries({
                 queryKey: queryKeys.properties.all,
             })
+            void queryClient.invalidateQueries({ queryKey: queryKeys.propertyTree.all })
             toast.success("Propriedade criada", {
                 description: `${created.name} foi adicionada com sucesso.`,
             })
@@ -43,6 +44,7 @@ export const useUpdateProperty = () => {
         mutationFn: ({ id, input }) => propertyService.update(id, input),
         onSuccess: (updated) => {
             // Invalida lista (ordem pode ter mudado) e o detalhe específico
+            void queryClient.invalidateQueries({ queryKey: queryKeys.propertyTree.all })
             void queryClient.invalidateQueries({
                 queryKey: [...queryKeys.properties.all, "list"],
             })
@@ -76,6 +78,7 @@ export const useDeleteProperty = () => {
             void queryClient.invalidateQueries({
                 queryKey: [...queryKeys.properties.all, "list"],
             })
+            void queryClient.invalidateQueries({ queryKey: queryKeys.propertyTree.all })
             // Remove o detalhe do cache — não vai existir mais
             queryClient.removeQueries({
                 queryKey: queryKeys.properties.detail(id),

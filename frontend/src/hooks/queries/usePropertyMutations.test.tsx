@@ -40,6 +40,15 @@ const mockProperty: Property = {
     zipCode: "30000-000",
     electricalSystem: "MONOPHASIC",
     billingClass: "B1",
+    groupBModality: "CONVENTIONAL",
+    receivesBillingDiscount: false,
+    tariffGroup: "GROUP_B",
+    contractingEnvironment: "ACR",
+    tariffSubgroup: null,
+    tariffModality: null,
+    contractedDemandKw: null,
+    contractedDemandPeakKw: null,
+    contractedDemandOffPeakKw: null,
     publicLightingFeeBrl: null,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
@@ -287,5 +296,46 @@ describe("useDeleteProperty", () => {
 
         expect(toast.success).not.toHaveBeenCalled()
         expect(toast.error).not.toHaveBeenCalled()
+    })
+})
+
+describe("invalidação da árvore de cadastro", () => {
+    const expectTreeInvalidated = (spy: ReturnType<typeof vi.spyOn>) =>
+        expect(spy).toHaveBeenCalledWith({ queryKey: queryKeys.propertyTree.all })
+
+    it("criar propriedade invalida a árvore", async () => {
+        vi.mocked(propertyService.create).mockResolvedValue(mockProperty)
+        const { queryClient, wrapper } = createWrapper()
+        const spy = vi.spyOn(queryClient, "invalidateQueries")
+        const { result } = renderHook(() => useCreateProperty(), { wrapper })
+
+        result.current.mutate({ distributorId: "d", name: "X", electricalSystem: "MONOPHASIC" })
+
+        await waitFor(() => expect(result.current.isSuccess).toBe(true))
+        expectTreeInvalidated(spy)
+    })
+
+    it("atualizar propriedade invalida a árvore", async () => {
+        vi.mocked(propertyService.update).mockResolvedValue(mockProperty)
+        const { queryClient, wrapper } = createWrapper()
+        const spy = vi.spyOn(queryClient, "invalidateQueries")
+        const { result } = renderHook(() => useUpdateProperty(), { wrapper })
+
+        result.current.mutate({ id: "prop-1", input: { name: "Nova" } })
+
+        await waitFor(() => expect(result.current.isSuccess).toBe(true))
+        expectTreeInvalidated(spy)
+    })
+
+    it("excluir propriedade invalida a árvore", async () => {
+        vi.mocked(propertyService.delete).mockResolvedValue(undefined)
+        const { queryClient, wrapper } = createWrapper()
+        const spy = vi.spyOn(queryClient, "invalidateQueries")
+        const { result } = renderHook(() => useDeleteProperty(), { wrapper })
+
+        result.current.mutate("prop-1")
+
+        await waitFor(() => expect(result.current.isSuccess).toBe(true))
+        expectTreeInvalidated(spy)
     })
 })

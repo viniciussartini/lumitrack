@@ -65,6 +65,65 @@ export const BILLING_CLASS_LABELS: Record<BillingClass, string> = {
     B3: "B3 — Demais classes",
 }
 
+/**
+ * Modalidade do Grupo B — Convencional (monômio plano de sempre) ou Tarifa
+ * Branca (decomposição por posto — Ponta/Intermediário/Fora de Ponta).
+ * Vedada a B4 (fora do enum `BillingClass`), à baixa renda e a quem recebe
+ * outros descontos (`receivesBillingDiscount`) — REN 1.098/2024.
+ */
+export type GroupBModality = "CONVENTIONAL" | "WHITE"
+
+export const GROUP_B_MODALITY_LABELS: Record<GroupBModality, string> = {
+    CONVENTIONAL: "Convencional",
+    WHITE: "Tarifa Branca",
+}
+
+/**
+ * Grupo tarifário (ADR-0019 do backend) — GROUP_B é o monômio de sempre
+ * (billingClass); GROUP_A é o binômio (subgrupo + modalidade + demanda
+ * contratada).
+ */
+export type TariffGroup = "GROUP_A" | "GROUP_B"
+
+/** Subgrupo do Grupo A — REN 1.000/2021, definido pela tensão de fornecimento. */
+export type TariffSubgroup = "A1" | "A2" | "A3" | "A3A" | "A4" | "AS"
+
+export const TARIFF_SUBGROUP_LABELS: Record<TariffSubgroup, string> = {
+    A1: "A1 — 230 kV ou mais",
+    A2: "A2 — 88 a 138 kV",
+    A3: "A3 — 69 kV",
+    A3A: "A3a — 30 a 44 kV",
+    A4: "A4 — 2,3 a 25 kV",
+    AS: "AS — sistema subterrâneo",
+}
+
+/**
+ * Modalidade tarifária do Grupo A. GREEN e BLUE têm cálculo de conta no
+ * backend (ConsumptionService lança erro claro para CONVENTIONAL_BINOMIAL) — o
+ * mapa de labels cobre as 3 para exibição, e o formulário oferece só as duas
+ * que têm cálculo.
+ */
+export type TariffModality = "CONVENTIONAL_BINOMIAL" | "GREEN" | "BLUE"
+
+export const TARIFF_MODALITY_LABELS: Record<TariffModality, string> = {
+    CONVENTIONAL_BINOMIAL: "Convencional Binômia",
+    GREEN: "Horária Verde",
+    BLUE: "Horária Azul",
+}
+
+/**
+ * Ambiente de contratação — cativo (distribuidora, tarifa do catálogo
+ * regulado) ou livre (comercializadora, tarifa negociada em `AclContract`).
+ * Só ACR está disponível fora do Grupo A (o backend rejeita ACL para
+ * Grupo B — `PropertyService.assertContractingEnvironmentEligible`).
+ */
+export type ContractingEnvironment = "ACR" | "ACL"
+
+export const CONTRACTING_ENVIRONMENT_LABELS: Record<ContractingEnvironment, string> = {
+    ACR: "Cativo — distribuidora",
+    ACL: "Livre — mercado livre (ACL)",
+}
+
 /** Property retornada pela API */
 export interface Property {
     id: string
@@ -80,9 +139,27 @@ export interface Property {
     state: string | null
     zipCode: string | null
     electricalSystem: ElectricalSystem
-    billingClass: BillingClass
+    tariffGroup: TariffGroup
+    /** Null para propriedades do Grupo A. */
+    billingClass: BillingClass | null
+    /** Null para propriedades do Grupo A; default "CONVENTIONAL" no Grupo B. */
+    groupBModality: GroupBModality | null
+    /** Null para propriedades do Grupo A. Recebe baixa renda ou outro desconto de faturamento — veda a Tarifa Branca (Grupo B). */
+    receivesBillingDiscount: boolean | null
+    /** Null para propriedades do Grupo B. */
+    tariffSubgroup: TariffSubgroup | null
+    /** Null para propriedades do Grupo B. */
+    tariffModality: TariffModality | null
+    /** Demanda contratada (kW) — Verde/Convencional; null nas demais combinações. */
+    contractedDemandKw: number | null
+    /** Demanda contratada na ponta (kW) — só modalidade Azul; null nas demais. */
+    contractedDemandPeakKw: number | null
+    /** Demanda contratada fora de ponta (kW) — só modalidade Azul; null nas demais. */
+    contractedDemandOffPeakKw: number | null
     /** CIP/COSIP municipal (R$) — opcional, nem todo município cobra. */
     publicLightingFeeBrl: number | null
+    /** Cativo (ACR, default) ou Mercado Livre (ACL) — ver `ContractingEnvironment`. */
+    contractingEnvironment: ContractingEnvironment
     createdAt: string
     updatedAt: string
 }
@@ -100,8 +177,17 @@ export interface CreatePropertyInput {
     state?: Uf
     zipCode?: string
     electricalSystem: ElectricalSystem
+    tariffGroup?: TariffGroup
     billingClass?: BillingClass
+    groupBModality?: GroupBModality
+    receivesBillingDiscount?: boolean
+    tariffSubgroup?: TariffSubgroup
+    tariffModality?: TariffModality
+    contractedDemandKw?: number
+    contractedDemandPeakKw?: number
+    contractedDemandOffPeakKw?: number
     publicLightingFeeBrl?: number
+    contractingEnvironment?: ContractingEnvironment
 }
 
 /**
@@ -111,3 +197,35 @@ export interface CreatePropertyInput {
  * vinculada.
  */
 export type UpdatePropertyInput = Partial<CreatePropertyInput>
+
+/** Dispositivo na árvore de cadastro — só o que a linha exibe. */
+export interface DeviceTreeNode {
+    id: string
+    name: string
+    powerWatts: number | null
+}
+
+/** Área na árvore de cadastro, com seus dispositivos. */
+export interface AreaTreeNode {
+    id: string
+    name: string
+    devices: DeviceTreeNode[]
+}
+
+/** Propriedade na árvore de cadastro, com suas áreas. */
+export interface PropertyTreeNode {
+    id: string
+    name: string
+    tariffGroup: TariffGroup
+    areas: AreaTreeNode[]
+}
+
+/**
+ * Resposta de `GET /api/properties/tree`. `total` é o número real de
+ * propriedades do usuário — maior que `items.length` quando o servidor limita
+ * a resposta.
+ */
+export interface PropertyTree {
+    items: PropertyTreeNode[]
+    total: number
+}

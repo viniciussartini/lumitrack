@@ -30,8 +30,9 @@ afterAll(async () => {
     await prismaHttpTest.$disconnect()
 })
 
-// A09 / RNF05: teste que precisa falhar se o `redact` for removido do
-// logger. NODE_ENV=test silencia o logger singleton (`resolveLogLevel`), então
+// A09: teste que precisa falhar se o `redact` for removido do
+// logger, vazando dado sensível em log estruturado. NODE_ENV=test silencia o
+// logger singleton (`resolveLogLevel`), então
 // não dá pra observar o output dele diretamente — aqui injetamos um pino
 // próprio via `AppDependencies.logger`, com `level: "info"` e o MESMO
 // `redact` de produção (`logRedactPaths`), escrevendo num stream capturado.
@@ -70,5 +71,69 @@ describe("pino-http — redação de dado sensível no log de requisição", () 
         const output = lines.join("\n")
         expect(output).not.toContain(sessionCookieValue)
         expect(output).toContain("[REDACTED]")
+    })
+})
+
+describe("corpo malformado — a senha do corpo nunca chega ao log", () => {
+    const SECRET = "Segredo@123-corpo-malformado"
+
+    function createCapturedApp() {
+        const lines: string[] = []
+        const sink = new Writable({
+            write(chunk: Buffer, _encoding, callback) {
+                lines.push(chunk.toString())
+                callback()
+            },
+        })
+        const capturedLogger = pino(
+            { level: "info", redact: { paths: logRedactPaths, censor: "[REDACTED]" } },
+            sink,
+        )
+        return { lines, app: createApp({ prismaClient: prismaHttpTest, logger: capturedLogger }) }
+    }
+
+    it("JSON malformado com a senha responde 400 e a senha não aparece no log", async () => {
+        const { app, lines } = createCapturedApp()
+
+        const response = await request(app)
+            .post("/api/auth/login")
+            .set("Content-Type", "application/json")
+            .send(`{"email":"a@example.com","password":"${SECRET}"`)
+
+        expect(response.status).toBe(400)
+        expect(JSON.stringify(response.body)).not.toContain(SECRET)
+        expect(lines.join("\n")).not.toContain(SECRET)
+    })
+
+    it("corpo acima do limite responde 413 e o conteúdo não aparece no log", async () => {
+        const { app, lines } = createCapturedApp()
+
+        const response = await request(app)
+            .post("/api/auth/login")
+            .set("Content-Type", "application/json")
+            .send(JSON.stringify({ password: SECRET, filler: "x".repeat(200_000) }))
+
+        expect(response.status).toBe(413)
+        expect(lines.join("\n")).not.toContain(SECRET)
+    })
+
+    it("redige o corpo anexado a um erro logado, como defesa extra", () => {
+        const lines: string[] = []
+        const sink = new Writable({
+            write(chunk: Buffer, _encoding, callback) {
+                lines.push(chunk.toString())
+                callback()
+            },
+        })
+        const capturedLogger = pino(
+            { level: "info", redact: { paths: logRedactPaths, censor: "[REDACTED]" } },
+            sink,
+        )
+        const err = Object.assign(new Error("parse"), { body: `{"password":"${SECRET}"` })
+
+        capturedLogger.error({ err }, "Erro inesperado")
+
+        expect(lines.join("\n")).not.toContain(SECRET)
+        expect(lines.join("\n")).toContain("[REDACTED]")
     })
 })

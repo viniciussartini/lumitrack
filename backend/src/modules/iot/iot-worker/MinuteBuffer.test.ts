@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest"
 import { MinuteBuffer } from "@/modules/iot/iot-worker/MinuteBuffer.js"
+import { emptyOptionalAvgFields } from "@/modules/meter/meter-reading-optional-fields.js"
 
 describe("MinuteBuffer", () => {
     describe("add", () => {
@@ -152,6 +153,122 @@ describe("MinuteBuffer", () => {
             expect(snapshots).toHaveLength(2)
             expect(snapshots.map((s) => s.meterId).sort()).toEqual(["meter-1", "meter-2"])
         })
+
+        it("grandeza por fase nunca reportada no balde vira null no snapshot", () => {
+            const buffer = new MinuteBuffer()
+            buffer.add(
+                "meter-1",
+                {
+                    energyKwh: 0.001,
+                    voltage: 220,
+                    current: 2,
+                    powerW: 440,
+                    powerFactor: 0.95,
+                    deltaSeconds: 1,
+                },
+                new Date("2026-01-15T14:37:10.000Z"),
+            )
+
+            const snap = buffer.drainCompletedBuckets(new Date("2026-01-15T14:38:00.000Z"))[0]!
+            expect(snap.avgVoltagePhaseA).toBeNull()
+            expect(snap.avgVoltageUnbalance).toBeNull()
+        })
+
+        it("grandeza por fase presente é ponderada por Δt, como as 4 obrigatórias", () => {
+            const buffer = new MinuteBuffer()
+            buffer.add(
+                "meter-1",
+                {
+                    energyKwh: 0.001,
+                    voltage: 220,
+                    current: 2,
+                    powerW: 440,
+                    powerFactor: 0.95,
+                    deltaSeconds: 1,
+                    voltagePhaseA: 218,
+                },
+                new Date("2026-01-15T14:37:10.000Z"),
+            )
+            buffer.add(
+                "meter-1",
+                {
+                    energyKwh: 0.002,
+                    voltage: 222,
+                    current: 3,
+                    powerW: 666,
+                    powerFactor: 0.9,
+                    deltaSeconds: 2,
+                    voltagePhaseA: 224,
+                },
+                new Date("2026-01-15T14:37:12.000Z"),
+            )
+
+            const snap = buffer.drainCompletedBuckets(new Date("2026-01-15T14:38:00.000Z"))[0]!
+            // (218*1 + 224*2) / 3 = 222
+            expect(snap.avgVoltagePhaseA).toBeCloseTo((218 * 1 + 224 * 2) / 3)
+        })
+
+        it("grandeza reportada só em parte das amostras do balde usa o peso só das amostras que a trouxeram, não o peso total do balde", () => {
+            const buffer = new MinuteBuffer()
+            // Só a 1ª amostra traz voltagePhaseA (Δt=2s) — a média usa esse
+            // peso próprio (220V, sem diluir), não o Δt combinado do balde
+            // inteiro (5s): um medidor que reporta uma grandeza numa cadência
+            // mais lenta que as 4 obrigatórias não pode ter sua média
+            // artificialmente puxada para baixo pelo peso de amostras que
+            // nem trouxeram aquele campo.
+            buffer.add(
+                "meter-1",
+                {
+                    energyKwh: 0.001,
+                    voltage: 220,
+                    current: 2,
+                    powerW: 440,
+                    powerFactor: 0.95,
+                    deltaSeconds: 2,
+                    voltagePhaseA: 220,
+                },
+                new Date("2026-01-15T14:37:10.000Z"),
+            )
+            buffer.add(
+                "meter-1",
+                {
+                    energyKwh: 0.001,
+                    voltage: 220,
+                    current: 2,
+                    powerW: 440,
+                    powerFactor: 0.95,
+                    deltaSeconds: 3,
+                },
+                new Date("2026-01-15T14:37:13.000Z"),
+            )
+
+            const snap = buffer.drainCompletedBuckets(new Date("2026-01-15T14:38:00.000Z"))[0]!
+            expect(snap.avgVoltagePhaseA).toBeCloseTo(220)
+        })
+
+        it("grandeza opcional reportada só em amostra(s) de peso zero fica ausente (null), nunca 0", () => {
+            const buffer = new MinuteBuffer()
+            // Primeira amostra do medidor (sem amostra anterior, deltaSeconds
+            // sempre 0) traz frequencyHz — sem peso nenhum para calcular
+            // média, a grandeza deve ficar `null`, não virar 0: ausência não
+            // é uma medição.
+            buffer.add(
+                "meter-1",
+                {
+                    energyKwh: 0,
+                    voltage: 220,
+                    current: 2,
+                    powerW: 440,
+                    powerFactor: 0.95,
+                    deltaSeconds: 0,
+                    frequencyHz: 60,
+                },
+                new Date("2026-01-15T14:37:00.000Z"),
+            )
+
+            const snap = buffer.drainCompletedBuckets(new Date("2026-01-15T14:38:00.000Z"))[0]!
+            expect(snap.avgFrequencyHz).toBeNull()
+        })
     })
 
     describe("drainCompletedBuckets", () => {
@@ -229,6 +346,7 @@ describe("MinuteBuffer", () => {
 
             buffer.merge({
                 meterId: "meter-1",
+                ...emptyOptionalAvgFields(),
                 minuteStart,
                 energyKwh: 0.01,
                 avgVoltage: 220,
@@ -254,6 +372,7 @@ describe("MinuteBuffer", () => {
 
             buffer.merge({
                 meterId: "meter-1",
+                ...emptyOptionalAvgFields(),
                 minuteStart,
                 energyKwh: 0.01,
                 avgVoltage: 200,
@@ -283,6 +402,42 @@ describe("MinuteBuffer", () => {
             expect(snap.energyKwh).toBeCloseTo(0.015)
             // (200*10 + 220*10) / 20 = 210
             expect(snap.avgVoltage).toBeCloseTo(210)
+        })
+
+        it("reinsere grandezas por fase do snapshot, ponderadas pelo secondsCovered do próprio snapshot", () => {
+            const buffer = new MinuteBuffer()
+            const minuteStart = new Date("2026-01-15T14:37:00.000Z")
+
+            buffer.merge({
+                meterId: "meter-1",
+                ...emptyOptionalAvgFields(),
+                minuteStart,
+                energyKwh: 0.01,
+                avgVoltage: 220,
+                avgCurrent: 5,
+                avgPowerW: 1100,
+                avgPowerFactor: 0.9,
+                avgVoltagePhaseA: 218,
+                sampleCount: 30,
+                secondsCovered: 30,
+            })
+            buffer.merge({
+                meterId: "meter-1",
+                ...emptyOptionalAvgFields(),
+                minuteStart,
+                energyKwh: 0.01,
+                avgVoltage: 220,
+                avgCurrent: 5,
+                avgPowerW: 1100,
+                avgPowerFactor: 0.9,
+                avgVoltagePhaseA: 222,
+                sampleCount: 30,
+                secondsCovered: 30,
+            })
+
+            const snap = buffer.drainCompletedBuckets(new Date("2026-01-15T14:38:00.000Z"))[0]!
+            // (218*30 + 222*30) / 60 = 220
+            expect(snap.avgVoltagePhaseA).toBeCloseTo(220)
         })
     })
 

@@ -606,6 +606,33 @@ textarea.input {
        3:1 de contraste contra --color-bg/--color-surface — no escuro o mesmo
        tom que já valia pra --color-status-highlight passa sem ajuste. */
     --color-chart-amber: #d98a1e;
+
+    /* Segunda série de gráfico (Fora de Ponta) — tom de azul já
+       usado no bundle para a linha "Medida" do widget de demanda do Grupo A
+       (LumiTrack Home v2.dc.html), clareado aqui pra manter contraste no
+       tema escuro (mesmo raciocínio de --color-chart-amber). */
+    --color-chart-blue: #8ab4d9;
+
+    /* Paleta categórica de gráficos (uma cor por série, ex.: peso de cada
+       área): os 16 tons do protótipo de pizza do Painel (LumiTrack Home
+       v2.dc.html), clareados aqui com branco para manter contraste contra
+       o fundo escuro (mesmo raciocínio de --color-chart-blue). */
+    --color-chart-cat-1: color-mix(in srgb, #5980a6 62%, white);
+    --color-chart-cat-2: color-mix(in srgb, #d98a1e 62%, white);
+    --color-chart-cat-3: color-mix(in srgb, #3f8f52 62%, white);
+    --color-chart-cat-4: color-mix(in srgb, #8a6fa8 62%, white);
+    --color-chart-cat-5: color-mix(in srgb, #c14a38 62%, white);
+    --color-chart-cat-6: color-mix(in srgb, #728fab 62%, white);
+    --color-chart-cat-7: color-mix(in srgb, #9a5f14 62%, white);
+    --color-chart-cat-8: color-mix(in srgb, #4f7f6a 62%, white);
+    --color-chart-cat-9: color-mix(in srgb, #a53b2c 62%, white);
+    --color-chart-cat-10: color-mix(in srgb, #6b7785 62%, white);
+    --color-chart-cat-11: color-mix(in srgb, #2f5f80 62%, white);
+    --color-chart-cat-12: color-mix(in srgb, #b9a04a 62%, white);
+    --color-chart-cat-13: color-mix(in srgb, #5c8f7a 62%, white);
+    --color-chart-cat-14: color-mix(in srgb, #7a4f6e 62%, white);
+    --color-chart-cat-15: color-mix(in srgb, #c9871f 62%, white);
+    --color-chart-cat-16: color-mix(in srgb, #3b6ea5 62%, white);
 }
 
 /* ══════════════════════════════════════════════════════════════════════════
@@ -630,6 +657,31 @@ textarea.input {
        contra --color-bg/--color-surface, que o tom de --color-status-highlight
        não atinge. Variante escura em :root[data-theme="dark"] acima. */
     --color-chart-amber: #a86a12;
+
+    /* Ver :root[data-theme="dark"] acima — mesmo par claro/escuro de
+       --color-chart-amber, tom de origem do bundle escurecido pra 3:1 de
+       contraste contra fundo claro. */
+    --color-chart-blue: #4d7ca3;
+
+    /* Paleta categórica de gráficos — tons do protótipo, no tema claro como
+       vieram do bundle. Variante escura em :root[data-theme="dark"] acima.
+       Mais de 16 séries repetem a paleta (ver lib/areaWeight.ts). */
+    --color-chart-cat-1: #5980a6;
+    --color-chart-cat-2: #d98a1e;
+    --color-chart-cat-3: #3f8f52;
+    --color-chart-cat-4: #8a6fa8;
+    --color-chart-cat-5: #c14a38;
+    --color-chart-cat-6: #728fab;
+    --color-chart-cat-7: #9a5f14;
+    --color-chart-cat-8: #4f7f6a;
+    --color-chart-cat-9: #a53b2c;
+    --color-chart-cat-10: #6b7785;
+    --color-chart-cat-11: #2f5f80;
+    --color-chart-cat-12: #b9a04a;
+    --color-chart-cat-13: #5c8f7a;
+    --color-chart-cat-14: #7a4f6e;
+    --color-chart-cat-15: #c9871f;
+    --color-chart-cat-16: #3b6ea5;
 
     /* Indicador "dado ao vivo" — cor própria, não reaproveita
        --color-status-success apesar do tom próximo: papel semântico
@@ -703,6 +755,7 @@ textarea.input {
     --text-28: 28px;
     --text-30: 30px;
     --text-32: 32px;
+    --text-34: 34px;
     --text-38: 38px;
     --text-42: 42px;
     --text-44: 44px;
@@ -909,6 +962,13 @@ textarea.input {
 .lt-selbtn:hover {
     border-color: var(--color-accent);
 }
+.lt-selbtn:disabled {
+    opacity: 0.38;
+    cursor: default;
+}
+.lt-selbtn:disabled:hover {
+    border-color: var(--color-divider);
+}
 
 /* Campo de busca com ícone de lupa sobreposto (padding-left reserva o
    espaço do ícone) — LumiTrack Home.dc.html, <style> local do protótipo.
@@ -1050,6 +1110,106 @@ textarea.input {
     color: var(--color-status-highlight);
 }
 
+/* Linha de lista/árvore selecionável — LumiTrack Home v2.dc.html. Sub-navegação
+   de Configurações e árvore de Análise; ativa via aria-current (NavLink) ou
+   data-on. */
+.lt-tree-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    padding: 9px 12px;
+    border: 0;
+    border-left: 2px solid transparent;
+    background: transparent;
+    color: var(--color-text);
+    font-family: var(--font-body);
+    font-size: 13.5px;
+    text-align: left;
+    cursor: pointer;
+}
+.lt-tree-row:hover {
+    background: color-mix(in srgb, var(--color-accent) 8%, transparent);
+}
+.lt-tree-row[aria-current="page"],
+.lt-tree-row[data-on="true"] {
+    border-left-color: var(--color-status-highlight);
+    background: color-mix(in srgb, var(--color-accent) 12%, transparent);
+    font-weight: 600;
+}
+/* Recuo por nível na árvore de Análise (1 propriedade, 2 área, 3 dispositivo). */
+.lt-tree-row[data-level="2"] {
+    padding-left: 28px;
+}
+.lt-tree-row[data-level="3"] {
+    padding-left: 57px;
+}
+
+/* Linha da tabela hierárquica "Consumo de hoje" do Painel — LumiTrack Home
+   v2.dc.html. Nome, kWh e R$ em colunas; o recuo e o peso do texto seguem o
+   nível (1 propriedade, 2 área, 3 dispositivo). */
+.lt-today-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    padding: 10px 20px;
+    border-top: 1px solid var(--color-divider);
+    color: var(--color-text);
+    font-size: 13.5px;
+    font-feature-settings: "tnum" 1;
+    text-align: left;
+}
+.lt-today-row[aria-expanded] {
+    cursor: pointer;
+}
+.lt-today-row[data-level="1"] {
+    background: color-mix(in srgb, var(--color-accent) 5%, transparent);
+    font-size: 14px;
+    font-weight: 600;
+}
+.lt-today-row[data-level="2"] {
+    padding-left: 40px;
+}
+.lt-today-row[data-level="3"] {
+    padding: 9px 20px 9px 79px;
+    font-size: 13px;
+}
+.lt-today-row:hover[aria-expanded] {
+    background: color-mix(in srgb, var(--color-accent) 8%, transparent);
+}
+.lt-today-name {
+    flex: 1 1 auto;
+    min-width: 110px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.lt-today-row[data-level="2"] .lt-today-name {
+    color: color-mix(in srgb, var(--color-text) 80%, transparent);
+}
+.lt-today-row[data-level="3"] .lt-today-name {
+    color: color-mix(in srgb, var(--color-text) 70%, transparent);
+}
+.lt-today-kwh,
+.lt-today-cost {
+    flex-shrink: 0;
+    white-space: nowrap;
+}
+.lt-today-row[data-level="1"] .lt-today-kwh,
+.lt-today-row[data-level="1"] .lt-today-cost {
+    font-family: var(--font-heading);
+    font-size: 16px;
+}
+.lt-today-cost {
+    width: 82px;
+    text-align: right;
+    color: color-mix(in srgb, var(--color-text) 62%, transparent);
+}
+.lt-today-row[data-level="1"] .lt-today-cost {
+    color: var(--color-status-warning);
+}
+
 /* Painel de dropdown (menu do usuário, notificações) — LumiTrack
    Home.dc.html, <style> local do protótipo. Sem width/position fixos aqui:
    o protótipo só abre esses menus para baixo, mas o rodapé da Sidebar
@@ -1107,6 +1267,85 @@ textarea.input {
 .lt-iconbtn:hover {
     border-color: var(--color-accent);
     color: var(--color-accent-700);
+}
+
+/* Variante compacta do `.lt-iconbtn` (32px) — ações por linha da árvore de
+   cadastro. Vem depois de `.lt-iconbtn` para sobrescrever o tamanho. */
+.lt-iconbtn-sm {
+    width: 32px;
+    height: 32px;
+    flex-shrink: 0;
+}
+
+/* Recolher/expandir com transição de altura (grid 0fr → 1fr) — LumiTrack Home
+   v2.dc.html. O conteúdo recolhido segue no DOM; quem usa marca `inert` e
+   `aria-hidden` para tirá-lo do foco e da leitura. */
+.lt-collapse {
+    display: grid;
+    grid-template-rows: 0fr;
+    opacity: 0;
+    pointer-events: none;
+    transition:
+        grid-template-rows 0.46s cubic-bezier(0.4, 0, 0.2, 1),
+        opacity 0.32s ease;
+}
+.lt-collapse[data-open="true"] {
+    grid-template-rows: 1fr;
+    opacity: 1;
+    pointer-events: auto;
+}
+.lt-collapse > div {
+    overflow: hidden;
+    min-height: 0;
+}
+
+/* Árvore de cadastro (Configurações → Cadastro) — LumiTrack Home v2.dc.html.
+   Uma linha por item; `data-level` (0 propriedade, 1 área, 2 dispositivo) define
+   recuo e tipografia. */
+.lt-cadtree-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding-right: 20px;
+    border-top: 1px solid var(--color-divider);
+}
+.lt-cadtree-row[data-level="0"] {
+    background: color-mix(in srgb, var(--color-accent) 5%, transparent);
+}
+.lt-cadtree-main {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 20px;
+    border: 0;
+    background: transparent;
+    color: var(--color-text);
+    font: inherit;
+    font-size: 14px;
+    font-weight: 600;
+    text-align: left;
+}
+button.lt-cadtree-main {
+    cursor: pointer;
+}
+.lt-cadtree-row[data-level="1"] .lt-cadtree-main {
+    padding: 10px 20px 10px 46px;
+    font-size: 13.5px;
+    font-weight: 400;
+}
+.lt-cadtree-row[data-level="2"] .lt-cadtree-main {
+    padding: 9px 20px 9px 85px;
+    font-size: 13px;
+    font-weight: 400;
+    color: color-mix(in srgb, var(--color-text) 80%, transparent);
+}
+.lt-cadtree-meta {
+    font-size: 12px;
+    font-weight: 400;
+    color: color-mix(in srgb, var(--color-text) 55%, transparent);
+    font-feature-settings: "tnum" 1;
 }
 
 /* Contador numérico sobreposto no canto do `.lt-iconbtn` (alertas

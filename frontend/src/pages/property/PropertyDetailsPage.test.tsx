@@ -37,7 +37,7 @@ vi.mock("@/services/meter.service", () => ({
 }))
 
 vi.mock("@/services/meterReading.service", () => ({
-    meterReadingService: { list: vi.fn() },
+    meterReadingService: { list: vi.fn(), series: vi.fn() },
 }))
 
 vi.mock("@/contexts/RealtimeContext", () => ({
@@ -71,6 +71,17 @@ vi.mock("@/services/distributor.service", () => ({
     },
 }))
 
+// PropertyFormDialog busca o contrato ACL corrente em qualquer edição (ver
+// usePropertyFormSubmit) — sem mock explícito, a chamada cairia no `api`
+// vazio abaixo e resolveria em erro (funciona, mas silencioso e frágil).
+vi.mock("@/services/acl-contract.service", () => ({
+    aclContractService: {
+        listByProperty: vi.fn().mockResolvedValue({ items: [], total: 0, page: 1, pageSize: 31 }),
+        create: vi.fn(),
+        update: vi.fn(),
+    },
+}))
+
 vi.mock("@/services/api", () => ({
     api: {},
     extractErrorMessage: (error: unknown) => (error instanceof Error ? error.message : "Erro"),
@@ -101,6 +112,8 @@ const mockDistributor: Distributor = {
     icmsRate: 0.18,
     pisRate: 0.0165,
     cofinsRate: 0.076,
+    peakWindowStartHour: null,
+    peakWindowEndHour: null,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
 }
@@ -116,6 +129,15 @@ const mockProperty: Property = {
     zipCode: "30000-000",
     electricalSystem: "TRIPHASIC",
     billingClass: "B1",
+    groupBModality: "CONVENTIONAL",
+    receivesBillingDiscount: false,
+    tariffGroup: "GROUP_B",
+    contractingEnvironment: "ACR",
+    tariffSubgroup: null,
+    tariffModality: null,
+    contractedDemandKw: null,
+    contractedDemandPeakKw: null,
+    contractedDemandOffPeakKw: null,
     publicLightingFeeBrl: null,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
@@ -168,7 +190,7 @@ const renderPage = () => {
             <MemoryRouter initialEntries={["/propriedades/prop-1"]}>
                 <Routes>
                     <Route path="/propriedades/:id" element={<PropertyDetailsPage />} />
-                    <Route path="/propriedades" element={<div>Lista de propriedades</div>} />
+                    <Route path="/propriedades" element={<div>Análise</div>} />
                 </Routes>
             </MemoryRouter>
         </QueryClientProvider>,
@@ -199,14 +221,6 @@ describe("PropertyDetailsPage — loading", () => {
 
         expect(screen.getByLabelText(/carregando dados da propriedade/i)).toBeInTheDocument()
     })
-
-    it("renderiza link de voltar mesmo durante loading", () => {
-        vi.mocked(propertyService.getById).mockReturnValue(new Promise(() => {}))
-
-        renderPage()
-
-        expect(screen.getByRole("link", { name: /voltar para propriedades/i })).toBeInTheDocument()
-    })
 })
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -232,11 +246,10 @@ describe("PropertyDetailsPage — erro", () => {
 
         await screen.findByRole("alert")
 
-        // Há dois links pra propriedades (o BackLink no topo + o "Voltar para a lista" no estado de erro)
-        const backLinks = screen.getAllByRole("link", {
-            name: /voltar/i,
-        })
-        expect(backLinks.length).toBeGreaterThanOrEqual(1)
+        expect(screen.getByRole("link", { name: /voltar para a análise/i })).toHaveAttribute(
+            "href",
+            "/propriedades",
+        )
     })
 })
 
@@ -251,12 +264,12 @@ describe("PropertyDetailsPage — header", () => {
         vi.mocked(areaService.list).mockResolvedValue(paginated([]))
     })
 
-    it("renderiza nome da propriedade como heading principal", async () => {
+    it("renderiza nome da propriedade como heading do detalhe", async () => {
         renderPage()
 
         expect(
             await screen.findByRole("heading", {
-                level: 1,
+                level: 2,
                 name: /casa principal/i,
             }),
         ).toBeInTheDocument()
@@ -284,21 +297,13 @@ describe("PropertyDetailsPage — header", () => {
         ).toBeInTheDocument()
     })
 
-    it("renderiza menu de opções (sem item Editar — só Excluir)", async () => {
-        const user = userEvent.setup()
+    it("não oferece excluir — criar e excluir vivem em Configurações → Cadastro", async () => {
         renderPage()
 
-        const menuTrigger = await screen.findByRole("button", {
-            name: /opções de Casa Principal/i,
-        })
+        await screen.findByRole("heading", { level: 2, name: /casa principal/i })
 
-        await user.click(menuTrigger)
-
-        // Editar foi REMOVIDO do menu (já tem botão explícito no header)
-        expect(screen.queryByRole("menuitem", { name: /editar/i })).not.toBeInTheDocument()
-
-        // Excluir continua presente
-        expect(screen.getByRole("menuitem", { name: /excluir/i })).toBeInTheDocument()
+        expect(screen.queryByRole("button", { name: /opções de/i })).not.toBeInTheDocument()
+        expect(screen.queryByRole("button", { name: /excluir/i })).not.toBeInTheDocument()
     })
 })
 
@@ -345,104 +350,174 @@ describe("PropertyDetailsPage — chips de distribuidora e faturamento", () => {
             expect(screen.getByText(/distribuidora não disponível/i)).toBeInTheDocument()
         })
     })
+
+    it("propriedade Grupo A mostra subgrupo, modalidade e demanda contratada — não a classe de faturamento", async () => {
+        vi.mocked(propertyService.getById).mockResolvedValue({
+            ...mockProperty,
+            tariffGroup: "GROUP_A",
+            billingClass: null,
+            groupBModality: null,
+            receivesBillingDiscount: null,
+            tariffSubgroup: "A4",
+            tariffModality: "GREEN",
+            contractedDemandKw: 200,
+        })
+
+        renderPage()
+
+        expect(await screen.findByText(/A4 — 2,3 a 25 kV/i)).toBeInTheDocument()
+        expect(screen.getByText(/Horária Verde/i)).toBeInTheDocument()
+        expect(screen.getByText(/Demanda contratada: 200 kW/i)).toBeInTheDocument()
+        expect(screen.queryByText(/B1 — Residencial/i)).not.toBeInTheDocument()
+    })
 })
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Seção de Áreas — comportamento dinâmico
+// Mercado Livre (ACL) — entry point da comparação ACR × ACL
 // ─────────────────────────────────────────────────────────────────────────────
 
-describe("PropertyDetailsPage — seção de áreas (vazia)", () => {
+describe("PropertyDetailsPage — Mercado Livre (ACL)", () => {
     beforeEach(() => {
-        vi.mocked(propertyService.getById).mockResolvedValue(mockProperty)
         vi.mocked(distributorService.getById).mockResolvedValue(mockDistributor)
         vi.mocked(areaService.list).mockResolvedValue(paginated([]))
     })
 
-    it("renderiza seção 'Áreas' como heading", async () => {
-        renderPage()
-
-        expect(await screen.findByRole("heading", { level: 2, name: /áreas/i })).toBeInTheDocument()
-    })
-
-    it("renderiza EmptyState quando não há áreas", async () => {
-        renderPage()
-
-        expect(await screen.findByText(/nenhuma área cadastrada/i)).toBeInTheDocument()
-    })
-
-    it("abre o modal de criação ao clicar em 'Adicionar área'", async () => {
-        const user = userEvent.setup()
-        renderPage()
-
-        const addButton = await screen.findByRole("button", {
-            name: /adicionar área/i,
+    it("mostra o botão 'Comparar ACR × ACL' e a tag quando a propriedade está em ACL", async () => {
+        vi.mocked(propertyService.getById).mockResolvedValue({
+            ...mockProperty,
+            tariffGroup: "GROUP_A",
+            billingClass: null,
+            groupBModality: null,
+            receivesBillingDiscount: null,
+            tariffSubgroup: "A4",
+            tariffModality: "GREEN",
+            contractedDemandKw: 200,
+            contractingEnvironment: "ACL",
         })
-        await user.click(addButton)
 
-        expect(await screen.findByRole("dialog", { name: /adicionar área/i })).toBeInTheDocument()
-    })
-
-    it("não mostra 'Em breve' — a criação de área já está disponível (botão 'Adicionar área')", async () => {
         renderPage()
 
-        await screen.findByText(/nenhuma área cadastrada/i)
+        const compareLink = await screen.findByRole("link", { name: /comparar acr × acl/i })
+        expect(compareLink).toHaveAttribute("href", "/propriedades/prop-1/comparacao-acl")
+        expect(screen.getByText(/mercado livre \(acl\)/i)).toBeInTheDocument()
+    })
 
-        expect(screen.queryByText(/em breve/i)).not.toBeInTheDocument()
+    it("não mostra o botão nem a tag para uma propriedade cativa (ACR)", async () => {
+        vi.mocked(propertyService.getById).mockResolvedValue(mockProperty)
+
+        renderPage()
+
+        await screen.findByRole("heading", { name: /casa principal/i })
+        expect(screen.queryByRole("link", { name: /comparar acr × acl/i })).not.toBeInTheDocument()
+        expect(screen.queryByText(/mercado livre \(acl\)/i)).not.toBeInTheDocument()
     })
 })
 
-describe("PropertyDetailsPage — seção de áreas (com dados)", () => {
+// ─────────────────────────────────────────────────────────────────────────────
+// Tarifa Branca (Grupo B)
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe("PropertyDetailsPage — Tarifa Branca", () => {
+    beforeEach(() => {
+        vi.mocked(distributorService.getById).mockResolvedValue(mockDistributor)
+        vi.mocked(areaService.list).mockResolvedValue(paginated([]))
+    })
+
+    it("mostra o botão 'Comparar Convencional × Branca' e a tag quando a propriedade está na Branca", async () => {
+        vi.mocked(propertyService.getById).mockResolvedValue({
+            ...mockProperty,
+            groupBModality: "WHITE",
+        })
+
+        renderPage()
+
+        const compareLink = await screen.findByRole("link", {
+            name: /comparar convencional × branca/i,
+        })
+        expect(compareLink).toHaveAttribute("href", "/propriedades/prop-1/comparacao-branca")
+        expect(screen.getByText("Tarifa Branca")).toBeInTheDocument()
+    })
+
+    it("não mostra o botão nem a tag para uma propriedade Convencional", async () => {
+        vi.mocked(propertyService.getById).mockResolvedValue(mockProperty)
+
+        renderPage()
+
+        await screen.findByRole("heading", { name: /casa principal/i })
+        expect(
+            screen.queryByRole("link", { name: /comparar convencional × branca/i }),
+        ).not.toBeInTheDocument()
+        expect(screen.queryByText("Tarifa Branca")).not.toBeInTheDocument()
+    })
+})
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Comparação de áreas — no lugar da grade de áreas e do "Adicionar área"
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe("PropertyDetailsPage — comparação de áreas", () => {
     beforeEach(() => {
         vi.mocked(propertyService.getById).mockResolvedValue(mockProperty)
         vi.mocked(distributorService.getById).mockResolvedValue(mockDistributor)
     })
 
-    it("renderiza grid de cards quando há áreas", async () => {
+    it("sem áreas, orienta a cadastrá-las", async () => {
+        vi.mocked(areaService.list).mockResolvedValue(paginated([]))
+
+        renderPage()
+
+        expect(
+            await screen.findByText("Cadastre áreas para comparar o consumo entre elas."),
+        ).toBeInTheDocument()
+    })
+
+    it("compara as áreas com medidor e deixa de fora a que não tem", async () => {
         vi.mocked(areaService.list).mockResolvedValue(
             paginated([mockArea, { ...mockArea, id: "area-2", name: "Cozinha" }]),
         )
+        vi.mocked(consumptionService.summary).mockResolvedValue({
+            items: [
+                {
+                    id: "area-1",
+                    targetType: "AREA",
+                    bucketStart: "2026-09-01T00:00:00.000Z",
+                    kwhConsumed: 42,
+                    costBrl: 33.6,
+                    avgPowerW: 300,
+                },
+            ],
+        })
 
         renderPage()
 
-        // Testid do grid
-        expect(await screen.findByTestId("areas-grid")).toBeInTheDocument()
-        // Cards individuais por testid
-        expect(screen.getByTestId("area-card-area-1")).toBeInTheDocument()
-        expect(screen.getByTestId("area-card-area-2")).toBeInTheDocument()
-        // Names visíveis
-        expect(screen.getByText(/sala/i)).toBeInTheDocument()
-        expect(screen.getByText(/cozinha/i)).toBeInTheDocument()
-        // EmptyState não aparece
-        expect(screen.queryByText(/nenhuma área cadastrada/i)).not.toBeInTheDocument()
+        expect(await screen.findByTestId("area-comparison")).toBeInTheDocument()
+        expect(screen.getByText("Sala")).toBeInTheDocument()
+        expect(screen.queryByText("Cozinha")).not.toBeInTheDocument()
+        expect(consumptionService.summary).toHaveBeenCalledWith(
+            expect.objectContaining({ targetType: "AREA", ids: ["area-1", "area-2"] }),
+        )
     })
 
-    it("card aponta para a página de detalhes da área", async () => {
+    it("não traz mais a grade de áreas nem o botão de adicionar área", async () => {
         vi.mocked(areaService.list).mockResolvedValue(paginated([mockArea]))
+        vi.mocked(consumptionService.summary).mockResolvedValue({ items: [] })
 
         renderPage()
 
-        const card = await screen.findByTestId("area-card-area-1")
-
-        expect(card).toHaveAttribute("href", "/propriedades/prop-1/areas/area-1")
+        await screen.findByText("Nenhuma área desta propriedade tem medidor.")
+        expect(screen.queryByTestId("areas-grid")).not.toBeInTheDocument()
+        expect(screen.queryByRole("button", { name: /adicionar área/i })).not.toBeInTheDocument()
     })
-})
 
-describe("PropertyDetailsPage — seção de áreas (erro)", () => {
-    it("renderiza alerta inline quando o fetch das áreas falha", async () => {
-        vi.mocked(propertyService.getById).mockResolvedValue(mockProperty)
-        vi.mocked(distributorService.getById).mockResolvedValue(mockDistributor)
+    it("mantém o detalhe quando o fetch das áreas falha", async () => {
         vi.mocked(areaService.list).mockRejectedValue(new Error("Falha ao listar áreas"))
 
         renderPage()
 
-        // Header da propriedade ainda aparece (erro nas áreas não é fatal)
-        await screen.findByRole("heading", {
-            level: 1,
-            name: /casa principal/i,
-        })
-
-        // Alerta inline com a mensagem de erro.
-        expect(await screen.findByText(/falha ao listar áreas/i)).toBeInTheDocument()
+        await screen.findByRole("heading", { level: 2, name: /casa principal/i })
+        expect(
+            await screen.findByText("Não foi possível carregar a comparação de áreas."),
+        ).toBeInTheDocument()
     })
 })
 
@@ -507,5 +582,87 @@ describe("PropertyDetailsPage — seção de medidor/consumo (integração)", ()
         // MeterSection também mostra a potência atual — o mesmo valor
         // aparece nos dois cards.
         expect(screen.getAllByText("1,50kW").length).toBeGreaterThan(0)
+    })
+})
+
+describe("PropertyDetailsPage — aba Grandezas Elétricas", () => {
+    beforeEach(() => {
+        vi.mocked(propertyService.getById).mockResolvedValue(mockProperty)
+        vi.mocked(distributorService.getById).mockResolvedValue(mockDistributor)
+        vi.mocked(areaService.list).mockResolvedValue(paginated([]))
+    })
+
+    it("começa na aba Consumo e Custos, escondendo a grade de grandezas", async () => {
+        renderPage()
+
+        await screen.findByRole("heading", { level: 2, name: mockProperty.name })
+        expect(screen.getByRole("tab", { name: /Consumo e Custos/i })).toHaveAttribute(
+            "aria-selected",
+            "true",
+        )
+        expect(screen.queryByTestId("electrical-quantities-empty")).not.toBeInTheDocument()
+    })
+
+    it("clicar em Grandezas Elétricas troca o conteúdo da página, sem medidor mostra o estado vazio correspondente", async () => {
+        vi.mocked(meterService.byTarget).mockResolvedValue(null)
+        const user = userEvent.setup()
+        renderPage()
+
+        await screen.findByRole("heading", { level: 2, name: mockProperty.name })
+        await user.click(screen.getByRole("tab", { name: /Grandezas Elétricas/i }))
+
+        expect(screen.getByRole("tab", { name: /Grandezas Elétricas/i })).toHaveAttribute(
+            "aria-selected",
+            "true",
+        )
+        expect(screen.getByText("Nenhum medidor vinculado")).toBeInTheDocument()
+        expect(
+            screen.queryByRole("heading", { level: 2, name: mockProperty.name }),
+        ).not.toBeInTheDocument()
+    })
+
+    it("com medidor e leitura SSE, a aba Grandezas Elétricas mostra os cards", async () => {
+        vi.mocked(meterService.byTarget).mockResolvedValue(mockMeter)
+        vi.mocked(useRealtimeReadings).mockReturnValue({
+            readingsByMeterId: {
+                "meter-1": {
+                    ...mockReading(1500),
+                    voltagePhaseA: 219,
+                    voltagePhaseB: 221,
+                    voltagePhaseC: 220,
+                },
+            },
+        })
+        const user = userEvent.setup()
+        renderPage()
+
+        await screen.findByRole("heading", { level: 2, name: mockProperty.name })
+        await user.click(screen.getByRole("tab", { name: /Grandezas Elétricas/i }))
+
+        expect(await screen.findByTestId("electrical-quantity-card-voltage")).toBeInTheDocument()
+    })
+
+    it("com medidor, mostra a área 'Análise das grandezas'; sem medidor, ela não aparece", async () => {
+        vi.mocked(meterService.byTarget).mockResolvedValue(mockMeter)
+        const user = userEvent.setup()
+        renderPage()
+
+        await screen.findByRole("heading", { level: 2, name: mockProperty.name })
+        await user.click(screen.getByRole("tab", { name: /Grandezas Elétricas/i }))
+
+        expect(await screen.findByText("Análise das grandezas")).toBeInTheDocument()
+        expect(screen.getByTestId("series-analysis-idle")).toBeInTheDocument()
+    })
+
+    it("sem medidor, a área 'Análise das grandezas' não aparece (não há o que consultar)", async () => {
+        vi.mocked(meterService.byTarget).mockResolvedValue(null)
+        const user = userEvent.setup()
+        renderPage()
+
+        await screen.findByRole("heading", { level: 2, name: mockProperty.name })
+        await user.click(screen.getByRole("tab", { name: /Grandezas Elétricas/i }))
+
+        await screen.findByText("Nenhum medidor vinculado")
+        expect(screen.queryByText("Análise das grandezas")).not.toBeInTheDocument()
     })
 })

@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from "vitest"
 import type { Request, Response } from "express"
 import {
+    countQueries,
     createQueryCountMiddleware,
     incrementQueryCount,
     getQueryCount,
@@ -86,5 +87,37 @@ describe("createQueryCountMiddleware", () => {
 
         expect(countA).toBe(2)
         expect(countB).toBe(5)
+    })
+})
+
+describe("countQueries", () => {
+    it("devolve o resultado e conta só as queries disparadas dentro da operação", async () => {
+        incrementQueryCount() // fora do contexto: ignorada
+
+        const { result, queryCount } = await countQueries(async () => {
+            incrementQueryCount()
+            await Promise.resolve()
+            incrementQueryCount()
+            return "ok"
+        })
+
+        expect(result).toBe("ok")
+        expect(queryCount).toBe(2)
+    })
+
+    it("isola as contagens de operações concorrentes", async () => {
+        const [a, b] = await Promise.all([
+            countQueries(async () => {
+                incrementQueryCount()
+                await new Promise((resolve) => setTimeout(resolve, 5))
+                incrementQueryCount()
+            }),
+            countQueries(async () => {
+                incrementQueryCount()
+            }),
+        ])
+
+        expect(a.queryCount).toBe(2)
+        expect(b.queryCount).toBe(1)
     })
 })

@@ -5,7 +5,7 @@ import { HistoryRangeToggle, type HistoryRange } from "@/components/dashboard/Hi
 import { ConsumptionChart } from "@/components/consumption/ConsumptionChart"
 import { useConsumption } from "@/hooks/queries/useConsumption"
 import { useMeterByTarget } from "@/hooks/queries/useMeters"
-import { resolveMonthlyHistoryWindow } from "@/lib/consumptionWindow"
+import { latestRange, resolveMonthlyHistoryWindow } from "@/lib/consumptionWindow"
 
 interface ConsumptionHistorySectionProps {
     propertyId: string
@@ -59,12 +59,12 @@ export const ConsumptionHistorySection = ({
         range === "month" ? MONTHLY_HISTORY_PAGE_SIZE : range,
         range === "month"
             ? { from: monthlyWindow.from, to: monthlyWindow.to, order: "asc" }
-            : undefined,
+            : latestRange("month", range),
     )
 
-    // Sem janela (6/12 meses): o backend devolve os mais recentes primeiro,
-    // invertido aqui pro gráfico ler em ordem cronológica. Com janela
-    // (Mensal): já pedimos `order: "asc"`, sem precisar inverter.
+    // 6/12 meses (`latestRange`): o backend devolve os mais recentes primeiro,
+    // invertido aqui pro gráfico ler em ordem cronológica. Mensal: já pedimos
+    // `order: "asc"`, sem precisar inverter.
     const buckets = isMonthly ? (query.data?.items ?? []) : [...(query.data?.items ?? [])].reverse()
 
     return (

@@ -3,6 +3,9 @@ import { PrismaClient } from "@/generated/prisma/client.js"
 import { PropertyController } from "@/modules/property/property.controller.js"
 import { PropertyRepository } from "@/modules/property/property.repository.js"
 import { PropertyService } from "@/modules/property/property.service.js"
+import { PropertyTreeService } from "@/modules/property/property-tree.service.js"
+import { AreaRepository } from "@/modules/area/area.repository.js"
+import { DeviceRepository } from "@/modules/device/device.repository.js"
 import { DistributorRepository } from "@/modules/distributor/distributor.repository.js"
 import { areaRoutes } from "@/modules/area/area.routes.js"
 import { simulationRoutes } from "@/modules/simulation/simulation.routes.js"
@@ -21,13 +24,28 @@ export function propertyRoutes(
     const distributorRepository = new DistributorRepository(prismaClient)
     const propertyRepository = new PropertyRepository(prismaClient)
     const propertyService = new PropertyService(propertyRepository, distributorRepository)
-    const propertyController = new PropertyController(propertyService, auditService)
+    const propertyTreeService = new PropertyTreeService(
+        propertyRepository,
+        new AreaRepository(prismaClient),
+        new DeviceRepository(prismaClient),
+    )
+    const propertyController = new PropertyController(
+        propertyService,
+        propertyTreeService,
+        auditService,
+    )
 
     // Rotas protegidas
     router.post("/", authenticate, blockDemoWrite, (req, res, next) =>
         propertyController.create(req, res, next),
     )
     router.get("/", authenticate, (req, res, next) => propertyController.findAll(req, res, next))
+
+    // `/tree` ANTES de qualquer rota com parâmetro: o Express casa na ordem de
+    // registro, e `/:id` engoliria "tree" como um id.
+    router.get("/tree", authenticate, (req, res, next) =>
+        propertyController.findTree(req, res, next),
+    )
 
     // Rotas aninhadas ANTES das rotas /:id — ordem crítica no Express.
     // Rotas aninhadas de área montadas aqui para que :propertyId fique

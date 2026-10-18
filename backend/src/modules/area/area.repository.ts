@@ -2,8 +2,11 @@ import { PrismaClient } from "@/generated/prisma/client.js"
 import type { CreateAreaInput, UpdateAreaInput } from "@/modules/area/area.schema.js"
 import { toSkipTake, type Paginated, type PaginationQuery } from "@/shared/pagination.js"
 import {
+    PROPERTY_WITHOUT_ADDRESS,
     toPropertyResponse,
+    toPropertyWithoutAddress,
     type PropertyResponse,
+    type PropertyWithoutAddress,
 } from "@/modules/property/property.repository.js"
 
 // Tipo inferido diretamente do Prisma
@@ -52,6 +55,32 @@ export class AreaRepository {
     }
 
     /**
+     * Versão em lote de {@link findByIdWithProperty} restrita ao dono: uma
+     * query para várias áreas, filtrando a posse da propriedade na própria
+     * consulta — área inexistente e área de outro usuário ficam de fora do
+     * mesmo jeito.
+     *
+     * @param ids - Ids das áreas.
+     * @param userId - Id do usuário dono da propriedade.
+     * @returns Cada área do usuário entre os ids pedidos, com a propriedade dona sem os campos de endereço.
+     */
+    async findManyOwnedByIdsWithProperty(
+        ids: string[],
+        userId: string,
+    ): Promise<{ area: AreaResponse; property: PropertyWithoutAddress }[]> {
+        if (ids.length === 0) return []
+        const rows = await this.prisma.area.findMany({
+            where: { id: { in: ids }, property: { userId } },
+            include: { property: PROPERTY_WITHOUT_ADDRESS },
+            relationLoadStrategy: "join",
+        })
+        return rows.map(({ property, ...area }) => ({
+            area,
+            property: toPropertyWithoutAddress(property),
+        }))
+    }
+
+    /**
      * Todas as áreas de uma propriedade, sem paginação.
      *
      * @param propertyId - Id da propriedade dona.
@@ -80,7 +109,7 @@ export class AreaRepository {
         const [areas, total] = await Promise.all([
             this.prisma.area.findMany({
                 where: { propertyId },
-                orderBy: { name: "asc" },
+                orderBy: [{ name: "asc" }, { id: "asc" }],
                 skip,
                 take,
             }),
@@ -101,6 +130,25 @@ export class AreaRepository {
     async findAllByUser(userId: string): Promise<AreaResponse[]> {
         return this.prisma.area.findMany({
             where: { property: { userId } },
+            orderBy: { name: "asc" },
+        })
+    }
+
+    /**
+     * Áreas de um conjunto de propriedades do usuário. O filtro por dono
+     * continua na consulta, além dos ids: um id de propriedade alheia devolve
+     * lista vazia em vez de dados de outro usuário.
+     *
+     * @param userId - Id do usuário dono das propriedades.
+     * @param propertyIds - Ids das propriedades cujas áreas se quer ler.
+     * @returns As áreas dessas propriedades que pertencem ao usuário, ordenadas por nome.
+     */
+    async findAllByUserInProperties(
+        userId: string,
+        propertyIds: readonly string[],
+    ): Promise<AreaResponse[]> {
+        return this.prisma.area.findMany({
+            where: { propertyId: { in: [...propertyIds] }, property: { userId } },
             orderBy: { name: "asc" },
         })
     }

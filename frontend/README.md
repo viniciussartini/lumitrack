@@ -121,15 +121,15 @@ flowchart TB
     subgraph PROT["ProtectedRoute → AppShell — exige sessão válida"]
         DASH["/dashboard  (nav: 'Painel')"]
         DIST["/distribuidoras"]
-        PROP["/propriedades"]
+        PROP["/propriedades  (nav: 'Análise')"]
         PROPD["/propriedades/:id"]
         AREAD["/propriedades/:propertyId/areas/:areaId"]
         DEVD["/propriedades/:propertyId/areas/:areaId/devices/:deviceId"]
         ALERT["/alertas"]
         REP["/relatorios"]
-        SIM["/simulacao  (placeholder — UI ainda não implementada)"]
         PERF["/perfil  (só acessível via UserMenu, fora do Sidebar)"]
         SEC["/seguranca  (MFA/TOTP)"]
+        CONF["/configuracoes → /configuracoes/cadastro  (só acessível via UserMenu)"]
         SOBRE["/sobre  (institucional, sem handoff de design)"]
     end
 
@@ -356,6 +356,23 @@ Config do Vitest (`vite.config.ts`, bloco `test`): `environment: "jsdom"`, `setu
 
 Specs E2E (Playwright, mockam o backend via `page.route()` — não dependem de backend real rodando): `auth`, `landing`, `dashboard`, `distributors`, `properties`, `area`, `device`, `meter`, `consumption`, `alerts`, `realtime`, `reports`, `profile`.
 
+### Testes E2E instáveis
+
+No CI, `retries: 2` faz um teste intermitente passar e deixar o job verde. Para não perder o sinal, o job de E2E lista no **resumo do job** (aba _Summary_ da execução) os testes que só passaram no retry, com arquivo, teste, projeto e número de tentativas. Isso não muda o critério de aprovação; a tabela só aparece quando há ao menos um teste instável. A lista sai do relatório JSON do Playwright (`test-results/report.json`, gerado só no CI) por `tests/e2e/support/flakySummary.ts`.
+
+Para caçar uma intermitência localmente, repita o teste sob carga, com nome de cada execução e trace só das falhas:
+
+```bash
+npx playwright test tests/e2e/<spec>.spec.ts -g "<parte do nome>" \
+  --project=chromium --repeat-each=50 --workers=16 \
+  --reporter=list --trace=retain-on-failure
+```
+
+- `--repeat-each` com muitas repetições precisa de `--trace=retain-on-failure`: `--trace on` grava todas as execuções e ocupa gigabytes. Use `--trace on` só com poucas repetições.
+- `--workers` acima do que a máquina aguenta gera falhas de _starvation_ (o servidor de desenvolvimento não responde a tempo), que não são a intermitência procurada; comece com o número de núcleos.
+- Para ler a causa, abra o trace de uma execução que falhou: `npx playwright show-trace test-results/<pasta-da-falha>/trace.zip`. As ações sem fim e o log de cada uma (por exemplo, "intercepts pointer events") dizem em qual passo o teste travou.
+- Para resumir várias falhas de uma vez, use `--reporter=json` com `PLAYWRIGHT_JSON_OUTPUT_NAME=<arquivo>.json` e agrupe as mensagens de erro.
+
 ## Rotas e páginas
 
 | Rota | Página | Guarda |
@@ -368,15 +385,15 @@ Specs E2E (Playwright, mockam o backend via `page.route()` — não dependem de 
 | `/confirmar-email` | Confirmação de troca de e-mail (issue #178) | público, fora de qualquer guarda |
 | `/privacidade`, `/termos` | Documentos legais | público, fora de qualquer guarda |
 | `/dashboard` | Painel — KPIs + `RealtimeSection` com gráfico de potência ao vivo | `ProtectedRoute` |
-| `/propriedades`, `/propriedades/:id` | Propriedades (CRUD via modal + detalhe com Áreas/Medidor) | `ProtectedRoute` |
+| `/propriedades`, `/propriedades/:id` | Análise (nav) — lista de Propriedades (CRUD via modal) + detalhe com Áreas/Medidor | `ProtectedRoute` |
 | `/propriedades/:propertyId/areas/:areaId` | Detalhe de Área (CRUD de Aparelhos via modal) | `ProtectedRoute` |
 | `/propriedades/:propertyId/areas/:areaId/devices/:deviceId` | Detalhe de Aparelho (Medidor vinculado via modal) | `ProtectedRoute` |
 | `/distribuidoras` | Distribuidoras (catálogo) | `ProtectedRoute` |
 | `/alertas` | Alertas — CRUD + episódios disparados | `ProtectedRoute` |
 | `/relatorios` | Relatórios — seletor em cascata Propriedade→Área→Aparelho, 4 granularidades | `ProtectedRoute` |
-| `/simulacao` | Simulação — **placeholder**, UI ainda não implementada (backend já pronto) | `ProtectedRoute` |
 | `/perfil` | Perfil — dados pessoais, direitos LGPD (export/exclusão), só acessível via menu do usuário | `ProtectedRoute` |
 | `/seguranca` | MFA — setup, verificação, backup codes, desabilitar | `ProtectedRoute` |
+| `/configuracoes/cadastro` | Configurações → Cadastro — cards para criar Propriedade/Área/Dispositivo e a árvore "Estrutura cadastrada" (editar/excluir); `/configuracoes` redireciona para cá, só acessível via menu do usuário | `ProtectedRoute` |
 | `/sobre` | Sobre o projeto — institucional, sem handoff de design, renderiza `content/about.md` | `ProtectedRoute` |
 
 Não existe rota/página dedicada a Medidores fora do contexto de Propriedade/Área/Aparelho, nem UI para exportação DSAR além de um link direto em `/perfil` (`<a href="/api/users/me/data-export?format=json" download>`), nem UI para a trilha de auditoria (`/api/admin/audit-logs` do backend não tem tela correspondente).

@@ -11,12 +11,12 @@
  *          → listeners (SSE, AlertEvaluator)
  *
  * O payload é uma leitura elétrica instantânea (~1/s): `{ deviceTimestamp?,
- * voltage, current, powerW, powerFactor }` — não um incremento de kWh
- * pronto. A energia do intervalo é calculada aqui no backend a partir da
- * potência e do tempo decorrido desde a amostra anterior — o timestamp
- * OFICIAL da leitura é sempre o momento de recebimento (`new Date()`),
- * nunca o `deviceTimestamp` do payload, que é só metadado de diagnóstico
- * (log).
+ * voltage, current, powerW, powerFactor, ...grandezas por fase opcionais }`
+ * — não um incremento de kWh pronto. A energia do intervalo é calculada aqui
+ * no backend a partir da potência e do tempo decorrido desde a amostra
+ * anterior — o timestamp OFICIAL da leitura é sempre o momento de
+ * recebimento (`new Date()`), nunca o `deviceTimestamp` do payload, que é só
+ * metadado de diagnóstico (log).
  *
  * Por que não lançar exceções aqui? Porque este código roda em um loop
  * assíncrono de background, fora do ciclo request/response do Express.
@@ -25,6 +25,10 @@
  */
 import type { IoTConnectionManager } from "@/modules/iot/iot-worker/IoTConnectionManager.js"
 import { MinuteBuffer } from "@/modules/iot/iot-worker/MinuteBuffer.js"
+import {
+    OPTIONAL_ELECTRICAL_FIELD_MAP,
+    type OptionalElectricalFields,
+} from "@/modules/meter/meter-reading-optional-fields.js"
 import { logger } from "@/shared/logger/logger.js"
 
 const log = logger.child({ module: "IoTProcessor" })
@@ -35,7 +39,7 @@ const log = logger.child({ module: "IoTProcessor" })
 // a amostra seguinte só reinicia o relógio (deltaSeconds = 0 nessa leitura).
 const MAX_SAMPLE_INTERVAL_SECONDS = 5
 
-export interface MeterReadingSample {
+export interface MeterReadingSample extends OptionalElectricalFields {
     meterId: string
     voltage: number
     current: number
@@ -49,7 +53,12 @@ export interface MeterReadingSample {
 // processor.
 export type SampleListener = (sample: MeterReadingSample) => void
 
-interface RawReadingPayload extends Record<string, unknown> {
+// Campos brutos opcionais por fase (ADR-0022) — `voltageUnbalance` não entra
+// aqui: é sempre calculado neste processor a partir das 3 fases de tensão da
+// própria amostra, nunca aceito vindo do medidor.
+type RawOptionalFields = Omit<OptionalElectricalFields, "voltageUnbalance">
+
+interface RawReadingPayload extends RawOptionalFields, Record<string, unknown> {
     deviceTimestamp?: string
     voltage: number
     current: number
@@ -64,10 +73,96 @@ interface RawReadingPayload extends Record<string, unknown> {
 // legítima. Grupo A de grande porte (Fase 19+) pode exigir revisão.
 const MAX_PLAUSIBLE_VOLTAGE = 500 // V — cobre 127/220/380V com margem
 const MAX_PLAUSIBLE_CURRENT = 2000 // A
-const MAX_PLAUSIBLE_POWER_W = 1_000_000 // 1 MW
+const MAX_PLAUSIBLE_POWER_W = 1_000_000 // 1 MW — também usado para var/VA por fase
+const MAX_PLAUSIBLE_THD_PERCENT = 100 // % — THD acima disso é erro de leitura, não distorção real
+const MIN_PLAUSIBLE_FREQUENCY_HZ = 45
+const MAX_PLAUSIBLE_FREQUENCY_HZ = 65
+
+// Agrupamento das grandezas por fase por faixa de plausibilidade — evita
+// repetir a mesma checagem 15 vezes (3 fases × 5 grandezas com teto simples,
+// fora frequência e fator de potência, que têm faixa própria).
+const VOLTAGE_LIKE_FIELDS = ["voltagePhaseA", "voltagePhaseB", "voltagePhaseC"] as const
+const CURRENT_LIKE_FIELDS = ["currentPhaseA", "currentPhaseB", "currentPhaseC"] as const
+// Ativa e aparente são sempre >= 0 (magnitude de potência importada/módulo
+// de S). Reativa fica de fora deste grupo — ao contrário das outras, ela
+// carrega sinal (ver `REACTIVE_POWER_FIELD` abaixo).
+const ACTIVE_POWER_LIKE_FIELDS = [
+    "activePowerPhaseA",
+    "activePowerPhaseB",
+    "activePowerPhaseC",
+    "apparentPowerVa",
+] as const
+// Potência reativa é convencionalmente reportada COM sinal (positivo =
+// indutivo/atrasado, negativo = capacitivo/adiantado) — uma instalação com
+// banco de capacitores sobrecompensado tem var negativo em regime normal,
+// não é erro de leitura.
+const REACTIVE_POWER_FIELD = "reactivePowerVar"
+const POWER_FACTOR_LIKE_FIELDS = [
+    "powerFactorPhaseA",
+    "powerFactorPhaseB",
+    "powerFactorPhaseC",
+] as const
+const THD_LIKE_FIELDS = [
+    "thdVoltagePhaseA",
+    "thdVoltagePhaseB",
+    "thdVoltagePhaseC",
+    "thdCurrentPhaseA",
+    "thdCurrentPhaseB",
+    "thdCurrentPhaseC",
+] as const
 
 function isFiniteInRange(value: unknown, max: number): value is number {
     return typeof value === "number" && Number.isFinite(value) && value >= 0 && value <= max
+}
+
+function isFiniteInSignedRange(value: unknown, max: number): value is number {
+    return typeof value === "number" && Number.isFinite(value) && value >= -max && value <= max
+}
+
+// Campo ausente (`undefined`, ou `null` — JSON não tem `undefined`, e é
+// assim que um firmware costuma reportar "grandeza não medida") é sempre
+// válido: a grandeza opcional simplesmente não é reportada por este medidor,
+// e o sistema aceita medidores que não medem todas as grandezas. Campo
+// presente com valor implausível invalida a amostra inteira, mesmo
+// tratamento já dado às 4 grandezas obrigatórias.
+function isAbsent(value: unknown): boolean {
+    return value === undefined || value === null
+}
+
+function isFiniteInRangeOrAbsent(value: unknown, max: number): boolean {
+    return isAbsent(value) || isFiniteInRange(value, max)
+}
+
+function isFiniteInSignedRangeOrAbsent(value: unknown, max: number): boolean {
+    return isAbsent(value) || isFiniteInSignedRange(value, max)
+}
+
+function isPowerFactorOrAbsent(value: unknown): boolean {
+    return isAbsent(value) || (typeof value === "number" && value >= 0 && value <= 1)
+}
+
+function isFrequencyOrAbsent(value: unknown): boolean {
+    return (
+        isAbsent(value) ||
+        (typeof value === "number" &&
+            Number.isFinite(value) &&
+            value >= MIN_PLAUSIBLE_FREQUENCY_HZ &&
+            value <= MAX_PLAUSIBLE_FREQUENCY_HZ)
+    )
+}
+
+function isValidOptionalFields(raw: Record<string, unknown>): boolean {
+    return (
+        VOLTAGE_LIKE_FIELDS.every((f) => isFiniteInRangeOrAbsent(raw[f], MAX_PLAUSIBLE_VOLTAGE)) &&
+        CURRENT_LIKE_FIELDS.every((f) => isFiniteInRangeOrAbsent(raw[f], MAX_PLAUSIBLE_CURRENT)) &&
+        ACTIVE_POWER_LIKE_FIELDS.every((f) =>
+            isFiniteInRangeOrAbsent(raw[f], MAX_PLAUSIBLE_POWER_W),
+        ) &&
+        isFiniteInSignedRangeOrAbsent(raw[REACTIVE_POWER_FIELD], MAX_PLAUSIBLE_POWER_W) &&
+        POWER_FACTOR_LIKE_FIELDS.every((f) => isPowerFactorOrAbsent(raw[f])) &&
+        THD_LIKE_FIELDS.every((f) => isFiniteInRangeOrAbsent(raw[f], MAX_PLAUSIBLE_THD_PERCENT)) &&
+        isFrequencyOrAbsent(raw.frequencyHz)
+    )
 }
 
 function isValidPayload(raw: Record<string, unknown>): raw is RawReadingPayload {
@@ -80,8 +175,64 @@ function isValidPayload(raw: Record<string, unknown>): raw is RawReadingPayload 
         typeof powerFactor === "number" &&
         Number.isFinite(powerFactor) &&
         powerFactor >= 0 &&
-        powerFactor <= 1
+        powerFactor <= 1 &&
+        isValidOptionalFields(raw)
     )
+}
+
+/**
+ * Desequilíbrio de tensão (%) pela definição NEMA — maior desvio de uma fase
+ * em relação à média das três, dividido pela própria média. Só calculável
+ * com as 3 fases simultaneamente na mesma amostra (ADR-0022); qualquer fase
+ * ausente deixa o desequilíbrio ausente também, em vez de estimado com dado
+ * parcial.
+ *
+ * @returns O desequilíbrio em percentual, ou `undefined` se faltar alguma fase.
+ */
+function computeVoltageUnbalance(
+    phaseA: number | undefined,
+    phaseB: number | undefined,
+    phaseC: number | undefined,
+): number | undefined {
+    if (phaseA === undefined || phaseB === undefined || phaseC === undefined) return undefined
+
+    const average = (phaseA + phaseB + phaseC) / 3
+    if (average === 0) return 0
+
+    const maxDeviation = Math.max(
+        Math.abs(phaseA - average),
+        Math.abs(phaseB - average),
+        Math.abs(phaseC - average),
+    )
+    return (maxDeviation / average) * 100
+}
+
+/**
+ * Extrai só as 21 grandezas opcionais conhecidas (ADR-0022) do payload bruto
+ * já validado — nunca um rest-spread do payload inteiro. O payload de um
+ * dispositivo é dado não confiável (JSON livre, qualquer protocolo, sem
+ * schema): um `...rest` copiaria também qualquer outra chave presente —
+ * `meterId`, `energyKwh`, `deltaSeconds` — permitindo a um dispositivo
+ * forjar campos que o servidor calcula (leitura roteada para outro medidor
+ * via `sample.meterId` sobrescrito, ou energia registrada adulterada via
+ * `energyKwh`). `voltageUnbalance` fica de fora por ser sempre calculado
+ * aqui, nunca aceito do medidor. Um valor presente mas não numérico (já
+ * deveria ter sido rejeitado por `isValidPayload`, mas a função é
+ * defensiva) é tratado como ausente, não copiado.
+ *
+ * @param raw Payload já validado por `isValidPayload`.
+ * @returns Só os campos opcionais conhecidos, com valor numérico.
+ */
+function extractOptionalFields(raw: Record<string, unknown>): RawOptionalFields {
+    const result: Record<string, number> = {}
+    for (const [field] of OPTIONAL_ELECTRICAL_FIELD_MAP) {
+        if (field === "voltageUnbalance") continue
+        const value = raw[field]
+        if (typeof value === "number") {
+            result[field] = value
+        }
+    }
+    return result as RawOptionalFields
 }
 
 export class IoTDataProcessor {
@@ -125,6 +276,7 @@ export class IoTDataProcessor {
         }
 
         const { voltage, current, powerW, powerFactor, deviceTimestamp } = rawData
+        const optionalRaw = extractOptionalFields(rawData)
         const receivedAt = new Date()
 
         const lastAt = this.lastSampleAt.get(meterId)
@@ -142,7 +294,22 @@ export class IoTDataProcessor {
             energyKwh = (powerW * deltaSeconds) / 3_600_000
         }
 
-        this.buffer.add(meterId, { energyKwh, voltage, current, powerW, powerFactor, deltaSeconds })
+        const voltageUnbalance = computeVoltageUnbalance(
+            optionalRaw.voltagePhaseA,
+            optionalRaw.voltagePhaseB,
+            optionalRaw.voltagePhaseC,
+        )
+
+        this.buffer.add(meterId, {
+            energyKwh,
+            voltage,
+            current,
+            powerW,
+            powerFactor,
+            deltaSeconds,
+            ...optionalRaw,
+            voltageUnbalance,
+        })
 
         if (deviceTimestamp !== undefined) {
             log.debug({ meterId, deviceTimestamp, receivedAt }, "Leitura recebida")
@@ -155,6 +322,8 @@ export class IoTDataProcessor {
             powerW,
             powerFactor,
             receivedAt,
+            ...optionalRaw,
+            voltageUnbalance,
         }
 
         // Iterar sobre um Set é seguro mesmo se um listener for removido

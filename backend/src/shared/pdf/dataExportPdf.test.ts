@@ -1,6 +1,14 @@
 import { describe, it, expect } from "vitest"
-import { generateDataExportPdf } from "@/shared/pdf/dataExportPdf.js"
+import {
+    describeExportedGoal,
+    describeExportedReport,
+    describeAuditLogWindow,
+    describeExportedSession,
+    describeSessionsCap,
+    generateDataExportPdf,
+} from "@/shared/pdf/dataExportPdf.js"
 import type { DataExportPayload } from "@/modules/export/export.service.js"
+import type { GoalPublicRecord } from "@/modules/goal/goal.repository.js"
 import type { PropertyResponse } from "@/modules/property/property.repository.js"
 
 // Payload fake — não toca o banco, testa só a geração do documento em si.
@@ -27,6 +35,13 @@ function buildFakePayload(overrides: Partial<DataExportPayload> = {}): DataExpor
         areas: [],
         devices: [],
         alerts: [],
+        demandAlerts: [],
+        aclContracts: [],
+        reports: [],
+        reportSchedules: [],
+        goals: [],
+        sessions: [],
+        auditLogsSince: new Date("2025-06-28T12:00:00Z"),
         auditLogs: [],
         ...overrides,
     }
@@ -70,6 +85,8 @@ describe("generateDataExportPdf", () => {
                         icmsRate: 0.18,
                         pisRate: 0.0165,
                         cofinsRate: 0.076,
+                        peakWindowStartHour: null,
+                        peakWindowEndHour: null,
                         createdAt: new Date(),
                         updatedAt: new Date(),
                     },
@@ -105,5 +122,206 @@ describe("generateDataExportPdf", () => {
         )
 
         expect(buffer.subarray(0, 4).toString("latin1")).toBe("%PDF")
+    })
+
+    it("gera um PDF válido com a seção de relatórios emitidos preenchida", async () => {
+        const buffer = await generateDataExportPdf(
+            buildFakePayload({
+                reports: [
+                    {
+                        id: "rep-1",
+                        userId: "user-1",
+                        targetType: "PROPERTY",
+                        targetId: "prop-1",
+                        type: "MONTHLY",
+                        format: "PDF",
+                        origin: "MANUAL",
+                        periodStart: new Date("2026-07-01T03:00:00Z"),
+                        periodEnd: new Date("2026-08-01T03:00:00Z"),
+                        fileName: "lumitrack-relatorio-monthly-2026-07.pdf",
+                        sizeBytes: 1200,
+                        createdAt: new Date("2026-08-01T09:00:00Z"),
+                    },
+                ],
+            }),
+        )
+
+        expect(buffer.subarray(0, 4).toString("latin1")).toBe("%PDF")
+    })
+
+    it("gera um PDF válido com a seção de envio automático preenchida", async () => {
+        const buffer = await generateDataExportPdf(
+            buildFakePayload({
+                reportSchedules: [
+                    {
+                        id: "sch-1",
+                        targetType: "PROPERTY",
+                        targetId: "prop-1",
+                        type: "CONSUMPTION",
+                        format: "PDF",
+                        frequency: "MONTHLY",
+                        sendDay: 5,
+                        recipients: ["financeiro@example.com", "ceo@example.com"],
+                        active: true,
+                        nextRunAt: null,
+                        failedAttempts: 0,
+                        createdAt: new Date("2026-08-01T09:00:00Z"),
+                        updatedAt: new Date("2026-08-01T09:00:00Z"),
+                    },
+                ],
+            }),
+        )
+
+        expect(buffer.subarray(0, 4).toString("latin1")).toBe("%PDF")
+    })
+})
+
+describe("generateDataExportPdf — metas", () => {
+    it("gera um PDF válido com a seção de metas preenchida", async () => {
+        const buffer = await generateDataExportPdf(
+            buildFakePayload({
+                goals: [
+                    {
+                        id: "goal-1",
+                        propertyId: "prop-1",
+                        year: 2026,
+                        unit: "KWH",
+                        referenceYear: 2025,
+                        monthlyTargets: Array.from({ length: 12 }, () => 400),
+                        alertPercent: 85,
+                        createdAt: new Date("2026-01-01T00:00:00Z"),
+                        updatedAt: new Date("2026-01-01T00:00:00Z"),
+                    },
+                ],
+            }),
+        )
+
+        expect(buffer.subarray(0, 4).toString("latin1")).toBe("%PDF")
+    })
+})
+
+describe("describeExportedSession", () => {
+    const base = {
+        channel: "WEB" as const,
+        deviceLabel: "Chrome · Windows",
+        origin: "189.45.xx.xx",
+        createdAt: new Date("2026-03-01T12:30:00.000Z"),
+        expiresAt: new Date("2026-03-08T12:30:00.000Z"),
+        revokedAt: null,
+    }
+
+    it("mostra canal, dispositivo, origem mascarada e a data, no fuso de São Paulo", () => {
+        expect(describeExportedSession(base)).toBe(
+            "• Web — Chrome · Windows — 189.45.xx.xx — iniciada em 01/03/2026, 09:30:00",
+        )
+    })
+
+    it("sessão antiga, sem dispositivo nem origem, não inventa dado", () => {
+        expect(
+            describeExportedSession({
+                ...base,
+                channel: "MOBILE",
+                deviceLabel: null,
+                origin: null,
+            }),
+        ).toBe(
+            "• Mobile — dispositivo não registrado — origem não registrada — iniciada em 01/03/2026, 09:30:00",
+        )
+    })
+
+    it("sessão revogada informa o encerramento", () => {
+        expect(
+            describeExportedSession({ ...base, revokedAt: new Date("2026-03-02T15:00:00.000Z") }),
+        ).toContain("encerrada em 02/03/2026, 12:00:00")
+    })
+})
+
+describe("generateDataExportPdf — sessões", () => {
+    it("gera um PDF válido com a seção de sessões preenchida", async () => {
+        const buffer = await generateDataExportPdf(
+            buildFakePayload({
+                sessions: [
+                    {
+                        channel: "WEB",
+                        deviceLabel: "Chrome · Windows",
+                        origin: "189.45.xx.xx",
+                        createdAt: new Date("2026-03-01T12:30:00.000Z"),
+                        expiresAt: null,
+                        revokedAt: null,
+                    },
+                ],
+            }),
+        )
+
+        expect(buffer.subarray(0, 4).toString("latin1")).toBe("%PDF")
+    })
+})
+
+describe("notas de janela e teto", () => {
+    it("a nota do log de auditoria traz o início, a janela e o teto", () => {
+        const note = describeAuditLogWindow(new Date("2025-06-28T12:00:00Z"))
+
+        expect(note).toContain("12 meses")
+        expect(note).toContain("5.000")
+        expect(note).toMatch(/2025/)
+    })
+
+    it("a nota das sessões traz o teto de tokens por canal", () => {
+        expect(describeSessionsCap()).toContain("2.000")
+    })
+})
+
+describe("describeExportedReport", () => {
+    const report = {
+        type: "MONTHLY" as const,
+        format: "PDF" as const,
+        periodStart: new Date("2026-02-01T03:00:00.000Z"),
+        periodEnd: new Date("2026-03-01T03:00:00.000Z"),
+        createdAt: new Date("2026-03-01T12:30:00.000Z"),
+    }
+
+    it("o fim exclusivo do período aparece como o último dia, no fuso de São Paulo", () => {
+        expect(describeExportedReport(report)).toBe(
+            "• Mensal (PDF) — 01/02/2026 a 28/02/2026 — emitido em 01/03/2026, 09:30:00",
+        )
+    })
+})
+
+describe("describeExportedGoal", () => {
+    const goal = (override: Partial<GoalPublicRecord> = {}): GoalPublicRecord => ({
+        id: "goal-1",
+        propertyId: "prop-1",
+        year: 2026,
+        unit: "KWH",
+        referenceYear: 2025,
+        monthlyTargets: Array.from({ length: 12 }, () => 400),
+        alertPercent: 85,
+        createdAt: new Date("2026-01-01T00:00:00Z"),
+        updatedAt: new Date("2026-01-01T00:00:00Z"),
+        ...override,
+    })
+
+    it("a meta de consumo sai em kWh", () => {
+        expect(describeExportedGoal(goal(), "Casa")).toBe(
+            "• Casa — 2026 — meta de 4.800 kWh — referência 2025 — alerta ao atingir 85%",
+        )
+    })
+
+    it("a meta de custo sai em reais", () => {
+        expect(describeExportedGoal(goal({ unit: "BRL" }), "Casa")).toBe(
+            "• Casa — 2026 — meta de R$ 4.800 — referência 2025 — alerta ao atingir 85%",
+        )
+    })
+
+    it("a meta de demanda sai pela maior meta mensal, não pela soma", () => {
+        const monthlyTargets = Array.from({ length: 12 }, (_, i) => (i === 3 ? 220 : 180))
+
+        expect(describeExportedGoal(goal({ unit: "KW", monthlyTargets }), "Casa")).toBe(
+            "• Casa — 2026 — meta até 220 kW — referência 2025 — alerta ao atingir 85%",
+        )
+    })
+
+    it("sem o nome da propriedade, a linha começa pelo ano", () => {
+        expect(describeExportedGoal(goal())).toMatch(/^• 2026 — meta de/)
     })
 })

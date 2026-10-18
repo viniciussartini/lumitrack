@@ -65,3 +65,48 @@ describe("consumptionService.list", () => {
         ).rejects.toThrow("404")
     })
 })
+
+describe("consumptionService.compareAclToAcr", () => {
+    it("faz GET em /consumption/acl-comparison com data de calendário (sem hora) e descasca o envelope", async () => {
+        const mockComparison = {
+            propertyId: "prop-1",
+            from: "2026-06-01",
+            to: "2026-08-01",
+            months: [],
+            totalAcrBrl: 1000,
+            totalAclBrl: 800,
+            totalDiffBrl: 200,
+            diffPercent: 20,
+            verdict: "ACL_CHEAPER" as const,
+            pldContext: [],
+        }
+        vi.mocked(api.get).mockResolvedValue({
+            data: { status: "success", data: mockComparison },
+        })
+
+        const result = await consumptionService.compareAclToAcr({
+            propertyId: "prop-1",
+            from: new Date("2026-06-01T00:00:00Z"),
+            to: new Date("2026-08-01T00:00:00Z"),
+        })
+
+        expect(api.get).toHaveBeenCalledWith("/consumption/acl-comparison", {
+            params: { propertyId: "prop-1", from: "2026-06-01", to: "2026-08-01" },
+        })
+        expect(result).toEqual(mockComparison)
+    })
+
+    it("propaga o erro quando não há contrato ACL vigente para o período", async () => {
+        vi.mocked(api.get).mockRejectedValue(
+            new Error("Nenhum contrato de energia do Mercado Livre (ACL) vigente para o período"),
+        )
+
+        await expect(
+            consumptionService.compareAclToAcr({
+                propertyId: "prop-1",
+                from: new Date("2026-06-01T00:00:00Z"),
+                to: new Date("2026-08-01T00:00:00Z"),
+            }),
+        ).rejects.toThrow(/nenhum contrato/i)
+    })
+})

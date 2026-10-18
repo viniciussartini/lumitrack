@@ -6,13 +6,19 @@ import { UserRepository } from "@/modules/user/user.repository.js"
 import { PropertyRepository } from "@/modules/property/property.repository.js"
 import { DistributorRepository } from "@/modules/distributor/distributor.repository.js"
 import { AlertRepository } from "@/modules/alert/alert.repository.js"
+import { DemandAlertRepository } from "@/modules/demand-alert/demand-alert.repository.js"
+import { AclContractRepository } from "@/modules/acl-contract/acl-contract.repository.js"
 import { AreaRepository } from "@/modules/area/area.repository.js"
 import { DeviceRepository } from "@/modules/device/device.repository.js"
+import { ReportRepository } from "@/modules/report/report.repository.js"
+import { ReportScheduleRepository } from "@/modules/report-schedule/report-schedule.repository.js"
+import { GoalRepository } from "@/modules/goal/goal.repository.js"
+import { SessionRepository } from "@/modules/session/session.repository.js"
 import { AuditRepository } from "@/shared/audit/audit.repository.js"
 import type { AuditService } from "@/shared/audit/audit.service.js"
 
 // Módulo dedicado (não inline em user.routes.ts) — o ExportService orquestra
-// 8 repositórios já existentes, volume bem maior que o resto de
+// 11 repositórios já existentes, volume bem maior que o resto de
 // user.routes.ts (que só depende de UserRepository). Registrado sob o mesmo
 // prefixo /api/users em app.ts.
 export function exportRoutes(
@@ -27,9 +33,15 @@ export function exportRoutes(
         new PropertyRepository(prismaClient),
         new DistributorRepository(prismaClient),
         new AlertRepository(prismaClient),
+        new DemandAlertRepository(prismaClient),
+        new AclContractRepository(prismaClient),
         new AreaRepository(prismaClient),
         new DeviceRepository(prismaClient),
         new AuditRepository(prismaClient),
+        new ReportRepository(prismaClient),
+        new ReportScheduleRepository(prismaClient),
+        new GoalRepository(prismaClient),
+        new SessionRepository(prismaClient),
     )
     const exportController = new ExportController(exportService, auditService)
 

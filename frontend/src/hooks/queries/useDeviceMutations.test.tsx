@@ -308,3 +308,46 @@ describe("useDeleteDevice", () => {
         expect(toast.error).not.toHaveBeenCalled()
     })
 })
+
+describe("invalidação da árvore de cadastro", () => {
+    it("criar dispositivo invalida a árvore", async () => {
+        vi.mocked(deviceService.create).mockResolvedValue(mockDevice)
+        const { queryClient, wrapper } = createWrapper()
+        const spy = vi.spyOn(queryClient, "invalidateQueries")
+        const { result } = renderHook(() => useCreateDevice(), { wrapper })
+
+        result.current.mutate({ propertyId: "prop-1", areaId: "area-1", input: { name: "Ar" } })
+
+        await waitFor(() => expect(result.current.isSuccess).toBe(true))
+        expect(spy).toHaveBeenCalledWith({ queryKey: queryKeys.propertyTree.all })
+    })
+
+    it("atualizar dispositivo invalida a árvore", async () => {
+        vi.mocked(deviceService.update).mockResolvedValue(mockDevice)
+        const { queryClient, wrapper } = createWrapper()
+        const spy = vi.spyOn(queryClient, "invalidateQueries")
+        const { result } = renderHook(() => useUpdateDevice(), { wrapper })
+
+        result.current.mutate({
+            propertyId: "prop-1",
+            areaId: "area-1",
+            deviceId: "device-1",
+            input: { name: "Novo" },
+        })
+
+        await waitFor(() => expect(result.current.isSuccess).toBe(true))
+        expect(spy).toHaveBeenCalledWith({ queryKey: queryKeys.propertyTree.all })
+    })
+
+    it("excluir dispositivo invalida a árvore", async () => {
+        vi.mocked(deviceService.delete).mockResolvedValue(undefined)
+        const { queryClient, wrapper } = createWrapper()
+        const spy = vi.spyOn(queryClient, "invalidateQueries")
+        const { result } = renderHook(() => useDeleteDevice(), { wrapper })
+
+        result.current.mutate({ propertyId: "prop-1", areaId: "area-1", deviceId: "device-1" })
+
+        await waitFor(() => expect(result.current.isSuccess).toBe(true))
+        expect(spy).toHaveBeenCalledWith({ queryKey: queryKeys.propertyTree.all })
+    })
+})

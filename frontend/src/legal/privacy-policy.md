@@ -1,6 +1,6 @@
 # Política de Privacidade do LumiTrack
 
-**Versão 1.5 — vigente desde 23/08/2026**
+**Versão 1.6 — vigente desde 29/09/2026**
 
 Esta Política de Privacidade descreve como o LumiTrack ("nós", "plataforma")
 coleta, utiliza, armazena e protege os dados pessoais dos seus usuários
@@ -94,6 +94,15 @@ O LumiTrack roda em **dois ambientes**, com infraestrutura diferente:
   operador nos termos do Art. 39 da LGPD e esta seção precisa ser
   atualizada com o nome e o país de processamento antes do primeiro e-mail
   real enviado.
+- **Relatórios enviados por e-mail a terceiros:** a funcionalidade de envio
+  automático de relatórios permite que você indique endereços de e-mail
+  (inclusive de outras pessoas, como o síndico ou o contador) para receber
+  o relatório em anexo. O relatório contém dados de consumo e o nome da
+  propriedade; **você é quem decide** para quem enviar, e o que já foi
+  entregue fica fora do nosso controle de exclusão. Os endereços informados
+  ficam guardados na configuração até você excluí-la (ou excluir a conta) e
+  nunca são registrados em log. Nos ambientes atuais, contas de demonstração
+  não criam essa configuração e nenhum e-mail real é entregue.
 
 ## 5. Como protegemos seus dados
 

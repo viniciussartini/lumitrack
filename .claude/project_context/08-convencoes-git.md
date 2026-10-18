@@ -191,7 +191,7 @@ gh issue edit {N} --milestone "MVP"
 - Estilo é do formatter: não se revisa formatação.
 - Aprovação não é carimbo — **quem aprova assume corresponsabilidade** pelo que entrou.
 - Divergência que não se resolve em duas rodadas vira conversa síncrona ou ADR, não thread infinita.
-- **PR acima de ~600 linhas alteradas deve ser quebrado** — a taxa de detecção despenca e a revisão vira teatro.
+- **PR acima de ~1200 linhas alteradas deve ser quebrado** — a taxa de detecção despenca e a revisão vira teatro.
 
 ## Pull Request
 
@@ -205,6 +205,7 @@ gh issue edit {N} --milestone "MVP"
 
 - **Título:** Conventional Commits, derivado do prefixo da branch — `feat/12-cadastro` → `feat: cadastro de tarefas`.
 - **Base:** `staging`, salvo o PR de promoção `staging` → `main` (ADR-0012) e o de sub-branch para branch de épico.
+- **Promoção `staging` → `main`:** mescle com **"Create a merge commit"**, nunca com squash (o squash recria a divergência entre as duas branches e o PR seguinte nasce em conflito). Todo hotfix que entrar direto em `main` volta para `staging` por back-merge antes da próxima promoção. Promova a cada entrega (milestone) ou a cada 2 ou 3 fases fechadas: um lote grande passa muito do teto de revisão e acumula migrações.
 - **Referência de issue:** `Closes #N` na seção "Issues relacionadas" — branch `epic/{N}-...` referencia o épico; `{tipo}/{N}-...` referencia a issue.
 - **Labels:** mesma taxonomia das issues (`tipo:`, `prioridade:`, `área:`), aplicadas ao PR quando úteis para o board.
 - **Checklist:** itens verificáveis pela skill são marcados; os que dependem de julgamento humano ficam desmarcados para você conferir.

@@ -18,11 +18,36 @@ export interface AnomalyState {
     endsAt: number | null
 }
 
+// As grandezas por fase do ADR-0022, exceto desequilíbrio de tensão — essa é
+// sempre calculada pelo backend, nunca publicada pelo medidor (real ou
+// simulado). O simulador sempre reporta as 21 grandezas — ao contrário de um
+// medidor real, que pode não medir todas.
 export interface ElectricalSample {
     voltage: number
     current: number
     powerW: number
     powerFactor: number
+    voltagePhaseA: number
+    voltagePhaseB: number
+    voltagePhaseC: number
+    currentPhaseA: number
+    currentPhaseB: number
+    currentPhaseC: number
+    activePowerPhaseA: number
+    activePowerPhaseB: number
+    activePowerPhaseC: number
+    reactivePowerVar: number
+    apparentPowerVa: number
+    frequencyHz: number
+    powerFactorPhaseA: number
+    powerFactorPhaseB: number
+    powerFactorPhaseC: number
+    thdVoltagePhaseA: number
+    thdVoltagePhaseB: number
+    thdVoltagePhaseC: number
+    thdCurrentPhaseA: number
+    thdCurrentPhaseB: number
+    thdCurrentPhaseC: number
 }
 
 export interface VirtualDevice {

@@ -51,15 +51,69 @@ const electricalSystemSchema = z.enum(["MONOPHASIC", "BIPHASIC", "TRIPHASIC"], {
     error: "Sistema elétrico deve ser MONOPHASIC, BIPHASIC ou TRIPHASIC",
 })
 
-// Classe de faturamento Grupo B — REN 1.000/2021.
+// Classe de faturamento Grupo B — REN 1.000/2021. Opcional no schema: a
+// obrigatoriedade condicional por grupo tarifário (ADR-0019) é regra
+// cruzada, validada em property.service.ts — mesmo padrão de validação
+// cruzada em serviço já usado para a posse exclusiva do Medidor.
 const billingClassSchema = z.enum(["B1", "B2", "B3"], {
     error: "Classe de faturamento deve ser B1, B2 ou B3",
+})
+
+// Modalidade tarifária do Grupo B — Convencional (monômio de sempre) ou
+// Branca (3 postos, REN 1.098/2024). Elegibilidade por billingClass e por
+// receivesBillingDiscount é regra cruzada em property.service.ts.
+const groupBModalitySchema = z.enum(["CONVENTIONAL", "WHITE"], {
+    error: "Modalidade do Grupo B deve ser CONVENTIONAL ou WHITE",
+})
+
+// Grupo tarifário (ADR-0019) — define a tensão de fornecimento e o caminho de
+// cálculo (monômio Grupo B × binômio Grupo A).
+const tariffGroupSchema = z.enum(["GROUP_A", "GROUP_B"], {
+    error: "Grupo tarifário deve ser GROUP_A ou GROUP_B",
+})
+
+// Subgrupo do Grupo A — REN 1.000/2021. B1/B2/B3 do Grupo B continuam em
+// billingClass (ADR-0019).
+const tariffSubgroupSchema = z.enum(["A1", "A2", "A3", "A3A", "A4", "AS"], {
+    error: "Subgrupo deve ser A1, A2, A3, A3A, A4 ou AS",
+})
+
+// Modalidade tarifária do Grupo A. Horária Verde e Horária Azul têm cálculo de
+// conta; Convencional Binômia é aceita no cadastro, mas o cálculo ainda não
+// existe e falha fechado.
+const tariffModalitySchema = z.enum(["CONVENTIONAL_BINOMIAL", "GREEN", "BLUE"], {
+    error: "Modalidade deve ser CONVENTIONAL_BINOMIAL, GREEN ou BLUE",
+})
+
+// Ambiente de contratação — cativo (regulado pela distribuidora) ou livre
+// (contrato bilateral com uma comercializadora). Só ACL exige subgrupo do
+// Grupo A; a regra cruzada (ACL só se aplica ao Grupo A) é validada em
+// property.service.ts, mesmo padrão das demais regras cruzadas desta entidade.
+const contractingEnvironmentSchema = z.enum(["ACR", "ACL"], {
+    error: "Ambiente de contratação deve ser ACR ou ACL",
 })
 
 // CIP/COSIP municipal — valor fixo em BRL, opcional (nem todo município cobra).
 const publicLightingFeeBrlSchema = z
     .number()
     .min(0, { message: "Contribuição de iluminação pública não pode ser negativa" })
+
+// Demanda contratada (kW) — obrigatória para Grupo A nas modalidades de
+// demanda única (Verde, Convencional Binômia), validada em
+// property.service.ts (regra cruzada, mesmo padrão de tariffSubgroup/tariffModality).
+const contractedDemandKwSchema = z
+    .number()
+    .positive({ message: "Demanda contratada deve ser maior que zero" })
+
+// Demandas contratadas da Horária Azul (kW) — ponta e fora de ponta, exigidas
+// juntas quando a modalidade é BLUE (regra cruzada em property.service.ts).
+const contractedDemandPeakKwSchema = z
+    .number()
+    .positive({ message: "Demanda contratada na ponta deve ser maior que zero" })
+
+const contractedDemandOffPeakKwSchema = z
+    .number()
+    .positive({ message: "Demanda contratada fora de ponta deve ser maior que zero" })
 
 // Schema de criação
 
@@ -84,10 +138,35 @@ export const createPropertySchema = z.object({
 
     electricalSystem: electricalSystemSchema,
 
-    // default residencial B1 — mesmo default do banco.
-    billingClass: billingClassSchema.default("B1"),
+    // default GROUP_B preserva o comportamento anterior à Fase 19.
+    tariffGroup: tariffGroupSchema.default("GROUP_B"),
+
+    // Sem default aqui: o default "B1" só se aplica quando o grupo é GROUP_B,
+    // e essa ramificação é resolvida em property.service.ts.
+    billingClass: billingClassSchema.optional(),
+
+    // Sem default aqui pelo mesmo motivo de billingClass — o default
+    // CONVENTIONAL só se aplica quando o grupo é GROUP_B.
+    groupBModality: groupBModalitySchema.optional(),
+
+    // Sem default aqui pelo mesmo motivo — o default `false` só se aplica
+    // quando o grupo é GROUP_B (property.service.ts).
+    receivesBillingDiscount: z.boolean().optional(),
+
+    tariffSubgroup: tariffSubgroupSchema.optional(),
+
+    tariffModality: tariffModalitySchema.optional(),
+
+    contractedDemandKw: contractedDemandKwSchema.optional(),
+
+    contractedDemandPeakKw: contractedDemandPeakKwSchema.optional(),
+
+    contractedDemandOffPeakKw: contractedDemandOffPeakKwSchema.optional(),
 
     publicLightingFeeBrl: publicLightingFeeBrlSchema.optional(),
+
+    // default ACR preserva o comportamento anterior à Fase 21.
+    contractingEnvironment: contractingEnvironmentSchema.default("ACR"),
 })
 
 // Schema de atualização
@@ -112,9 +191,27 @@ export const updatePropertySchema = z.object({
 
     electricalSystem: electricalSystemSchema.optional(),
 
+    tariffGroup: tariffGroupSchema.optional(),
+
     billingClass: billingClassSchema.optional(),
 
+    groupBModality: groupBModalitySchema.optional(),
+
+    receivesBillingDiscount: z.boolean().optional(),
+
+    tariffSubgroup: tariffSubgroupSchema.optional(),
+
+    tariffModality: tariffModalitySchema.optional(),
+
+    contractedDemandKw: contractedDemandKwSchema.optional(),
+
+    contractedDemandPeakKw: contractedDemandPeakKwSchema.optional(),
+
+    contractedDemandOffPeakKw: contractedDemandOffPeakKwSchema.optional(),
+
     publicLightingFeeBrl: publicLightingFeeBrlSchema.optional(),
+
+    contractingEnvironment: contractingEnvironmentSchema.optional(),
 })
 
 // Tipos inferidos

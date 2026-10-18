@@ -55,18 +55,24 @@
 
 **Proibido — comentário de rastreabilidade:**
 
-Nada de referências a **issues, PRs, relatórios de auditoria, achados, sprints, datas ou autores**. Não é funcional, não explica o código e envelhece mal.
+Nada de referências a **issues, PRs, relatórios de auditoria, achados, sprints, datas, autores ou números de RF/RNF/RN/FNC**. Não é funcional, não explica o código e envelhece mal.
 
 ```typescript
 // ❌ Corrigido conforme achado A-03 da auditoria de segurança de 12/03
 // ❌ Ver issue #142
 // ❌ Adicionado no PR #87 por solicitação da revisão
 // ❌ TODO(#55): refatorar depois
+// ❌ RN23 — Grupo A não tem piso de disponibilidade
+// ❌ Implementa RF25 (subgrupo/modalidade/demanda contratada obrigatórios)
 
 // ✅ Compara os hashes em tempo constante para não vazar o tamanho do prefixo correto.
+// ✅ Grupo A não tem piso de disponibilidade — o papel equivalente é da
+//    demanda contratada, paga integralmente mesmo sem uso.
 ```
 
-**Por quê:** rastreabilidade já tem lugar próprio no kit — histórico no **git** (Conventional Commits com `Closes #N`), o que foi decidido nos **ADRs**, o que foi entregue no **CHANGELOG**, o que falta nas **issues**. Repetir isso no código cria uma quinta fonte, que ninguém atualiza e que sobrevive ao contexto que a originou: seis meses depois, "achado A-03" não significa nada para quem lê, enquanto a explicação do *porquê* continua valendo.
+**Por quê:** rastreabilidade já tem lugar próprio no kit — histórico no **git** (Conventional Commits com `Closes #N`), o que foi decidido nos **ADRs**, o que foi entregue no **CHANGELOG**, o que falta nas **issues**, e o que cada **RF/RNF/RN/FNC** exige no `02-requisitos.md`. Repetir isso no código cria uma quinta (ou sexta) fonte, que ninguém atualiza e que sobrevive ao contexto que a originou: seis meses depois, "achado A-03" não significa nada para quem lê, e "RN23" exige abrir outro arquivo para descobrir o que a regra realmente diz — enquanto a explicação do *porquê*, escrita por extenso, continua valendo sozinha.
+
+RF/RNF/RN/FNC são um caso à parte dos demais: não são artefato de processo de desenvolvimento (isso morreria mesmo sem a regra), são identificadores **estáveis e append-only** do `02-requisitos.md` — por isso é tentador tratá-los como uma citação normativa legítima (a exemplo de "REN 1.000/2021 art. 291", que é sobre a *norma externa*, não sobre o *documento interno do kit*, e continua permitida). A direção da citação, porém, é sempre **do `02-requisitos.md` para o código** ("RN01: regra cruzada validada no `meter.service.ts`"), nunca o inverso — o código explica a regra por extenso, sem precisar do número para ser entendido. Um comentário como "mesmo padrão de RN01 do Medidor" ainda é comentário de rastreabilidade: quem lê o código não tem por que saber o que é "RN01" sem abrir outro arquivo, e o `02-requisitos.md` já registra esse mesmo apontamento na direção certa.
 
 **Higiene:**
 
@@ -77,18 +83,29 @@ Nada de referências a **issues, PRs, relatórios de auditoria, achados, sprints
 
 **Enforcement (obrigatório — esta regra é ignorada com frequência quando fica só na prosa):**
 
-- `eslint-plugin-jsdoc` valida presença e forma dos blocos em exports públicos (`jsdoc/require-jsdoc`, `jsdoc/require-param`, `jsdoc/require-returns`).
-- **`no-warning-comments` bloqueia comentário de rastreabilidade** — regra nativa do ESLint, casa o termo em qualquer posição do comentário:
+- `eslint-plugin-jsdoc` valida presença e forma dos blocos em exports públicos (`jsdoc/require-jsdoc`, `jsdoc/require-param`, `jsdoc/require-returns`), **só nas camadas que a configuração de cada pacote lista**:
+  - `backend`: `src/modules/*/*.service.ts`, `*.repository.ts` e `*.controller.ts`.
+  - `frontend`: `src/services/*.ts`.
+  - `iot-simulator/server`: `src/simulation/`, `src/broker/` e `src/mqtt/`.
+  - `iot-simulator/ui`: `src/services/` e `src/hooks/`.
+
+  Fora desses caminhos a regra do JSDoc continua valendo para quem escreve, mas **nada a impõe** (`shared/`, `*.routes.ts`, `*.schema.ts`, arquivos de domínio sem esses sufixos e os componentes do frontend); a revisão de código é o único controle ali.
+- **`no-warning-comments` bloqueia comentário de rastreabilidade** — regra nativa do ESLint, casa o termo em qualquer posição do comentário, com a mesma lista nos quatro pacotes. A palavra "auditoria" sozinha **não** é termo (só "laudo de auditoria", "achado de auditoria", "relatório de auditoria" e "achado"), porque o projeto tem trilha de auditoria legítima no código:
 
 ```js
 "no-warning-comments": ["error", {
-  terms: ["issue #", "closes #", "fixes #", "pr #", "auditoria", "achado",
+  terms: ["issue #", "closes #", "fixes #", "pr #", "laudo de auditoria",
+          "achado de auditoria", "relatório de auditoria", "achado",
           "conforme revisão", "solicitado na revisão", "ver issue", "ref #"],
   location: "anywhere"
 }]
 ```
 
 Coerente com o princípio do topo: o que pode virar lint, vira lint. Se um termo legítimo cair na regra, a saída é reescrever o comentário em termos funcionais — não adicionar exceção.
+
+**`RF`/`RN`/`RNF`/`FNC` seguido de número é pego por uma regra local própria**, não pelo `no-warning-comments` nativo: `no-warning-comments` só casa substring literal, e não há como listar "RF"/"RN"/"RNF"/"FNC" como termos sem também barrar toda ocorrência legítima dessas letras em prosa comum. A regra `local/no-comment-req-refs` (`eslint-rules/no-comment-req-refs.js`, um arquivo por pacote — `backend`, `frontend`, `iot-simulator/server`, `iot-simulator/ui`) varre todo comentário do arquivo contra o padrão `\b(RF|RN|RNF|FNC)\d+\b` e falha o lint na primeira ocorrência. Achado real (Fase 20, PR #401, revisão de código): a lacuna documentada aqui por muito tempo — "não é pego mecanicamente, depende de revisão" — se provou real: ~25 comentários de produção citando RN/RF entraram numa única branch sem o lint acusar nada, porque o texto desta seção dizia que o `no-warning-comments` "barra" sem qualificar que RF/RN/RNF/FNC ficavam de fora. As três skills de implementação citavam a mesma frase incompleta — corrigidas junto.
+
+**Gap que continua exigindo revisão, não lint:** issue number abreviado dentro de parênteses (`(issues #323/#328)`) ainda escapa de `"issue #"` — não presumir que "o lint não acusou" significa "está limpo" para esse caso.
 
 ## DRY · KISS · YAGNI
 

@@ -7,7 +7,8 @@ export type Notification = {
     id: string
     alertId: string
     alertName: string
-    meterId: string
+    /** Nulo quando a origem não é um medidor (ex.: alerta de meta, que é da propriedade). */
+    meterId: string | null
     targetType: TargetType
     targetPath: string // rota do frontend pronta para navegar (details page do alvo)
     message: string

@@ -29,45 +29,47 @@
 - RF06 `[implementado]`: a sessão WEB deve renovar-se via refresh token opaco rotacionado, detectando e reagindo ao reuso de um token já trocado.
 - RF20 `[implementado]`: o sistema deve exigir a senha atual para iniciar uma troca de e-mail e só efetivá-la após confirmação pelo novo endereço (token hasheado, com expiração), revogando todas as sessões da conta na confirmação.
 - RF21 `[implementado]`: o sistema deve permitir entrar em contas de demonstração (residencial e comercial) sem e-mail nem senha, com o backend resolvendo a conta internamente, quando `DEMO_LOGIN_ENABLED` estiver ligado — independente de `REGISTRATION_ENABLED`.
-- RF44 `[planejado — sem fase]`: o sistema deve permitir que um usuário veja suas sessões ativas (dispositivo, origem, último acesso) e encerre qualquer uma delas, individualmente ou todas as outras de uma vez.
+- RF44 `[implementado]`: o sistema deve permitir que um usuário veja suas sessões ativas (dispositivo, origem, último acesso) e encerre qualquer uma delas, individualmente ou todas as outras de uma vez. O login grava, em `AuthToken`/`RefreshToken`, só o rótulo reduzido do dispositivo (navegador e sistema) e o IP mascarado, ligados por um `sessionId` (ADR-0025); a lista de sessões ativas (`GET /api/sessions`) e o encerramento (`DELETE /api/sessions/:id` e `POST /api/sessions/revoke-others`) vivem no módulo `session`, e o bloco "Sessões ativas" da página Segurança (`SessionsSection`) os usa.
 
 ### Hierarquia do consumidor
 
 - RF07 `[implementado]`: o sistema deve permitir que um usuário cadastre Propriedades (endereço, distribuidora, sistema elétrico, classe de faturamento B1/B2/B3), Áreas dentro de uma Propriedade e Aparelhos dentro de uma Área.
 - RF08 `[implementado]`: o sistema deve permitir que um usuário consulte o catálogo de distribuidoras de energia (somente leitura, dados tarifários reais) e a bandeira tarifária vigente.
 - RF24 `[implementado]`: o sistema deve manter a bandeira tarifária vigente sincronizada automaticamente com a fonte oficial da ANEEL (ADR-0007), permitindo override manual por usuário `ADMIN` — a sincronização automática nunca é o único caminho para corrigir um valor errado.
-- RF46 `[planejado — sem fase]`: o sistema deve concentrar a gestão do cadastro (Propriedade, Área, Dispositivo, Medidor) numa tela única de Configurações, exibindo a estrutura hierárquica completa com ações de edição e exclusão em cada nível.
+- RF46 `[implementado]`: o sistema deve concentrar a gestão do cadastro (Propriedade, Área, Dispositivo) numa tela única de Configurações, exibindo a estrutura hierárquica completa com ações de edição e exclusão em cada nível. Implementado em `RegistrationPage.tsx` (criação) e `RegistrationTree.tsx` (estrutura, edição e exclusão), alimentada por `GET /api/properties/tree` (`property-tree.service.ts`), que devolve só id, nome e potência — sem endereço. Criar e excluir vivem só no Cadastro; **editar** continua também nas páginas de detalhe de Análise (botões "Editar", "Editar área" e "Editar dispositivo"), como no design vigente.
 
 ### Medição IoT
 
 - RF09 `[implementado]`: o sistema deve permitir que um usuário vincule um Medidor a exatamente um alvo (Propriedade, Área ou Aparelho), configurando o protocolo de conexão (MQTT, Modbus TCP/RTU, EtherNet/IP, Profibus, PROFINET, RS232, RS485).
 - RF10 `[implementado]`: o sistema deve ingerir amostras elétricas (tensão, corrente, potência, fator de potência) do medidor e agregá-las em leituras por minuto, com médias ponderadas por tempo de vigência de cada amostra.
 - RF11 `[implementado]`: o sistema deve expor as leituras e disparos de alerta em tempo real via SSE, por usuário autenticado.
-- RF37 `[planejado — sem fase]`: o sistema deve ingerir e persistir o conjunto ampliado de grandezas elétricas por fase — tensão por fase e fase-neutro média, desequilíbrio, corrente por fase e de neutro, potência ativa total e por fase, reativa, aparente, frequência, fator de potência por fase, e THD de tensão e de corrente por fase.
-- RF47 `[planejado — sem fase]`: o simulador IoT deve permitir que o administrador da aplicação gerencie redes e medidores de demonstração, publicando pelos protocolos suportados, com acesso restrito (não público e não divulgado na documentação).
+- RF37 `[implementado]`: o sistema deve ingerir e persistir o conjunto ampliado de grandezas elétricas por fase — tensão por fase e fase-neutro média, desequilíbrio, corrente por fase e de neutro, potência ativa total e por fase, reativa, aparente, frequência, fator de potência por fase, e THD de tensão e de corrente por fase.
+- RF47 `[implementado]`: o simulador IoT deve permitir que o administrador da aplicação gerencie redes e medidores de demonstração, publicando pelo protocolo MQTT, com acesso restrito (não público e não divulgado na documentação). Suporte a Modbus TCP/RTU é `[planejado — Fase 31]` — hoje o simulador só emula MQTT.
 
 ### Consumo, custo e análise
 
 - RF12 `[implementado]`: o sistema deve permitir que um usuário consulte consumo (kWh) agregado por minuto, hora, dia, mês ou ano, em qualquer nível da hierarquia (Propriedade/Área/Aparelho).
 - RF13 `[implementado]`: o sistema deve calcular o custo em reais de cada agregação para o Grupo B, devolvendo a decomposição completa (energia, bandeira, tributos, CIP, total) — ver RN10–RN16. O caminho binômio do Grupo A não amplia este requisito: é RF29, porque o cálculo ramifica por grupo em vez de generalizar (RN23).
 - RF22 `[implementado]`: o sistema deve permitir simular o custo de um consumo hipotético, informado em kWh direto ou em watts × horas de uso, sem persistir a simulação.
-- RF38 `[planejado — sem fase]`: o sistema deve permitir que um usuário analise as grandezas elétricas de um item selecionado — em tempo real e em série histórica, escolhendo grandeza, janela (hora/dia) e agregação.
-- RF39 `[planejado — sem fase]`: o sistema deve permitir comparar dois períodos arbitrários (A e B) de um mesmo alvo e grandeza, apresentando o gráfico e as diferenças entre eles.
+- RF38 `[implementado]`: o sistema deve permitir que um usuário analise as grandezas elétricas de um item selecionado — em tempo real e em série histórica, escolhendo grandeza, janela (hora/dia) e agregação. No design, essa análise vive na aba "Grandezas Elétricas" de Análise; a Fase 24 entregou a aba "Consumo e Custos" (FNC005 itens 1–3), a Fase 25 entregou a aba "Grandezas Elétricas" (FNC005 itens 4–6).
+- RF39 `[implementado]`: o sistema deve permitir comparar dois períodos arbitrários (A e B) de um mesmo alvo e grandeza, apresentando o gráfico e as diferenças entre eles. *(Os períodos são dias inteiros, de mesma duração e de até 92 dias cada; a grandeza é uma das 9 elétricas de RF38 — consumo, custo e demanda do protótipo não entram. Backend: `GET /api/meter-readings/compare-periods`, com balde por hora para um período de um dia e por dia acima disso, alinhados por posição.)*
 
 ### Tarifação — Grupo A e modalidades horárias
 
-- RF25 `[planejado — Fase 19]`: o sistema deve permitir cadastrar uma Propriedade do Grupo A com subgrupo (A1–A4, AS), modalidade tarifária e demanda contratada em kW, validando a demanda como obrigatória conforme a modalidade.
-- RF26 `[planejado — Fase 19]`: o catálogo tarifário deve comportar valores por distribuidora × subgrupo × modalidade × posto, com tarifa de energia (TUSD + TE) e de demanda (TUSD demanda), preservando sem perda os dados de Grupo B existentes.
-- RF27 `[planejado — Fase 19]`: o sistema deve classificar o consumo por posto tarifário (ponta, intermediário, fora de ponta) conforme horário e dia, com janela de ponta configurável por distribuidora e calendário de feriados nacionais, incluindo os móveis.
-- RF28 `[planejado — Fase 19]`: o sistema deve apurar a demanda medida (kW) por posto a partir das próprias leituras do medidor, sem exigir que o usuário informe qualquer valor.
-- RF29 `[planejado — Fase 19]`: o sistema deve calcular a conta binômia da modalidade Horária Verde, devolvendo a decomposição separada de demanda, consumo por posto, bandeira, tributos e CIP.
-- RF30 `[planejado — Fase 20]`: o sistema deve suportar a modalidade Horária Azul, com duas demandas contratadas (ponta e fora de ponta) e quatro tarifas distintas.
-- RF31 `[planejado — Fase 20]`: o sistema deve calcular a ultrapassagem de demanda e permitir que um usuário do Grupo A configure alerta de ultrapassagem da demanda contratada. *(Substitui o item anteriormente registrado sem número como "RFXX".)*
-- RF32 `[planejado — Fase 20]`: o sistema deve calcular a energia reativa excedente quando o fator de potência ficar abaixo do mínimo regulatório.
-- RF33 `[planejado — Fase 21]`: o sistema deve distinguir o ambiente de contratação da Propriedade (ACR cativo × ACL livre) e registrar o contrato de energia do ACL — comercializadora, volume contratado, submercado, fonte e vigência.
-- RF34 `[planejado — sem fase]`: o sistema deve permitir registrar e consultar o PLD (Preço de Liquidação das Diferenças) por submercado, usado na análise econômica do mercado livre.
-- RF35 `[planejado — Fase 21]`: o sistema deve comparar o custo no mercado cativo com o custo no mercado livre a partir do consumo real do próprio usuário, respondendo "vale a pena migrar?".
-- RF36 `[planejado — Fase 22]`: o sistema deve suportar a modalidade Tarifa Branca para o Grupo B, incluindo o alerta de quando ela sai mais cara que a Convencional para o perfil de consumo do usuário.
+- RF25 `[implementado]`: o sistema deve permitir cadastrar uma Propriedade do Grupo A com subgrupo (A1–A4, AS), modalidade tarifária e demanda contratada em kW, validando a demanda como obrigatória conforme a modalidade.
+- RF26 `[implementado]`: o catálogo tarifário deve comportar valores por distribuidora × subgrupo × modalidade × posto, com tarifa de energia (TUSD + TE) e de demanda (TUSD demanda), preservando sem perda os dados de Grupo B existentes.
+- RF27 `[implementado]`: o sistema deve classificar o consumo por posto tarifário (ponta, intermediário, fora de ponta) conforme horário e dia, com janela de ponta configurável por distribuidora e calendário de feriados nacionais, incluindo os móveis.
+- RF28 `[implementado]`: o sistema deve apurar a demanda medida (kW) por posto a partir das próprias leituras do medidor, sem exigir que o usuário informe qualquer valor.
+- RF29 `[implementado]`: o sistema deve calcular a conta binômia da modalidade Horária Verde, devolvendo a decomposição separada de demanda, consumo por posto, bandeira, tributos e CIP.
+- RF30 `[implementado]`: o sistema deve suportar a modalidade Horária Azul, com duas demandas contratadas (ponta e fora de ponta) e quatro tarifas distintas.
+- RF31 `[implementado]`: o sistema deve calcular a ultrapassagem de demanda e permitir que um usuário do Grupo A configure alerta de ultrapassagem da demanda contratada. *(Substitui o item anteriormente registrado sem número como "RFXX".)*
+- RF32 `[implementado]`: o sistema deve calcular a energia reativa excedente quando o fator de potência ficar abaixo do mínimo regulatório.
+- RF33 `[implementado]`: o sistema deve distinguir o ambiente de contratação da Propriedade (ACR cativo × ACL livre) e registrar o contrato de energia do ACL — comercializadora, volume contratado, submercado, fonte e vigência.
+- RF34 `[implementado]`: o sistema deve permitir registrar e consultar o PLD (Preço de Liquidação das Diferenças) por submercado, usado na análise econômica do mercado livre. *(Catálogo somente leitura nesta fase — populado via seed, sem `POST`/`PUT`/`DELETE`; ver roadmap Fase 21. `GET /api/pld-quotes` cobre "consultar" o catálogo inteiro; nenhuma tela do produto o chama ainda — a comparação ACR × ACL (RF35) já embute o PLD do período em `pldContext`, sem passar por esta rota. Mantida por ser o que a issue #397 pediu e testou, não dívida a remover.)*
+- RF35 `[implementado]`: o sistema deve comparar o custo no mercado cativo com o custo no mercado livre a partir do consumo real do próprio usuário, respondendo "vale a pena migrar?". *(Recalcula o mesmo consumo real medido nos dois cenários — TE do catálogo regulado com bandeira vs. TE do `AclContract` vigente sem bandeira — para a propriedade já em ACL com contrato cadastrado; não é uma simulação para quem ainda está em ACR, que precisaria primeiro migrar o cadastro e registrar o contrato cotado para poder comparar.)*
+- RF48 `[implementado]`: o sistema deve calcular a conta binômia de uma propriedade do Mercado Livre (ACL), substituindo a TE do catálogo regulado pela TE negociada no contrato de energia vigente, sem incidência de bandeira tarifária.
+- RF36 `[implementado]`: o sistema deve suportar a modalidade Tarifa Branca para o Grupo B, incluindo a comparação de custo entre as duas modalidades (RF49) quando a Branca sai mais cara que a Convencional para o perfil de consumo do usuário. *(Comparação sob demanda, não um alerta automático — o usuário escolhe a propriedade e o período e lê o veredito na tela; não há disparo proativo pelo subsistema de alertas (`AlertSection`/`DemandAlertScheduler`). Redação anterior dizia "incluindo o alerta", que descrevia mais do que o código entrega — corrigida ao notar a inconsistência na revisão do PR #422.)*
+- RF49 `[implementado]`: o sistema deve comparar o custo na tarifa Convencional com o custo na Tarifa Branca a partir do consumo real do próprio usuário, respondendo "vale a pena aderir?", com destaque visual do veredito quando a Branca sai mais cara. *(Mesmo papel de RF35 para o Mercado Livre: recalcula o mesmo consumo real medido nos dois cenários — decomposição por posto da Branca vs. tarifa plana da Convencional — para a propriedade já na modalidade WHITE; não é uma simulação para quem ainda está na Convencional, que precisaria primeiro migrar o cadastro para poder comparar. O "destaque" é a cor do veredito na tela (`BrancaComparisonPage`), não uma notificação do subsistema de alertas — ver a ressalva em RF36.)*
 - RF45 `[planejado — sem fase]`: o sistema deve permitir manter os parâmetros tarifários da distribuidora com vigência (tarifas por posto, tributos, postos horários e regra de feriados), preservando o histórico para recálculo de períodos anteriores.
 
 ### Alertas e notificações
@@ -76,13 +78,13 @@
 - RF15 `[implementado]`: o sistema deve avaliar cada amostra recebida contra os alertas habilitados do medidor e abrir/fechar episódios de disparo conforme a histerese de RN32.
 - RF16 `[implementado]`: o sistema deve persistir cada episódio de disparo encerrado (início, fim, duração, potência mín./máx./média, nº de amostras) e notificar o usuário.
 - RF23 `[implementado]`: o sistema deve permitir que um usuário consulte suas notificações e as remova, individualmente ou todas de uma vez.
-- RF43 `[planejado — sem fase]`: o sistema deve permitir configurar alerta de meta, disparado ao atingir um percentual definido da meta, visível junto dos demais alertas.
+- RF43 `[implementado]`: o sistema deve permitir configurar alerta de meta, disparado ao atingir um percentual definido da meta, visível junto dos demais alertas. O percentual é da meta e vale para o mês corrente (contra a meta do mês) e para o acumulado do ano (contra a meta anual); cada período avisa no máximo uma vez, pelo sino de notificações, e a página de Alertas mostra o estado de cada meta. Avaliador em `modules/goal/GoalAlertScheduler.ts`, estado em `goal-alert.service.ts`.
 
 ### Relatórios e metas
 
-- RF40 `[planejado — sem fase]`: o sistema deve permitir emitir um relatório sob demanda escolhendo escopo (propriedade, área, dispositivo), tipo (mensal, consumo, alertas, qualidade de energia, demanda), período e formato (PDF ou CSV), registrando-o no histórico.
-- RF41 `[planejado — sem fase]`: o sistema deve permitir agendar relatórios automáticos (periodicidade, dia de envio, destinatários), listar os envios agendados e gerenciar as configurações criadas.
-- RF42 `[planejado — sem fase]`: o sistema deve permitir que um usuário cadastre metas anuais de consumo (kWh) e custo (R$) — e de demanda, no Grupo A — com meta mês a mês, ano de referência e acompanhamento de realizado, desvio e situação.
+- RF40 `[implementado]`: o sistema deve permitir emitir um relatório sob demanda escolhendo escopo (propriedade, área, dispositivo), tipo (mensal, consumo, alertas, qualidade de energia, demanda), período e formato (PDF ou CSV), registrando-o no histórico.
+- RF41 `[implementado]`: o sistema deve permitir agendar relatórios automáticos (periodicidade, dia de envio, destinatários), listar os envios agendados e gerenciar as configurações criadas.
+- RF42 `[implementado]`: o sistema deve permitir que um usuário cadastre, por propriedade, metas anuais de consumo (kWh) e custo (R$) — e de demanda (kW), no Grupo A — com meta mês a mês, ano de referência e acompanhamento de realizado, desvio e situação. Cadastro, edição e exclusão das metas, em kWh, em R$ e em kW, estão em `modules/goal`; o acompanhamento (realizado, desvio e situação) em `goal-progress.ts` e `goal-progress.service.ts`.
 
 ### Dados pessoais e administração
 
@@ -184,7 +186,7 @@ Fórmulas conferidas contra `backend/src/shared/tariff/tariff.service.ts`, não 
 
 Origem: `.claude/docs/O-Sistema-Eletrico-Brasileiro.md`. Oráculos de teste: Exemplo 6 (A4 Verde, R$ 22.464,75) e Exemplo 7 (A4 Azul com ERE, R$ 101.496,36).
 
-- RN17 `[planejado — Fase 19]`: **conta binômia** — demanda e consumo são cobrados separadamente, e os tributos incidem por dentro sobre o conjunto:
+- RN17 `[implementado — Verde e Azul, com ultrapassagem e ERE]`: **conta binômia** — demanda e consumo são cobrados separadamente, e os tributos incidem por dentro sobre o conjunto:
 
   ```text
   parcelaConsumo = Σ_posto (consumoPosto × (TUSDenergiaPosto + TEenergiaPosto))
@@ -193,14 +195,14 @@ Origem: `.claude/docs/O-Sistema-Eletrico-Brasileiro.md`. Oráculos de teste: Exe
   total = totalComTributos + CIP
   ```
 
-- RN18 `[planejado — Fase 19 / Fase 20]`: **parcela de demanda** varia com a modalidade:
+- RN18 `[implementado — Verde e Azul]`: **parcela de demanda** varia com a modalidade:
 
   ```text
   Verde: parcelaDemanda = demandaContratada × TUSDdemanda
   Azul:  parcelaDemanda = Σ_posto (demandaContratadaPosto × TUSDdemandaPosto)   // ponta e fora de ponta
   ```
 
-- RN19 `[planejado — Fase 19]`: **demanda medida** é a maior potência média em janelas de 15 minutos, apurada por posto — derivada das próprias leituras, não informada pelo usuário:
+- RN19 `[implementado]`: **demanda medida** é a maior potência média em janelas de 15 minutos, apurada por posto — derivada das próprias leituras, não informada pelo usuário:
 
   ```text
   demandaPosto = max( média(potênciaAtiva) em cada janela de 15 min do posto )
@@ -208,7 +210,7 @@ Origem: `.claude/docs/O-Sistema-Eletrico-Brasileiro.md`. Oráculos de teste: Exe
 
   Janela incompleta (medidor offline em parte do intervalo) não pode ser tratada como janela cheia: uma janela de 3 minutos virando "demanda" infla a conta.
 
-- RN20 `[planejado — Fase 20]`: **ultrapassagem de demanda** só existe acima da tolerância de 5%, é cobrada ao triplo e entra **antes** dos tributos:
+- RN20 `[implementado]`: **ultrapassagem de demanda** só existe acima da tolerância de 5%, é cobrada ao triplo e entra **antes** dos tributos (validado no `tariff.service.ts` e no `billing/GroupABillCalculator.ts`, que resolve a demanda medida via `MeterDemandRollupRepository`):
 
   ```text
   se demandaMedida > 1,05 × demandaContratada:
@@ -217,17 +219,21 @@ Origem: `.claude/docs/O-Sistema-Eletrico-Brasileiro.md`. Oráculos de teste: Exe
       ultrapassagem = 0
   ```
 
-- RN21 `[planejado — Fase 20]`: **energia reativa excedente (ERE)** é cobrada quando o fator de potência fica abaixo de 0,92 — indutivo medido entre 6h e 24h, capacitivo entre 0h e 6h, tarifado em R$/kVArh.
-- RN22 `[planejado — Fase 19]`: a **bandeira incide sobre o consumo medido, nunca sobre a demanda**.
-- RN23 `[planejado — Fase 19]`: **não há piso de disponibilidade no Grupo A** — o papel equivalente é da demanda contratada, que é paga integralmente mesmo se não utilizada. O caminho de cálculo ramifica por grupo em vez de aplicar o piso incondicionalmente.
+- RN21 `[implementado]`: **energia reativa excedente (ERE)** é cobrada quando o fator de potência fica abaixo de 0,92 — indutivo medido entre 6h e 24h, capacitivo entre 0h e 6h, tarifado em R$/kVArh (validado no `tariff.service.ts`; a agregação por janela em `consumption.repository.ts`). Fórmula: excedente (kVArh) = energia reativa medida − energia ativa × tan(acos(0,92)); tarifa usada é a TUSD de energia fora de ponta (o documento de referência não diferencia a tarifa reativa por posto).
+- RN22 `[implementado]`: a **bandeira incide sobre o consumo medido, nunca sobre a demanda**.
+- RN23 `[implementado]`: **não há piso de disponibilidade no Grupo A** — o papel equivalente é da demanda contratada, que é paga integralmente mesmo se não utilizada. O caminho de cálculo ramifica por grupo em vez de aplicar o piso incondicionalmente.
+- RN38 `[implementado]`: no **Mercado Livre (ACL)**, a TE do catálogo regulado é substituída pela TE negociada no contrato de energia vigente no período — única para o contrato, sem diferenciar por posto (o documento de referência não modela preço negociado por posto horário); a TUSD permanece a do catálogo (encargo de fio, devido independente do ambiente de contratação). A **bandeira tarifária não incide** — nem sobre TUSD, nem sobre TE (ADR-0021). Demanda contratada, ultrapassagem (RN20) e energia reativa excedente (RN21) seguem a mesma regra do ACR, sem alteração. Um mês sem contrato vigente (histórico anterior ao `validFrom`, ou buraco entre dois contratos) degrada para o tratamento do catálogo regulado — TE do catálogo, bandeira normal — em vez de falhar; a propriedade continua consultável mês a mês mesmo antes do contrato começar. **Corte de execução, não regra:** `AclContract.contractedVolumeMwh` é cadastrado mas não entra no cálculo — o custo do mês é sempre `consumo medido × TE contratada`, sem modelar o mecanismo de *take-or-pay* real do mercado livre (o volume contratado é devido mesmo quando o consumo fica abaixo dele, com a diferença liquidada ao PLD); o documento de referência não modela esse mecanismo. Validado em `billing/GroupABillCalculator.ts` (`calculateMonthlyCosts`/`buildGroupAMonthResult`/`resolveGroupAMonthEntry`) — `tariff.service.ts` não precisou de nenhuma mudança.
+- RN39 `[implementado]`: a comparação ACR × ACL recalcula o mesmo consumo real medido, mês a mês, nos dois cenários (RN38 para o ACL; catálogo + bandeira para o ACR) — nunca estimativa; só considera propriedade já em ACL (RF35). Um mês sem contrato ACL vigente não entra na comparação — nunca é degradado a um valor "ACL" fictício, que mentiria a diferença como zero; sem nenhum mês comparável no período pedido, falha fechado. O **PLD é contexto informativo** do submercado do contrato no período, exibido junto do resultado, **não entra na fórmula de custo** de nenhum dos dois cenários. **Corte de execução, não regra:** o lado ACR do comparativo aplica a bandeira tarifária **vigente hoje** a todos os meses do período, inclusive passados — não há histórico de bandeira por mês reconstituído aqui; a tela avisa isso ao lado do veredito. Validado em `comparison/property-comparison.service.ts` (`compareAclToAcr`).
+- RN41 `[implementado]`: a comparação Convencional × Branca recalcula o mesmo consumo real medido, mês a mês, nos dois cenários (decomposição por posto da Branca — RN27/RN40 — vs. tarifa plana da Convencional) — nunca estimativa; só considera propriedade já em WHITE (RF49). Abaixo do piso de disponibilidade, os dois cenários convergem para a mesma conta (RN27 já delega ao formato Convencional nesse caso) — a diferença naquele mês é exatamente zero, não uma aproximação. Validado em `comparison/property-comparison.service.ts` (`compareBrancaToConvencional`).
 
 ### Postos tarifários e calendário
 
-- RN24 `[planejado — Fase 19]`: o consumo é classificado em **ponta, intermediário e fora de ponta** conforme o horário. A janela de ponta é configurável **por distribuidora** — tipicamente 18h–21h, mas varia por local e estado; um valor fixo no código estaria errado para parte do catálogo.
-- RN25 `[planejado — Fase 19]`: **fim de semana e feriado contam integralmente como fora de ponta.** O calendário inclui os feriados móveis derivados da Páscoa (Carnaval, Sexta-Feira Santa, Corpus Christi) — é cálculo, não lista fixa: uma lista fixa funciona por um ano e silenciosamente cobra ponta num feriado no ano seguinte.
+- RN24 `[implementado]`: o consumo é classificado em **ponta e fora de ponta** conforme o horário (intermediário é particularidade da Tarifa Branca — RN40). A janela de ponta é configurável **por distribuidora** — tipicamente 18h–21h, mas varia por local e estado; um valor fixo no código estaria errado para parte do catálogo.
+- RN25 `[implementado]`: **fim de semana e feriado contam integralmente como fora de ponta.** O calendário inclui os feriados móveis derivados da Páscoa (Carnaval, Sexta-Feira Santa, Corpus Christi) — é cálculo, não lista fixa: uma lista fixa funciona por um ano e silenciosamente cobra ponta num feriado no ano seguinte.
 - RN26 `[implementado]`: o Brasil não tem horário de verão desde 2019 — premissa registrada, a revisar se voltar a existir.
-- RN27 `[planejado — Fase 22]`: na Tarifa Branca, o **custo de disponibilidade é calculado com a tarifa Convencional**, não com as horárias (REN 1.098/2024) — armadilha que uma implementação ingênua erra.
-- RN28 `[planejado — Fase 22]`: a Tarifa Branca é **vedada** a B4, à baixa renda e a quem recebe outros descontos; é voluntária para B1 e B3.
+- RN27 `[implementado]`: na Tarifa Branca, o **custo de disponibilidade é calculado com a tarifa Convencional**, não com as horárias (REN 1.098/2024) — armadilha que uma implementação ingênua erra. Validado em `TariffService.calculateForGroupBWhite`: abaixo do piso (30/50/100 kWh conforme sistema elétrico), a conta inteira usa a tarifa Convencional da distribuidora, não a decomposição por posto.
+- RN28 `[implementado]`: a Tarifa Branca é **vedada** a B4, à baixa renda e a quem recebe outros descontos; é voluntária para B1 e B3. B4 nunca foi modelado como valor de `BillingClass` (vedação satisfeita pela ausência do valor); baixa renda/outro desconto usam o booleano `receivesBillingDiscount`. Validado em `PropertyService.assertWhiteModalityEligible` (backend) e espelhado em `propertyFormSchema` (frontend, `validateWhiteModalityFields`) — a marcação como `[planejado]` tinha ficado desatualizada desde a issue #418, que já implementou a regra; corrigida ao notar a inconsistência nesta issue.
+- RN40 `[implementado]`: o posto **Intermediário** (exclusivo da Tarifa Branca, Grupo B) é a 1h imediatamente antes do início da ponta e a 1h imediatamente depois do fim, em dia útil — fim de semana e feriado continuam integralmente fora de ponta, mesmo nessas horas (RN25). Opt-in (`includeIntermediate`, default `false`) em `classifyPost` e nas duas queries de agregação por posto — o Grupo A nunca passa esse parâmetro, então a mesma hora-relógio continua `OFF_PEAK` para Verde/Azul, sem alteração de comportamento.
 
 ### Medição e alertas
 
@@ -243,13 +249,13 @@ Origem: `.claude/docs/O-Sistema-Eletrico-Brasileiro.md`. Oráculos de teste: Exe
   ```
 
 - RN33 `[implementado]`: alerta desabilitado ou excluído durante um episódio em curso **encerra e persiste** o episódio no estado em que estava — não o descarta.
-- RN34 `[planejado — sem fase]`: o sistema aceita medidores que não medem todas as grandezas; grandeza ausente é exibida como "-", nunca como zero — zero é uma medição, ausência não é. *(Quais grandezas o medidor real entrega medidas e quais são calculadas é decisão em aberto — ver `07-decisoes-em-aberto.md`.)*
+- RN34 `[implementado]`: o sistema aceita medidores que não medem todas as grandezas; grandeza ausente é exibida como "-", nunca como zero — zero é uma medição, ausência não é. *(ADR-0022, confirmada contra o datasheet real do medidor-alvo CCK 7200D: quase todas as grandezas de FNC010 são medidas nativamente, sem cálculo no pipeline. Duas exceções: desequilíbrio de tensão é calculado a partir das três tensões de fase medidas — fórmula fechada, não estimativa; corrente de neutro não é medida nem derivável com confiança e fica **sempre** "-" via esta regra, para qualquer medidor da mesma classe.)*
 
 ### Relatórios e metas
 
-- RN35 `[planejado — sem fase]`: relatório gerado é **imutável** — para obter informação diferente, gera-se outro. Todos seguem template padronizado com a identidade visual do projeto.
-- RN36 `[planejado — sem fase]`: no agendamento, o dia de envio aceita 1 a 31, mas meses mais curtos não têm todos eles — quando o dia escolhido não existe no mês (fevereiro, meses de 30 dias, ano bissexto), o envio ocorre no **último dia do mês**.
-- RN37 `[planejado — sem fase]`: só a meta do ano vigente pode ser editada. Metas de anos anteriores são imutáveis, não podem ser excluídas e podem ser usadas como base de referência para uma meta nova.
+- RN35 `[implementado]`: relatório gerado é **imutável** — para obter informação diferente, gera-se outro. Todos seguem template padronizado com a identidade visual do projeto.
+- RN36 `[implementado]`: no agendamento, o dia de envio aceita 1 a 31, mas meses mais curtos não têm todos eles — quando o dia escolhido não existe no mês (fevereiro, meses de 30 dias, ano bissexto), o envio ocorre no **último dia do mês**.
+- RN37 `[implementado]`: a meta do ano vigente e as de anos futuros podem ser editadas e excluídas. Metas de anos anteriores são imutáveis, não podem ser excluídas e podem ser usadas como base de referência para uma meta nova. O ano conta em horário de São Paulo e a regra é imposta no servidor (`goal.service.ts`); criar meta de ano passado é rejeitado, e a edição não muda o ano nem a propriedade da meta.
 
 ## 2.4 Funcionamento
 
@@ -278,7 +284,7 @@ Origem: `.claude/docs/O-Sistema-Eletrico-Brasileiro.md`. Oráculos de teste: Exe
 
 > As telas descritas de FNC004 a FNC013 nascem do handoff `2026-09-06-lumitrack-completo` (tela `LumiTrack Home v2`), que **substitui a `Home` anterior como design-alvo do app logado**. A navegação passa a ser Painel · Análise · Histórico · Relatórios · Alertas · Distribuidoras · Sobre, mais Configurações. Cada FNC registra o que já existe hoje, para o planejamento não confundir "redesenhar" com "construir do zero".
 
-**FNC004 — Painel** `[planejado — sem fase]`
+**FNC004 — Painel** `[implementado]` *(estrutura de navegação: Fase 23)*
 
 Tela inicial com o panorama geral, filtrada pela propriedade selecionada no seletor da topbar. Seções:
 
@@ -289,28 +295,30 @@ Tela inicial com o panorama geral, filtrada pela propriedade selecionada no sele
 5. Gráfico de meta versus realizado (depende de FNC011).
 6. Gráfico de demanda contratada versus demanda atual, exclusivo do Grupo A (depende de RF28).
 
-**Hoje:** o Painel já entrega bandeira vigente, alertas em disparo, KPIs de consumo/custo e gráfico de potência em tempo real. Faltam a tabela hierarquizada, o peso por medidor, a meta e a demanda.
+**Hoje:** `/dashboard` (`pages/dashboard/DashboardPage.tsx`) mostra, para a propriedade escolhida no seletor da página: a demanda atual contra a contratada (só no Grupo A; `DemandSection`, com os cards Demanda atual, Máxima do mês, Contratada e Ultrapassagem e o gráfico do dia, e a contratada em degrau por posto na Azul), a tabela "Consumo de hoje" (propriedade, áreas e dispositivos, com kWh e R$ do dia; `TodayConsumptionSection`), a pizza "Peso de cada medidor" (as áreas com medidor no mês, com menu de seleção; `AreaWeightSection`) e o bloco "Meta de consumo" (Mês | Ano e kWh | R$, com acumulado, projeção e situação, e no Grupo A a faixa "Horário de ponta"; `GoalSection` e `PeakHoursBand`). Abaixo ficam os blocos que o Painel já tinha, que o design v2 não desenha e permanecem por decisão: bandeira vigente, KPIs de consumo e custo, potência em tempo real, histórico e comparação entre propriedades. Dado ausente aparece como "-", nunca como 0. A demanda tem backend próprio (`modules/demand`, `GET /api/demand/overview`: máxima do mês e ultrapassagem do rollup, demanda atual e curva do dia das leituras por minuto, pela mesma regra de janela do rollup); a meta usa `/api/goals/progress` e, no Mês, o consumo diário de `/api/consumption`, que devolve o kWh de hora, dia e minuto do Grupo A e da Tarifa Branca sem `costBrl`. O R$ do Mês é só a parte variável do custo diário (sem piso, iluminação pública nem demanda), e por isso o Mês em R$ não mostra a Situação.
 
-**FNC005 — Análise** `[planejado — sem fase]`
+**FNC005 — Análise** `[implementado]`
 
 Onde o usuário examina em detalhe consumo, custo e medições de cada item cadastrado.
 
 1. À esquerda, lista hierarquizada (Propriedades → Áreas → Dispositivos) com campo de busca; à direita, a página de detalhes do item selecionado.
 2. A página de detalhes tem duas abas: **Consumo e Custos** e **Grandezas Elétricas**.
-3. Na aba **Consumo e Custos**: dados do item e do seu medidor, gráfico de consumo em tempo real (minuto a minuto) e lista de comparações — entre Áreas quando o alvo é uma Propriedade, entre Dispositivos quando o alvo é uma Área, sempre restrita aos que têm medidor vinculado.
+3. Na aba **Consumo e Custos**: dados do item e do seu medidor, gráfico de consumo em tempo real (minuto a minuto) e comparação em barras do consumo no mês, em kWh ou R$ — entre Áreas quando o alvo é uma Propriedade, entre Dispositivos quando o alvo é uma Área, sempre restrita aos que têm medidor vinculado. O R$ só existe quando o custo é calculável (Grupo B Convencional); em Grupo A e Tarifa Branca a comparação de áreas e dispositivos fica em kWh, com o R$ desabilitado e explicado.
 4. Na aba **Grandezas Elétricas**: cards em tempo real (segundo a segundo) de tensão (por fase, fase-neutro média, desequilíbrio), corrente (por fase, neutro e média), potência (ativa total e por fase, reativa, aparente, frequência), fator de potência (média em destaque, por fase) e THD de tensão e corrente por fase. Grandeza não fornecida pelo medidor aparece como "-" (RN34).
 5. Abaixo dos cards, a área de análise: o usuário escolhe janela do gráfico, dia, hora, agregação e grandeza, e aciona "Gerar análise" para plotar gráfico e tabela.
 6. Com janela **Hora**, gráfico e tabela seguem a agregação escolhida. Com janela **Dia**, os dados são exibidos de hora em hora e os campos Hora e Agregação ficam desabilitados.
 
-**Hoje:** existe a rota `/propriedades` com detalhes por nível e gráfico em tempo real, mas sem a aba de grandezas elétricas (que depende de RF37) e sem a área de análise configurável.
+**Hoje:** `/propriedades` mostra a árvore de seleção com busca (`components/analysis/AnalysisTree.tsx`, seleção pela URL) à esquerda e o detalhe do item à direita. Os detalhes da **Propriedade** (`pages/property/PropertyDetailsPage.tsx`, `components/property/AreaComparison.tsx`), da **Área** (`pages/area/AreaDetailsPage.tsx`, `components/device/DeviceComparison.tsx`) e do **Dispositivo** (`pages/device/DeviceDetailsPage.tsx`) seguem o design: dados, Medidor e gráfico em tempo real; Propriedade e Área trazem a comparação em barras em kWh ou R$, e Área e Dispositivo os KPIs "Consumo hoje" e "Custo do mês" (`hooks/useTargetConsumptionKpis.ts`), sempre do medidor do próprio item. O consumo vem de `GET /api/consumption/summary` (`consumption.service.ts`), com `costBrl` opcional. Criar e excluir Propriedade, Área e Dispositivo só existem em Configurações → Cadastro; nas páginas de Análise só se edita. A aba **Grandezas Elétricas** (`components/electrical/ElectricalQuantitiesTabPanel.tsx`) e a área de análise configurável (`components/analysis/SeriesAnalysisSection.tsx`, `GET /api/meter-readings/series`) foram entregues na Fase 25.
 
-**FNC006 — Histórico e comparações** `[planejado — sem fase]`
+**FNC006 — Histórico e comparações** `[implementado]`
 
-1. O usuário seleciona o alvo (Propriedade, Área ou Dispositivo) e a grandeza medida.
-2. Define dois períodos — A (início e fim) e B (início e fim).
-3. O sistema plota o gráfico comparativo e uma seção com as diferenças entre os períodos, incluindo a variação de B sobre A.
+1. O usuário seleciona o alvo (Propriedade, Área ou Dispositivo) e a grandeza medida — uma das 9 grandezas elétricas de FNC005 (consumo, custo e demanda do protótipo ficam fora).
+2. Define dois períodos — A (início e fim) e B (início e fim) —, em dias inteiros, de **mesma duração** e de até 92 dias cada; o formulário explica o motivo e bloqueia o envio quando a regra é violada.
+3. O sistema plota o gráfico comparativo — duas linhas sobrepostas (A e B) por posição de balde, hora a hora num período de um dia e dia a dia nos maiores — e uma seção com as diferenças entre os períodos: a variação de B sobre A em destaque (percentual, vermelho se B ficou acima, verde se abaixo, neutro dentro de 1%) e os cards de média, diferença absoluta, pico e dias de cada período. Grandeza ausente aparece como "-" (RN34).
 
-**FNC007 — Relatórios** `[planejado — sem fase]`
+**Hoje:** `/historico` (`pages/history/HistoryPage.tsx`, `components/history/PeriodComparisonForm.tsx`, `PeriodComparisonDifferences.tsx`, `PeriodComparisonChartCard.tsx`), alimentada por `GET /api/meter-readings/compare-periods` (`useMeterReadingComparePeriods`).
+
+**FNC007 — Relatórios** `[implementado]`
 
 Gestão e agendamento de relatórios em PDF e CSV, com template padronizado (referência: tela `LumiTrack Relatório A4` do handoff) e imutabilidade conforme RN35.
 
@@ -319,43 +327,49 @@ Gestão e agendamento de relatórios em PDF e CSV, com template padronizado (ref
 3. No histórico, cada relatório pode ser baixado ou excluído.
 4. O agendamento é configurado em Configurações → Relatórios (FNC008), acrescentando aos campos de emissão: **periodicidade** (diária, semanal, mensal, trimestral, semestral, anual), **dia do envio** (com a regra de RN36) e **destinatários** (e-mails separados por vírgula). A lista de configurações permite editar e excluir.
 
-**Hoje:** a rota `/relatorios` entrega consulta de consumo com seletor em cascata e granularidades — não há emissão de arquivo, template, histórico nem agendamento.
+**Hoje:** `/relatorios` (`pages/report/ReportsPage.tsx`) reúne a emissão (`ReportEmissionForm`), os envios previstos para os próximos 15 dias (`ReportUpcoming`) e o histórico (`ReportHistory`); a gestão do agendamento fica em `/configuracoes/relatorios` (`ReportSchedulesPage`). Backend: `modules/report` (emissão, histórico, download, exclusão, geradores de PDF e CSV) e `modules/report-schedule` (CRUD e `ReportScheduleRunner`, que gera o relatório do período e o envia por e-mail como anexo). Os tipos alertas, qualidade de energia e demanda emitem um relatório de resumo e tabelas (`modules/report/documents/`); a demanda é apurada por mês e exige propriedade do Grupo A, e os cinco tipos podem ser agendados (mensal e demanda só com frequência mensal).
 
-**FNC008 — Configurações** `[planejado — sem fase]`
+**FNC008 — Configurações** `[implementado (estrutura, Cadastro, Relatórios e Metas)]`
 
 Menu à esquerda com as configurações disponíveis e, à direita, a página da configuração selecionada.
 
 - **Cadastro:** seções de cadastro e a estrutura hierárquica completa, com botões de edição e exclusão em cada componente. As três ações abrem janela modal; a exclusão exige confirmação.
 - **Relatórios:** gestão dos relatórios automáticos descritos em FNC007.
 - **Metas:** gestão das metas descritas em FNC011.
-- **Conta:** dados pessoais, troca de senha, exportação de dados (RF17), exclusão da conta e 2FA.
+- **Cálculos e tarifas:** catálogo tarifário editável com vigência, exclusivo do Grupo A `[planejado — sem fase]` (RF45).
 
-**FNC009 — Simulador IoT** `[planejado — sem fase]`
+> **Conta (dados pessoais, troca de senha, exportação de dados — RF17 —, exclusão da conta e 2FA) não é sub-página de Configurações:** no design vigente Perfil e Segurança são telas próprias, acessadas pelo menu do usuário junto com Configurações. O **Medidor** também não é cadastrado aqui — é cadastrado nas páginas de detalhe da Análise (FNC005).
 
-1. O simulador provê os protocolos MQTT e Modbus TCP/RTU. *(A viabilidade de um simulador Modbus embutido, em vez de integração com simulador externo, é decisão em aberto — ver `07-decisoes-em-aberto.md`.)*
-2. A interface permite ao administrador criar redes e adicionar dispositivos (nome, tópico MQTT, parâmetros iniciais), ligar/desligar cada dispositivo com indicação de "publicando há X segundos", injetar parâmetros (tensão, potência, fator de potência, ruído, perfil) e disparar anomalias.
-3. O acesso é restrito ao administrador da aplicação: o endereço não é público nem aparece em nenhum ponto da documentação.
+**FNC009 — Simulador IoT** `[implementado (item 2); planejado — Fase 31 (item 1)]`
 
-**FNC010 — Grandezas fornecidas pelo medidor** `[planejado — sem fase]`
+1. O simulador provê os protocolos MQTT `[implementado]` e Modbus TCP/RTU `[planejado — Fase 31]`. *(A viabilidade de um simulador Modbus embutido, em vez de integração com simulador externo, é decisão em aberto — ver `07-decisoes-em-aberto.md`; bloqueia a Fase 31.)*
+2. A interface permite ao administrador criar redes e adicionar dispositivos (nome, tópico MQTT, parâmetros iniciais), ligar/desligar cada dispositivo com indicação de "publicando há X segundos", injetar parâmetros (tensão, potência, fator de potência, ruído, perfil) e disparar anomalias. `[implementado]`
+3. O acesso é restrito ao administrador da aplicação: o endereço não é público nem aparece em nenhum ponto da documentação. `[implementado]`
+
+**FNC010 — Grandezas fornecidas pelo medidor** `[implementado]`
 
 O medidor envia ao sistema: tensão (por fase, fase-neutro média, desequilíbrio); corrente (por fase e de neutro); potência (ativa total, reativa, aparente, ativa por fase, frequência); fator de potência por fase; THD de tensão por fase; THD de corrente por fase.
 
-O sistema opera com qualquer medidor, inclusive os que não medem todas as grandezas — a ausência é exibida conforme RN34. *(Quais dessas grandezas um medidor real mede e quais ele calcula internamente é decisão em aberto — ver `07-decisoes-em-aberto.md`; a resposta define o que o `MeterReading` persiste.)*
+O sistema opera com qualquer medidor, inclusive os que não medem todas as grandezas — a ausência é exibida conforme RN34. *(ADR-0022, verificada contra o datasheet do CCK 7200D: todas as grandezas são medidas nativamente e persistidas como tal, exceto desequilíbrio de tensão — calculado no pipeline a partir das três tensões de fase medidas — e corrente de neutro, que o medidor-alvo não mede nem permite derivar com confiança e por isso fica sempre "-".)*
 
-**FNC011 — Metas** `[planejado — sem fase]`
+**FNC011 — Metas** `[implementado]`
 
 1. O usuário cadastra metas de consumo (kWh) e custo (R$); propriedades do Grupo A têm também meta de demanda.
 2. A tela mostra: card "Metas de consumo anual" com a meta vigente e botão de nova meta; seção com gráfico de barras de meta versus realizado, acompanhada dos cards Meta do ano, Realizado até o mês corrente, Desvio acumulado em % e Consumo específico alvo em kWh; e o histórico de metas em tabela (ano, meta, realizado, desvio, base de referência e situação).
-3. O histórico oferece as ações: usar como referência, editar (só a meta vigente) e excluir — conforme RN37.
+3. O histórico oferece as ações: usar como referência, editar e excluir (ano vigente e futuros) — conforme RN37.
 4. O formulário de nova meta pede: ano da meta, ano de referência, consumo específico alvo em kWh, meta mês a mês em kWh e o percentual de alerta ao atingir (RF43).
 
-**FNC012 — Sessões ativas** `[planejado — sem fase]`
+**Hoje:** `/configuracoes/metas` (`pages/settings/GoalsPage.tsx`) mostra, para a propriedade escolhida (a mesma seleção do Painel, ou a propriedade do aviso quando se chega pelo link dele, até o usuário escolher outra), o card da meta do ano corrente, o bloco "{ano} · meta vs. realizado" (gráfico de barras por mês e os cards Meta do ano, Realizado até o mês corrente, Desvio acumulado e a meta do mês) e o histórico (ano, meta, realizado, desvio, base de referência e situação), com criar, editar e excluir; backend em `modules/goal` (`/api/goals`, e `/api/goals/progress` para o acompanhamento). A meta é de uma propriedade, única por ano e unidade; a meta do ano é a soma dos 12 meses em kWh e em R$ e, em kW, a maior meta mensal; e o consumo específico alvo do formulário é só um atalho que repete o valor nos 12 campos, sem ser guardado. O ano da meta não muda na edição. O realizado vem da agregação mensal de leituras do medidor da propriedade; mês sem leitura aparece como "-", nunca como zero, e fica fora do desvio e da meta comparada. O desvio acumulado compara o realizado com a meta dos mesmos meses, com o mês corrente proporcional aos dias decorridos (o design comparava o consumo parcial com a meta cheia do mês). A situação é "Em andamento" no ano corrente e nos futuros; num ano passado, "Cumprida" se o realizado não passa da meta, "Não cumprida" se passa, e "-" se o ano não teve nenhuma leitura. Nas metas de anos passados, a ação "usar como referência" abre o formulário de nova meta já preenchido: o ano seguinte ao corrente (o primeiro ainda sem meta), o ano escolhido como referência e cada mês com o realizado daquele ano, arredondado a kWh inteiro — mês sem leitura fica vazio, nunca zero, e o consumo específico é a média dos meses com leitura. O alerta de meta (RF43) avisa quando o consumo do mês alcança o percentual da meta do mês, ou o acumulado do ano o da meta anual: o avaliador roda a cada 15 minutos, considera só as metas do ano corrente e grava, na própria meta, o último mês e o aviso anual já dados — editar a meta zera essas marcas. O aviso chega ao sino de notificações com link para Configurações → Metas; a página de Alertas ganhou o bloco "Alertas de meta", com o percentual atingido no mês e no ano e a situação de cada período (notificado, atingido ou dentro da meta). Cada meta é de uma **unidade** — consumo em kWh, custo em R$ ou, no Grupo A, demanda em kW —, e uma propriedade pode ter uma de cada no mesmo ano; a página tem o seletor de unidade (kWh | R$, e kW no Grupo A) e card, acompanhamento, histórico, formulário e referência valem para a unidade escolhida (valores em reais aparecem inteiros). O realizado em R$ vem do custo mensal que o cálculo de consumo já faz (grupo tarifário, bandeira, ACL, Tarifa Branca), sem recalcular tarifa; como esse custo já traz desde o dia 1 as cobranças fixas (iluminação pública, piso de disponibilidade, demanda contratada), o mês corrente em R$ conta contra a meta cheia do mês — e não proporcional aos dias, como em kWh —, no desvio e no alerta, e o custo fixo já incorrido conta para atingir o percentual; onde o custo não é calculável (sem medidor, Grupo A em modalidade sem apuração) o mês fica ausente ("-"), como no relatório mensal. O alerta avalia cada meta na sua unidade, com mensagens de consumo ou de custo. A **meta de demanda** (kW) existe só para propriedade do Grupo A — o servidor recusa as demais — e aparece como terceira aba do seletor de unidade. A demanda é um pico, e não um total que se soma: a meta de cada mês é um teto de kW; o realizado do mês é a demanda medida (maior potência média de 15 minutos entre os postos, lida do rollup de demanda), e mês sem janela medida fica ausente ("-"), nunca 0 kW. No ano, a "meta" é a maior meta mensal, o "realizado" é a maior demanda medida e o desvio é o do pior mês (sem proporcional ao mês corrente, já que o pico até agora é um piso do pico do mês); no ano passado, a meta é cumprida se nenhum mês passou do teto. O alerta é só mensal (pico do mês contra o teto do mês): pico não acumula, então não há aviso anual. É independente do alerta de ultrapassagem de demanda contratada (RF28), que segue como está.
+
+**FNC012 — Sessões ativas** `[implementado]`
 
 1. O usuário consulta em quais dispositivos sua conta está autenticada.
 2. Pode encerrar qualquer sessão individualmente, ou todas as outras de uma vez.
 3. Em modo de demonstração, a listagem é apenas representativa.
 
-**FNC013 — Alertas (ampliação)** `[planejado — Fase 20 / sem fase]`
+**Hoje:** a página Segurança (`/seguranca`, `components/security/SessionsSection.tsx`) lista as sessões da conta — web (refresh token vigente) e mobile (token vigente), uma por `sessionId` —, com o dispositivo reduzido (`Chrome · Windows`), o IP mascarado (`189.45.xx.xx`), o último acesso (a emissão do token vigente: o último refresh na web, o login no mobile) e o selo "Esta sessão"; sessão aberta antes do registro mostra "Origem não registrada". Cada sessão, menos a atual, tem "Encerrar", e "Encerrar todas as outras" fica no cabeçalho quando há outra sessão; as duas ações pedem confirmação e valem na hora: o refresh token e os JWTs de acesso da sessão são revogados (por `sessionId`), e o aparelho encerrado que tentar renovar recebe 401 sem derrubar as outras sessões, nem mesmo dentro da janela de graça do refresh, e a tentativa fica na auditoria (`REVOKED_TOKEN_USE`). A sessão atual não tem botão (como no desenho; o "Sair" do menu a encerra), mas o servidor aceita o id dela e a encerra como um logout, limpando os cookies. Sessão alheia, inexistente ou já encerrada responde 404; a conta de demonstração recebe 403 nas duas ações e, na listagem, uma lista fixa. Cada ação grava `SESSION_REVOKE` no log de auditoria, com o escopo e a contagem, sem token.
 
-1. Para verificação de ultrapassagem de demanda contratada, a demanda atual considerada é o agregado de 15 minutos (RN19) — `[planejado — Fase 20]`.
-2. O usuário pode configurar alerta de meta, que aparece na página de alertas junto dos demais — `[planejado — sem fase]`.
+**FNC013 — Alertas (ampliação)** `[implementado]`
+
+1. Para verificação de ultrapassagem de demanda contratada, a demanda atual considerada é o agregado de 15 minutos (RN19) — `[implementado]` (`DemandAlertScheduler`, sobre `MeterDemandRollup`).
+2. O usuário pode configurar alerta de meta, que aparece na página de alertas junto dos demais — `[implementado]` (bloco "Alertas de meta" em `GoalAlertsSection`).

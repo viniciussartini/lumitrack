@@ -6,6 +6,11 @@ import type {
     ConsumptionSummaryParams,
     ListConsumptionParams,
 } from "@/types/consumption.types"
+import type { AclComparisonParams, AclComparisonResponse } from "@/types/acl-comparison.types"
+import type {
+    BrancaComparisonParams,
+    BrancaComparisonResponse,
+} from "@/types/branca-comparison.types"
 import type { Paginated } from "@/types/pagination.types"
 
 interface ApiEnvelope<T> {
@@ -61,6 +66,49 @@ export const consumptionService = {
                     ids: ids.join(","),
                     from: from?.toISOString(),
                     to: to?.toISOString(),
+                },
+            },
+        )
+        return data.data
+    },
+
+    // Comparação ACR × ACL — recalcula o mesmo consumo real medido nos dois
+    // cenários. `from`/`to` viajam como data de calendário (00:00 local),
+    // não ISO com hora — mesma convenção de `AclContract.validFrom/validTo`
+    // no backend, que trunca para o primeiro dia do mês em vez de tratar
+    // como instante UTC.
+    compareAclToAcr: async ({
+        propertyId,
+        from,
+        to,
+    }: AclComparisonParams): Promise<AclComparisonResponse> => {
+        const { data } = await api.get<ApiEnvelope<AclComparisonResponse>>(
+            "/consumption/acl-comparison",
+            {
+                params: {
+                    propertyId,
+                    from: from.toISOString().slice(0, 10),
+                    to: to.toISOString().slice(0, 10),
+                },
+            },
+        )
+        return data.data
+    },
+
+    // Comparação Convencional × Branca — mesma convenção de data de
+    // calendário do compareAclToAcr acima.
+    compareBrancaToConvencional: async ({
+        propertyId,
+        from,
+        to,
+    }: BrancaComparisonParams): Promise<BrancaComparisonResponse> => {
+        const { data } = await api.get<ApiEnvelope<BrancaComparisonResponse>>(
+            "/consumption/branca-comparison",
+            {
+                params: {
+                    propertyId,
+                    from: from.toISOString().slice(0, 10),
+                    to: to.toISOString().slice(0, 10),
                 },
             },
         )

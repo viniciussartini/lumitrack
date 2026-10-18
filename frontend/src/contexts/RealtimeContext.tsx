@@ -70,10 +70,29 @@ const buildStreamHandlers = ({
     },
 
     onNotification: (notification: Notification) => {
-        queryClient.setQueryData<Notification[]>(queryKeys.notifications.list(), (old = []) => [
-            notification,
-            ...old,
-        ])
+        const listKey = queryKeys.notifications.list()
+
+        // Uma busca da lista em andamento começou antes deste evento e traz a
+        // lista sem ele: se terminasse depois da escrita abaixo, sobrescreveria
+        // o cache e a notificação sumiria do sino enquanto o toast ainda está
+        // na tela. Cancelar a busca antes de escrever evita isso.
+        const hadFetchInFlight = queryClient.isFetching({ queryKey: listKey }) > 0
+
+        void queryClient.cancelQueries({ queryKey: listKey }).then(() => {
+            queryClient.setQueryData<Notification[]>(listKey, (old = []) => [notification, ...old])
+
+            // Cancelar devolve a query ao estado anterior à busca — numa
+            // hidratação inicial, sem dado algum —, então a escrita acima deixa
+            // só a notificação nova e as antigas sumiriam do sino pela sessão
+            // inteira (a lista não é refeita ao focar a janela nem o sino
+            // remonta). O servidor guarda a notificação antes de emitir o
+            // evento, então uma busca iniciada agora já devolve a lista
+            // completa. Sem busca em andamento a escrita direta basta e não
+            // gasta uma requisição.
+            if (hadFetchInFlight) {
+                void queryClient.invalidateQueries({ queryKey: listKey })
+            }
+        })
 
         toast.warning(notification.message, {
             duration: 10_000,
@@ -105,7 +124,10 @@ const buildStreamHandlers = ({
  *   - `alert-firing` → invalida `alerts.firing`/`alerts.all` (o REST já
  *     resolve status/target; SSE só avisa "algo mudou, refaça a query").
  *   - `notification` → escreve direto no cache de `notifications.list`
- *     (evita esperar um refetch) e dispara toast com ação de navegação.
+ *     (evita esperar um refetch) e dispara toast com ação de navegação. Se
+ *     havia uma busca da lista em andamento, cancela-a antes de escrever
+ *     (a resposta antiga apagaria a escrita) e refaz a busca depois, para
+ *     recuperar as notificações que o cancelamento descartou.
  *
  * `isConnected` reflete o estado real do transporte, não um evento
  * específico: fica `true` quando `onOpen` dispara (handshake SSE

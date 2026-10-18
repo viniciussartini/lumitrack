@@ -95,7 +95,7 @@ psql 'postgresql://lumitrack_app:<LUMITRACK_APP_PASSWORD>@<mesmo-host-do-neon>/<
 
 ### 3. Aplicar as migrações e semear — da sua máquina
 
-O Neon é acessível pela internet, então migração e seed rodam localmente apontando para ele. Não há release hook a configurar no Render. **Sempre com a connection string administrativa do passo 1** — o papel `lumitrack_app` não tem `CREATE`, migração falharia com ele.
+O Neon é acessível pela internet, então migração e seed rodam localmente apontando para ele. Não há release hook a configurar no Render — por isso este passo se repete a cada merge em `staging` que traga migração nova (ver [Atualizar o staging depois de um merge](#atualizar-o-staging-depois-de-um-merge)). **Sempre com a connection string administrativa do passo 1** — o papel `lumitrack_app` não tem `CREATE`, migração falharia com ele.
 
 ```bash
 cd backend
@@ -135,6 +135,45 @@ Blueprints do Render não interpolam URL de serviço em destino de rota, então 
 ### 6. Verificar
 
 Abra a URL do site estático. Ver a seção "Verificação ponta a ponta", abaixo.
+
+## Atualizar o staging depois de um merge
+
+O Render redeploya sozinho a cada push em `staging`, mas **não aplica migração**: o `render.yaml` não tem `preDeployCommand` (release hook exige plano pago) e o container só sobe os processos. Uma migração nova em `staging` continua sendo um passo manual, da sua máquina, igual ao passo 3.
+
+**Quando.** Sempre que o merge trouxer migração nova. Duas formas de saber:
+
+```bash
+# o que mudou desde o último deploy (o commit dele aparece em Events, no painel do Render)
+git diff --stat <commit-do-deploy-anterior>..staging -- backend/prisma/migrations
+
+# o que o banco ainda não tem — pergunta ao próprio Neon
+cd backend
+DATABASE_URL='<connection-string-administrativa-do-neon>' npx prisma migrate status
+```
+
+**Como.** A partir de `backend/`, com a connection string **administrativa** do passo 1 (o papel `lumitrack_app` não tem `CREATE`):
+
+```bash
+cd backend
+DATABASE_URL='<connection-string-administrativa-do-neon>' npm run db:migrate:deploy
+DATABASE_URL='<connection-string-administrativa-do-neon>' npm run db:seed   # só se o catálogo de distribuidoras/tarifas mudou
+```
+
+O `db:seed` é idempotente (usa `upsert`), então repetir não duplica nada. O `db:seed:demo` não faz parte da atualização: a topologia da demo é recriada a cada despertar do serviço.
+
+**Ordem.** Aplique a migração **antes** de mesclar em `staging`, ou antes de o redeploy terminar. Uma migração aditiva (coluna, tabela, índice) mantém o código antigo funcionando, então migrar primeiro é seguro; o contrário não é: código novo contra um banco sem a migração falha em toda consulta que usa a estrutura nova. Migração destrutiva (remove ou renomeia coluna) inverte a ordem — só depois de o código novo estar no ar.
+
+**Como reconhecer a falta.** Nos logs do Render, `PrismaClientKnownRequestError` com código `P2022` e a mensagem `The column ... does not exist in the current database` (ou `P2021`, `The table ... does not exist`). O primeiro sinal para o usuário costuma ser o login de demonstração devolvendo 500. Se o serviço já caiu (container encerrado), aplique a migração e faça um **Manual Deploy**.
+
+**Armadilhas ao aplicar (já custaram um incidente: o login de demonstração do staging ficou em 500 por horas).**
+
+- **Aspas simples em volta da URL, sempre.** A connection string do Neon traz `&` (`?sslmode=require&channel_binding=require`). Sem aspas, o shell corta a URL no `&`, manda o comando para segundo plano e o `prisma` roda **sem** a variável, caindo no `DATABASE_URL` do `backend/.env` (o banco local). O sintoma é uma saída que parece normal ("Database schema is up to date!") e dois sinais que denunciam: o `[1] 12345` do job em segundo plano e o `Datasource ... at "localhost:5432"`. Para ficar a salvo, exporte uma vez e limpe depois: `export DATABASE_URL='postgresql://...'` ... `unset DATABASE_URL`.
+- **Confira o alvo antes de aplicar.** Rode `npx prisma migrate status` e leia a linha `Datasource "db": PostgreSQL database "<banco>" ... at "<host>"`: tem de ser o banco e o host do `DATABASE_URL` do serviço no Render (painel → Environment). Só aplique depois disso.
+- **Host direto, sem `-pooler`, para migração.** O Prisma usa travas (advisory locks) que o pgbouncer do pooler do Neon pode quebrar; se o `migrate deploy` travar ou der `P1002`, troque `ep-xxxx-pooler.` por `ep-xxxx.` e repita. O runtime do backend segue no pooler.
+- **Depois, confirme.** `migrate status` deve dizer "Database schema is up to date!" e o login de demonstração deve funcionar sem novo deploy. Se não funcionar, consulte `select migration_name, finished_at from _prisma_migrations order by finished_at desc limit 3;` no SQL Editor **do banco que o Render usa**: uma migração que falhou no meio fica sem `finished_at` e aparece primeiro.
+- **A senha da connection string administrativa não vai para chat, issue nem log.** Se vazar, troque no Neon (Roles → Reset password).
+
+**Permissões das tabelas novas.** Não reexecute o `create-app-role.sql`: ele configura `ALTER DEFAULT PRIVILEGES`, então toda tabela e sequência criada depois pela migração já nasce com as permissões de DML do `lumitrack_app`. Isso vale enquanto a migração rodar com o mesmo papel administrativo que executou o script no passo 2 — default privileges são por papel criador.
 
 ## Checklist de variáveis — Caminho A
 
@@ -452,6 +491,8 @@ Essa mensagem de erro é o resultado *correto* — confirma que o usuário de ru
 
 **Nota para migrações futuras contra o banco já em produção (não se aplica ao primeiro deploy, com o banco vazio):** o Prisma Migrate usa `CREATE INDEX` simples, não `CREATE INDEX CONCURRENTLY` — a criação toma lock `SHARE` na tabela, bloqueando escrita por alguns instantes. Em tabelas pequenas isso é imperceptível; numa tabela grande com ingestão contínua (`meter_readings`, alimentada pelo `MinuteRollupScheduler` a cada minuto), planeje a janela: o flush que cair durante a criação do índice falha, mas é reprocessado automaticamente no próximo minuto (`MinuteRollupScheduler` devolve o balde ao buffer em caso de erro) — sem perda de dado, só um erro pontual no log.
 
+**Migrações sobre `meter_readings` ou sobre as tabelas de token:** o `ALTER TABLE` pede lock exclusivo e, sem `lock_timeout`, espera atrás de qualquer consulta longa em curso (o expurgo de retenção chega a 120 s), e a ingestão inteira fica na fila atrás dele. Abra o arquivo da migração com `SET lock_timeout = '5s';` e, se der timeout, repita a aplicação fora de um expurgo. Adicionar coluna anulável sem default só altera o catálogo; um default volátil (como `gen_random_uuid()`) reescreve a tabela inteira sob o mesmo lock.
+
 **7.2 — Buildar o frontend.**
 
 O frontend é um site estático (HTML/CSS/JS puro depois de compilado) — não roda como container próprio, o Caddy só serve os arquivos direto de uma pasta (`frontend/dist`). Como a VPS não tem Node.js instalado no sistema (só dentro dos containers), o build roda dentro de um container Node **descartável**, criado só para essa tarefa:
@@ -682,8 +723,14 @@ sudo systemctl enable --now lumitrack-backup.timer
 **Restauração testada (obrigatória ao menos uma vez — um backup nunca restaurado não é um backup — registrar em `deploy/BACKUP-RESTORE-LOG.md` a cada execução, nunca apagar entradas antigas). Roda inteira na SUA máquina, nunca na VM — a chave privada não pode chegar perto do host que ela protege:**
 
 ```bash
-# 1. Trazer o dump cifrado da VM para a sua máquina (só o .age — nada de chave)
-scp usuario@<ip-da-vm>:/opt/lumitrack/backups/lumitrack-<timestamp>.sql.gz.age .
+# 1. Trazer o dump cifrado da VM para a sua máquina (só o .age — nada de chave).
+#    A pasta de backups é 700 e os arquivos 600, do usuário de serviço (o
+#    script garante isso a cada execução): o
+#    usuário administrativo copia com sudo para uma área temporária própria,
+#    baixa e apaga a cópia.
+ssh -t <usuario>@<ip-da-vm> 'sudo install -m 600 -o "$USER" /opt/lumitrack/backups/lumitrack-<timestamp>.sql.gz.age /tmp/'
+scp <usuario>@<ip-da-vm>:/tmp/lumitrack-<timestamp>.sql.gz.age .
+ssh <usuario>@<ip-da-vm> 'rm /tmp/lumitrack-<timestamp>.sql.gz.age'
 
 # 2. Banco descartável, isolado do de produção — na sua máquina
 docker run --rm -d --name lumitrack-restore-test \
@@ -702,7 +749,19 @@ docker rm -f lumitrack-restore-test
 rm lumitrack-<timestamp>.sql.gz.age
 ```
 
+## Atualizar a produção depois de uma promoção
+
+Vale para o Caminho B, a cada merge de `staging` em `main` (o equivalente do Caminho A é "Atualizar o staging depois de um merge").
+
+1. **Mescle o PR de promoção com "Create a merge commit"**, nunca com squash: o squash recria a divergência entre `main` e `staging` na promoção seguinte. Se algum hotfix entrou direto em `main`, faça o back-merge de `main` em `staging` antes de promover.
+2. **Backup e migrações antes do código (opcional, mas recomendado quando o lote tem muitas migrações).** `sudo -u lumitrack ./deploy/backup-postgres.sh`, depois aplique as migrações pendentes com o usuário administrativo do banco (a mesma chamada do passo 7.1). Migração aditiva convive com o backend antigo; o `update-production.sh` repete a aplicação como no-op.
+3. **Rode o script de atualização**, como o usuário de serviço: `sudo -u lumitrack ./deploy/update-production.sh`. Ele exige a branch `main` e um fast-forward, reconstrói o que mudou, recria o Caddy quando o `Caddyfile` ou o frontend mudam (garantindo a leitura dos arquivos pelo Caddy) e recria os medidores do simulador sempre que o contêiner dele é recriado.
+4. **Catálogos novos não chegam sozinhos.** O script **não** roda o seed. Se a promoção trouxe tabelas de catálogo (tarifas do Grupo A e da Tarifa Branca, PLD, janela de ponta das distribuidoras), rode uma vez: `docker compose --env-file deploy/.env exec --user root backend npm run db:seed`. É idempotente (`upsert`), **mas regrava a bandeira tarifária vigente como verde**; confira a bandeira depois, ou aguarde o ciclo seguinte da sincronização com a ANEEL. Sem o catálogo, as contas do Grupo A, da Tarifa Branca e a comparação ACR × ACL falham fechado.
+5. **Verifique:** `docker compose --env-file deploy/.env ps` com tudo saudável, `/health` em 200, login de demonstração, uma leitura recente no Painel e `docker compose logs backend --tail 15 | grep Conectado` com as 11 linhas dos medidores.
+
 ## Rollback
+
+Depois de uma promoção que traz o código novo, **o caminho de volta é corrigir para frente**. Os valores novos de `audit_action` (`REPORT_GENERATE`, `SESSION_REVOKE`, `REVOKED_TOKEN_USE`) e as propriedades do Grupo A com `billingClass` nulo não são lidos pelo backend antigo, então voltar só a aplicação deixa de ser seguro assim que o código novo grava. Reverter a aplicação vale apenas antes de qualquer gravação nova.
 
 `prisma migrate deploy` é **forward-only** — não existe `migrate down` automático. Reverter código sem reverter uma migração aplicada é seguro só se a migração for aditiva (nova coluna/tabela); reverter uma migração destrutiva exige uma migração de correção nova, não um `git checkout` do schema antigo.
 

@@ -2,6 +2,11 @@ import {
     PrismaClient,
     type ElectricalSystemType,
     type BillingClass,
+    type GroupBModality,
+    type TariffGroup,
+    type TariffSubgroup,
+    type TariffModality,
+    type ContractingEnvironment,
 } from "@/generated/prisma/client.js"
 import type {
     CreatePropertyInput,
@@ -18,6 +23,49 @@ type PrismaProperty = NonNullable<Awaited<ReturnType<PrismaClient["property"]["f
 // repository, mesmo padrão usado por Distributor/TariffFlagConfig.
 export type PropertyResponse = Omit<PrismaProperty, "publicLightingFeeBrl"> & {
     publicLightingFeeBrl: number | null
+}
+
+/**
+ * Imóvel sem os quatro campos de endereço (cifrados em repouso): o que o
+ * chamador que só precisa de posse, tarifa e demanda recebe, sem ler nem
+ * decifrar dado pessoal. Um `PropertyResponse` completo também serve.
+ */
+export type PropertyWithoutAddress = Omit<
+    PropertyResponse,
+    "address" | "city" | "state" | "zipCode"
+>
+
+/** Argumento `omit` do Prisma que deixa os quatro campos de endereço fora da leitura. */
+export const PROPERTY_WITHOUT_ADDRESS = {
+    omit: { address: true, city: true, state: true, zipCode: true },
+} as const
+
+/**
+ * Converte o imóvel lido com {@link PROPERTY_WITHOUT_ADDRESS}: só o `Decimal`
+ * da CIP vira number, sem decifrar nada porque o endereço nem foi lido.
+ *
+ * @param raw - Imóvel como vem do Prisma, sem os campos de endereço.
+ * @returns O imóvel no formato de {@link PropertyWithoutAddress}.
+ */
+export function toPropertyWithoutAddress(
+    raw: Omit<PrismaProperty, "address" | "city" | "state" | "zipCode">,
+): PropertyWithoutAddress {
+    return { ...raw, publicLightingFeeBrl: raw.publicLightingFeeBrl?.toNumber() ?? null }
+}
+
+// Campos de grupo tarifário já resolvidos e validados pelo PropertyService
+// (regra cruzada de grupo tarifário, ADR-0019) — `null` explícito, nunca `undefined`,
+// porque para GROUP_A/GROUP_B o valor de cada campo é sempre determinado
+// (aplicável com valor, ou inaplicável e limpo).
+export type ResolvedTariffGroupFields = {
+    billingClass: BillingClass | null
+    groupBModality: GroupBModality | null
+    receivesBillingDiscount: boolean | null
+    tariffSubgroup: TariffSubgroup | null
+    tariffModality: TariffModality | null
+    contractedDemandKw: number | null
+    contractedDemandPeakKw: number | null
+    contractedDemandOffPeakKw: number | null
 }
 
 /**
@@ -61,6 +109,24 @@ export class PropertyRepository {
     }
 
     /**
+     * Busca vários imóveis de uma vez, só os que pertencem ao usuário — a
+     * posse é filtrada na própria query, então id inexistente e id de outro
+     * usuário são indistinguíveis (ambos ficam de fora).
+     *
+     * @param ids - Ids dos imóveis.
+     * @param userId - Id do usuário dono.
+     * @returns Os imóveis do usuário entre os ids pedidos, sem os campos de endereço.
+     */
+    async findManyOwnedByIds(ids: string[], userId: string): Promise<PropertyWithoutAddress[]> {
+        if (ids.length === 0) return []
+        const properties = await this.prisma.property.findMany({
+            where: { id: { in: ids }, userId },
+            ...PROPERTY_WITHOUT_ADDRESS,
+        })
+        return properties.map(toPropertyWithoutAddress)
+    }
+
+    /**
      * Lista todos os imóveis de um usuário, sem paginação.
      *
      * @param userId - Id do usuário dono dos imóveis.
@@ -72,6 +138,31 @@ export class PropertyRepository {
             orderBy: { name: "asc" },
         })
         return properties.map(toPropertyResponse)
+    }
+
+    /**
+     * Raízes da árvore de cadastro: só id, nome e grupo tarifário dos imóveis
+     * do usuário, sem ler nem decifrar o endereço — a árvore não precisa de
+     * dado pessoal.
+     *
+     * @param userId - Id do usuário dono dos imóveis.
+     * @param limit - Teto de imóveis devolvidos.
+     * @returns Os primeiros `limit` imóveis por nome e o total real do usuário.
+     */
+    async findTreeRootsByUser(
+        userId: string,
+        limit: number,
+    ): Promise<{ items: { id: string; name: string; tariffGroup: TariffGroup }[]; total: number }> {
+        const [items, total] = await Promise.all([
+            this.prisma.property.findMany({
+                where: { userId },
+                select: { id: true, name: true, tariffGroup: true },
+                orderBy: { name: "asc" },
+                take: limit,
+            }),
+            this.prisma.property.count({ where: { userId } }),
+        ])
+        return { items, total }
     }
 
     /**
@@ -90,7 +181,7 @@ export class PropertyRepository {
         const [properties, total] = await Promise.all([
             this.prisma.property.findMany({
                 where: { userId },
-                orderBy: { name: "asc" },
+                orderBy: [{ name: "asc" }, { id: "asc" }],
                 skip,
                 take,
             }),
@@ -110,9 +201,14 @@ export class PropertyRepository {
      *
      * @param userId - Id do usuário dono do imóvel.
      * @param data - Dados do imóvel a criar, já validados.
+     * @param tariffGroupFields - Classe/modalidade/subgrupo já resolvidos e validados pelo PropertyService (ADR-0019).
      * @returns O imóvel criado, decifrado.
      */
-    async create(userId: string, data: CreatePropertyInput): Promise<PropertyResponse> {
+    async create(
+        userId: string,
+        data: CreatePropertyInput,
+        tariffGroupFields: ResolvedTariffGroupFields,
+    ): Promise<PropertyResponse> {
         const property = await this.prisma.property.create({
             data: {
                 userId,
@@ -123,8 +219,17 @@ export class PropertyRepository {
                 state: data.state ? encryptAddress(data.state) : null,
                 zipCode: data.zipCode ? encryptAddress(data.zipCode) : null,
                 electricalSystem: data.electricalSystem as ElectricalSystemType,
-                billingClass: data.billingClass as BillingClass,
+                tariffGroup: data.tariffGroup as TariffGroup,
+                billingClass: tariffGroupFields.billingClass,
+                groupBModality: tariffGroupFields.groupBModality,
+                receivesBillingDiscount: tariffGroupFields.receivesBillingDiscount,
+                tariffSubgroup: tariffGroupFields.tariffSubgroup,
+                tariffModality: tariffGroupFields.tariffModality,
+                contractedDemandKw: tariffGroupFields.contractedDemandKw,
+                contractedDemandPeakKw: tariffGroupFields.contractedDemandPeakKw,
+                contractedDemandOffPeakKw: tariffGroupFields.contractedDemandOffPeakKw,
                 publicLightingFeeBrl: data.publicLightingFeeBrl ?? null,
+                contractingEnvironment: data.contractingEnvironment as ContractingEnvironment,
             },
         })
         return toPropertyResponse(property)
@@ -136,9 +241,14 @@ export class PropertyRepository {
      *
      * @param id - Id do imóvel a atualizar.
      * @param data - Campos a atualizar, já validados.
+     * @param tariffGroupFields - Classe/modalidade/subgrupo já resolvidos e validados pelo PropertyService (ADR-0019), só quando a requisição toca algum desses campos — omitido, ficam como estavam.
      * @returns O imóvel atualizado, decifrado.
      */
-    async update(id: string, data: UpdatePropertyInput): Promise<PropertyResponse> {
+    async update(
+        id: string,
+        data: UpdatePropertyInput,
+        tariffGroupFields?: ResolvedTariffGroupFields,
+    ): Promise<PropertyResponse> {
         // Spread condicional requerido por exactOptionalPropertyTypes: true —
         // evita sobrescrever campos existentes com undefined.
         const encryptedFields = {
@@ -164,7 +274,22 @@ export class PropertyRepository {
 
         const property = await this.prisma.property.update({
             where: { id },
-            data: { ...nonAddressFields, ...encryptedFields },
+            data: {
+                ...nonAddressFields,
+                ...encryptedFields,
+                // Sobrescreve o que veio de nonAddressFields para os 3 campos:
+                // o valor já resolvido/validado pelo service é sempre o que vale.
+                ...(tariffGroupFields && {
+                    billingClass: tariffGroupFields.billingClass,
+                    groupBModality: tariffGroupFields.groupBModality,
+                    receivesBillingDiscount: tariffGroupFields.receivesBillingDiscount,
+                    tariffSubgroup: tariffGroupFields.tariffSubgroup,
+                    tariffModality: tariffGroupFields.tariffModality,
+                    contractedDemandKw: tariffGroupFields.contractedDemandKw,
+                    contractedDemandPeakKw: tariffGroupFields.contractedDemandPeakKw,
+                    contractedDemandOffPeakKw: tariffGroupFields.contractedDemandOffPeakKw,
+                }),
+            },
         })
         return toPropertyResponse(property)
     }

@@ -5,8 +5,13 @@ import { prisma, getPoolStats } from "@/shared/database/prisma.js"
 import { IoTConnectionManager } from "@/modules/iot/iot-worker/IoTConnectionManager.js"
 import { IoTDataProcessor } from "@/modules/iot/iot-worker/IoTDataProcessor.js"
 import { MinuteRollupScheduler } from "@/modules/iot/iot-worker/MinuteRollupScheduler.js"
+import { DemandRollupScheduler } from "@/modules/iot/iot-worker/DemandRollupScheduler.js"
+import { DemandAlertScheduler } from "@/modules/iot/iot-worker/DemandAlertScheduler.js"
+import { DemandAlertRepository } from "@/modules/demand-alert/demand-alert.repository.js"
 import { MeterReadingRepository } from "@/modules/meter/meter-reading.repository.js"
 import { MeterRepository } from "@/modules/meter/meter.repository.js"
+import { MeterDemandRollupRepository } from "@/modules/meter/meter-demand-rollup.repository.js"
+import { DistributorRepository } from "@/modules/distributor/distributor.repository.js"
 import { AlertRepository } from "@/modules/alert/alert.repository.js"
 import { AlertTriggerEventRepository } from "@/modules/alert/alert-trigger-event.repository.js"
 import { AlertEvaluator } from "@/modules/alert/alert-evaluator.js"
@@ -14,6 +19,18 @@ import { UserEventHub } from "@/shared/sse/user-event-hub.js"
 import { NotificationStore } from "@/shared/notifications/notification-store.js"
 import { AuthRepository } from "@/modules/auth/auth.repository.js"
 import { AuditRepository } from "@/shared/audit/audit.repository.js"
+import { ReportRepository } from "@/modules/report/report.repository.js"
+import { createReportService } from "@/modules/report/report.routes.js"
+import { ConsumptionRepository } from "@/modules/consumption/consumption.repository.js"
+import { createConsumptionService } from "@/modules/consumption/consumption.routes.js"
+import { GoalAlertScheduler } from "@/modules/goal/GoalAlertScheduler.js"
+import { GoalConsumptionReader } from "@/modules/goal/goal-consumption.js"
+import { GoalRepository } from "@/modules/goal/goal.repository.js"
+import { ReportScheduleRepository } from "@/modules/report-schedule/report-schedule.repository.js"
+import { ReportScheduleRunner } from "@/modules/report-schedule/ReportScheduleRunner.js"
+import { ReportScheduleScheduler } from "@/modules/report-schedule/ReportScheduleScheduler.js"
+import { sendScheduledReportEmail } from "@/modules/auth/email.service.js"
+import { AuditService } from "@/shared/audit/audit.service.js"
 import { RetentionService } from "@/shared/retention/retention.service.js"
 import { RetentionPurgeScheduler } from "@/shared/retention/RetentionPurgeScheduler.js"
 import { TariffFlagRepository } from "@/modules/tariff-flag/tariff-flag.repository.js"
@@ -66,10 +83,54 @@ const scheduler = new MinuteRollupScheduler(
     getPoolStats,
 )
 
+// Rollup incremental de demanda medida do Grupo A — scheduler IRMÃO
+// do MinuteRollupScheduler, não uma extensão dele: precisa resolver
+// medidor→propriedade→distribuidora (janela de ponta), responsabilidade que
+// o comentário de MinuteRollupScheduler declara propositalmente fora dele.
+const meterDemandRollupRepository = new MeterDemandRollupRepository(prisma)
+
+const demandRollupScheduler = new DemandRollupScheduler(
+    new MeterReadingRepository(prisma),
+    meterRepository,
+    new DistributorRepository(prisma),
+    meterDemandRollupRepository,
+)
+
+// Alerta de ultrapassagem de demanda contratada (Grupo A) — scheduler
+// IRMÃO do DemandRollupScheduler, rodando com uma folga maior para sempre ler
+// o rollup do minuto já atualizado. Sem motor de episódio: MeterDemandRollup
+// é um agregado que só cresce dentro do ciclo de faturamento, então
+// idempotência por lastNotifiedPeriodStart basta (ver DemandAlertScheduler).
+const demandAlertScheduler = new DemandAlertScheduler(
+    new DemandAlertRepository(prisma),
+    meterRepository,
+    meterDemandRollupRepository,
+    { meterRepository },
+    userEventHub,
+    notificationStore,
+)
+
+// Alerta de meta: a cada 15 minutos avisa quando o consumo do mês ou do ano
+// alcança o percentual configurado da meta.
+const goalAlertScheduler = new GoalAlertScheduler(
+    new GoalRepository(prisma),
+    new GoalConsumptionReader(
+        meterRepository,
+        new ConsumptionRepository(prisma),
+        createConsumptionService(prisma),
+        new MeterDemandRollupRepository(prisma),
+    ),
+    userEventHub,
+    notificationStore,
+)
+
 // Registra o processor no manager ANTES de restaurar as conexões,
 // garantindo que nenhuma leitura seja perdida durante o boot.
 processor.start()
 scheduler.start()
+demandRollupScheduler.start()
+demandAlertScheduler.start()
+goalAlertScheduler.start()
 
 // Registra o AlertEvaluator como mais um listener de amostras processadas —
 // cada leitura elétrica recebida é avaliada contra os alertas habilitados
@@ -88,6 +149,7 @@ const retentionService = new RetentionService(
     new MeterReadingRepository(prisma),
     new AlertTriggerEventRepository(prisma),
     new TariffFlagHistoryRepository(prisma),
+    new ReportRepository(prisma),
     {
         authToken: env.DATA_RETENTION_AUTH_TOKEN_DAYS,
         passwordReset: env.DATA_RETENTION_PASSWORD_RESET_DAYS,
@@ -97,6 +159,7 @@ const retentionService = new RetentionService(
         alertTriggerEvent: env.DATA_RETENTION_ALERT_TRIGGER_EVENT_DAYS,
         mfaBackupCode: env.DATA_RETENTION_MFA_BACKUP_CODE_DAYS,
         tariffFlagHistory: env.DATA_RETENTION_TARIFF_FLAG_HISTORY_DAYS,
+        report: env.DATA_RETENTION_REPORT_DAYS,
     },
 )
 const retentionScheduler = new RetentionPurgeScheduler(retentionService)
@@ -113,6 +176,20 @@ const tariffFlagSyncService = new TariffFlagSyncService(
 )
 const tariffFlagSyncScheduler = new TariffFlagSyncScheduler(tariffFlagSyncService)
 tariffFlagSyncScheduler.start()
+
+// Envio automático dos relatórios agendados (ADR-0024): roda no boot, o que
+// recupera o que venceu com o servidor fora do ar, e a cada 15 minutos. Falha
+// de SMTP ou de banco nunca derruba o processo — a execução fica vencida e é
+// retomada na passada seguinte.
+const reportScheduleScheduler = new ReportScheduleScheduler(
+    new ReportScheduleRunner(
+        new ReportScheduleRepository(prisma),
+        createReportService(prisma),
+        sendScheduledReportEmail,
+        new AuditService(new AuditRepository(prisma)),
+    ),
+)
+reportScheduleScheduler.start()
 
 /**
  * Criação do app
@@ -214,8 +291,12 @@ async function shutdown(signal: string): Promise<void> {
 
     // Para o scheduler — evita que um flush parcial aconteça durante o shutdown.
     scheduler.stop()
+    demandRollupScheduler.stop()
+    demandAlertScheduler.stop()
+    goalAlertScheduler.stop()
     retentionScheduler.stop()
     tariffFlagSyncScheduler.stop()
+    reportScheduleScheduler.stop()
 
     // Flush final: persiste qualquer balde pendente no buffer antes de sair,
     // incluindo o minuto em curso (flushAll, não flush).

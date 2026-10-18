@@ -1,5 +1,5 @@
 /**
- * Dispara o download de um conteúdo em texto como arquivo.
+ * Dispara o download de um conteúdo (texto ou binário) como arquivo.
  *
  * Encapsulamento intencional:
  *   Toda a manipulação de Blob + URL.createObjectURL + <a> + click +
@@ -21,7 +21,7 @@
  *   blob URL é revogado no mesmo tick do click. setTimeout 0 espera
  *   o navegador iniciar o download antes de liberar o URL.
  */
-export const downloadFile = (filename: string, mimeType: string, content: string): void => {
+export const downloadFile = (filename: string, mimeType: string, content: BlobPart): void => {
     const blob = new Blob([content], { type: mimeType })
     const url = URL.createObjectURL(blob)
 

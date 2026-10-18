@@ -2,6 +2,7 @@ import js from "@eslint/js"
 import globals from "globals"
 import tseslint from "typescript-eslint"
 import jsdoc from "eslint-plugin-jsdoc"
+import noCommentReqRefs from "./eslint-rules/no-comment-req-refs.js"
 
 export default tseslint.config(
     { ignores: ["dist", "src/generated/prisma", "coverage"] },
@@ -38,6 +39,7 @@ export default tseslint.config(
                 tsconfigRootDir: import.meta.dirname,
             },
         },
+        plugins: { local: noCommentReqRefs },
         rules: {
             // Convenção já usada no projeto: prefixo `_` sinaliza "intencionalmente
             // não usado" (ex.: `_next` em assinaturas de error handler do Express,
@@ -62,6 +64,8 @@ export default tseslint.config(
             ],
             "@typescript-eslint/no-floating-promises": "error",
             "@typescript-eslint/no-misused-promises": "error",
+            // RF/RN/RNF/FNC seguido de número — ver eslint-rules/no-comment-req-refs.js.
+            "local/no-comment-req-refs": "error",
             // Mecaniza a proibição de comentário de rastreabilidade
             // (06-code-quality-standards.md) — issue/PR/laudo/achado de
             // revisão pertencem ao git, aos ADRs, ao CHANGELOG e às issues,
@@ -112,24 +116,6 @@ export default tseslint.config(
             "max-lines-per-function": [
                 "error",
                 { max: 110, skipBlankLines: true, skipComments: true },
-            ],
-        },
-    },
-    {
-        // `summary()` (82 linhas) — `list()` saiu desta exceção depois de
-        // `computeYearlyPropertyCosts`/`resolveBucketCost` serem extraídos
-        // pra métodos próprios, agora dentro do teto global sem override.
-        // `summary()` não foi tocado por aquela extração — já tem seu
-        // próprio equivalente em `calculateYearlyPropertyCost`, um método à
-        // parte — e seu tamanho vem de orquestrar autorização em lote
-        // (resolver posse de cada id, montar os mapas de medidor/bucket),
-        // não de lógica de custo repetida. Teto acima do valor medido;
-        // revisitar se o arquivo crescer.
-        files: ["src/modules/consumption/consumption.service.ts"],
-        rules: {
-            "max-lines-per-function": [
-                "error",
-                { max: 90, skipBlankLines: true, skipComments: true },
             ],
         },
     },
@@ -186,7 +172,11 @@ export default tseslint.config(
             "src/modules/*/*.service.ts",
             "src/modules/*/*.repository.ts",
             "src/modules/*/*.controller.ts",
+            "src/modules/consumption/billing/*.ts",
+            "src/modules/consumption/comparison/*.ts",
+            "src/shared/propertyBillingContext.ts",
         ],
+        ignores: ["**/*.test.ts"],
         plugins: { jsdoc },
         rules: {
             "jsdoc/require-jsdoc": [

@@ -109,6 +109,61 @@ E os dois comandos:
 
 Depois de aplicar, **reconfirme numa sessão nova** antes de fechar a antiga. Um `ssh root@<ip-da-vm>` agora deve ser recusado com `Permission denied (publickey)` — esse erro é o resultado correto.
 
+### 1.3.1 Fechar o que sobra
+
+Com senha e `root` desligados, o resto é diminuir o que uma conexão (autenticada ou ainda não) consegue fazer. No mesmo arquivo:
+
+```
+AllowUsers <usuario>
+MaxAuthTries 3
+LoginGraceTime 30
+X11Forwarding no
+AllowAgentForwarding no
+AllowTcpForwarding local
+ClientAliveInterval 300
+ClientAliveCountMax 2
+```
+
+- `AllowUsers` — só esse usuário entra, mesmo que outra conta da máquina ganhe uma chave por engano.
+- `MaxAuthTries 3` e `LoginGraceTime 30` — menos tentativas por conexão e menos tempo para quem ainda não se autenticou.
+- `X11Forwarding no` e `AllowAgentForwarding no` — ninguém usa interface gráfica remota nem precisa levar a chave do seu computador para dentro do servidor.
+- `AllowTcpForwarding local` — mantém o túnel `ssh -L` do painel de monitoramento (item 2.2) e fecha o túnel reverso.
+- `ClientAlive*` — derruba conexões mortas (rede caída) em ~10 minutos, em vez de deixá-las penduradas.
+
+Depois de editar, confira o valor **efetivo**, não o que está escrito (o primeiro valor vence entre os arquivos, como no item 1.3):
+
+```bash
+sudo sshd -T | grep -E "^(allowusers|maxauthtries|logingracetime|x11forwarding|allowagentforwarding|allowtcpforwarding|clientalive)"
+```
+
+> **Armadilha do `MaxAuthTries` — configure ANTES de aplicar, não depois.** Cada chave que o seu cliente oferece e o servidor recusa conta como uma tentativa. Com várias chaves no agente, a certa pode nem chegar a ser oferecida, e o servidor registra `maximum authentication attempts exceeded` **com o seu próprio endereço**. O filtro do fail2ban (item 1.4) conta essa linha como falha: três banimentos de 1 hora no mesmo dia acionam a `recidive` (item 1.4.1), e o seu endereço fica bloqueado por **uma semana, em todas as portas, inclusive a 22**. A volta passa pelo console do provedor.
+>
+> Por isso, antes de aplicar `MaxAuthTries 3` e a `recidive`, diga ao cliente qual chave usar, no `~/.ssh/config` da sua máquina:
+>
+> ```
+> Host <ip-da-vm>
+>     User <usuario>
+>     IdentityFile ~/.ssh/<chave>
+>     IdentitiesOnly yes
+> ```
+>
+> ou, avulso, `ssh -o IdentitiesOnly=yes -i <chave> <usuario>@<ip-da-vm>`.
+
+> **Corda de segurança para mudar o SSH de um servidor remoto:** além de manter uma sessão aberta, agende a volta da configuração antiga **antes** de recarregar, e só cancele depois de entrar por uma conexão nova:
+>
+> ```bash
+> sudo cp /etc/ssh/sshd_config.d/90-hardening.conf /root/90-hardening.conf.bak
+> # ... editar o arquivo ...
+> sudo sshd -t
+> sudo systemd-run --unit=ssh-rollback --on-active=300 \
+>   /bin/sh -c 'cp /root/90-hardening.conf.bak /etc/ssh/sshd_config.d/90-hardening.conf && systemctl reload ssh'
+> sudo systemctl reload ssh
+> # numa conexão NOVA deu certo? então cancele a volta:
+> sudo systemctl stop ssh-rollback.timer
+> ```
+>
+> Se a configuração nova trancar você para fora, em 5 minutos a antiga volta sozinha.
+
 ## 1.4 Fail2ban: banir quem insiste
 
 Com senha desligada, um atacante não consegue entrar por força bruta. Mas ele continua **tentando**, indefinidamente, consumindo recursos e poluindo os logs. O `fail2ban` observa os registros de tentativas de login e bane automaticamente (via firewall) qualquer endereço que erre demais.
@@ -159,6 +214,30 @@ sudo fail2ban-regex systemd-journal /etc/fail2ban/filter.d/sshd.conf \
 ```
 
 A linha `Lines: ... matched` no fim mostra quantas tentativas o filtro reconheceu no histórico. Se vier zero e a máquina já está exposta há horas, o filtro está errado.
+
+### 1.4.1 Reincidentes: a regra `recidive`
+
+Banir por uma hora resolve o robô de passagem; o que volta toda hora merece mais. A regra `recidive` lê o **próprio log do fail2ban** e bane por uma semana, em todas as portas, quem foi banido três vezes no mesmo dia. Acrescente ao `jail.local`:
+
+```ini
+[recidive]
+backend   = auto
+enabled   = true
+logpath   = /var/log/fail2ban.log
+banaction = %(banaction_allports)s
+bantime   = 1w
+findtime  = 1d
+maxretry  = 3
+```
+
+```bash
+sudo fail2ban-client -t && sudo fail2ban-client reload
+sudo fail2ban-client status recidive    # deve mostrar "File list: /var/log/fail2ban.log"
+```
+
+> **Como se recuperar de um bloqueio (e como evitá-lo).** Se o seu endereço for banido, entre pelo console web do provedor e rode `sudo fail2ban-client set recidive unbanip <seu-ip>` (e o mesmo com `sshd`). Se o seu endereço de casa é **fixo**, ponha `ignoreip = <seu-ip-fixo>` na seção `[DEFAULT]` do `jail.local`, e ele nunca é banido. Com endereço dinâmico (o caso comum, ver "Decisões conscientes"), o `ignoreip` não serve, e a prevenção é o `IdentitiesOnly` do item 1.3.1.
+
+> **A mesma armadilha do item anterior, ao contrário.** O Ubuntu define `backend = systemd` como padrão para todas as regras. A `sshd` precisa disso, mas a `recidive` não: os banimentos vão para o **arquivo** `/var/log/fail2ban.log`, não para o journal. Sem `backend = auto`, a regra aparece ativa, mostra `No file is currently monitored` e nunca bane ninguém. Confira a linha `File list`, não o "ativo".
 
 ---
 
@@ -219,6 +298,25 @@ Qualquer serviço inesperado escutando em `0.0.0.0` merece investigação imedia
 
 > **Atenção com Docker e firewall.** O Docker manipula as regras de rede do sistema por conta própria e, ao publicar uma porta, pode contornar o `ufw` — uma porta publicada no `docker-compose.yml` como `"3001:3001"` fica acessível ao mundo **mesmo com o `ufw` configurado para negá-la**. A proteção real é publicar explicitamente amarrado ao endereço interno (`"127.0.0.1:3001:3001"`), como este projeto faz. Nunca confie apenas no firewall para conter uma porta de container.
 
+## 2.4 Ajustes de rede do kernel
+
+A máquina não é roteador de ninguém, então não deve sugerir rotas a outros computadores (*ICMP redirect*), e pacotes com origem impossível valem um registro no log. Num arquivo `/etc/sysctl.d/99-hardening.conf`:
+
+```ini
+net.ipv4.conf.all.send_redirects = 0
+net.ipv4.conf.default.send_redirects = 0
+net.ipv4.conf.all.log_martians = 1
+net.ipv4.conf.default.log_martians = 1
+```
+
+Aplique com `sudo sysctl -p /etc/sysctl.d/99-hardening.conf`.
+
+> **`send_redirects` vale por interface.** O kernel envia o redirect se `all` **ou** a própria interface estiver ligada, e uma interface que já existia antes de o `default` mudar mantém o valor dela. Escrever em `all` costuma propagar, mas confira todas: `sysctl -a 2>/dev/null | grep '\.send_redirects'`. Se a interface pública (a que não é `lo`, nem de Docker) mostrar `1`, fixe `net.ipv4.conf.<interface>.send_redirects = 0` no mesmo arquivo. Com `log_martians` não há esse cuidado: o "ou" trabalha a favor, e `all = 1` basta.
+
+> **Armadilha real desta VPS: o `ufw` desfaz isso no boot.** Ele aplica um `sysctl` próprio (`/etc/ufw/sysctl.conf`) **depois** do sistema, e esse arquivo traz `log_martians=0`. O valor fica certo até o primeiro reinício e depois volta sozinho. Corrija no arquivo do `ufw` também (`net/ipv4/conf/all/log_martians=1` e a linha `default`) e confira **depois de um reinício**: `sysctl net.ipv4.conf.all.log_martians`.
+>
+> Não mexa em `net.ipv4.ip_forward`: ele precisa ficar em `1` para o Docker encaminhar o tráfego dos containers.
+
 ---
 
 # Parte 3 — Privilégio: o que um invasor conseguiria fazer
@@ -253,6 +351,16 @@ sudo docker inspect $(sudo docker ps -q) \
 ```
 
 Todos devem responder `Privileged=false`. Um container privilegiado comprometido é, na prática, a máquina inteira comprometida.
+
+Um passo além: mesmo sem `privileged`, todo container nasce com um conjunto de *capabilities* (pedaços do poder do `root`) e pode ganhar privilégio executando um binário *setuid*. O `docker-compose.yml` deste projeto fecha as duas portas onde dá:
+
+- `no-new-privileges:true` (em `security_opt`) no backend, no simulador e no proxy — nenhum processo ganha privilégio depois de iniciado.
+- `cap_drop: ALL` no simulador e no proxy, este com `cap_add: NET_BIND_SERVICE`, a única coisa de que precisa (abrir as portas 80 e 443). O backend fica sem `cap_drop` porque o deploy roda a migração do banco como `root` dentro da mesma imagem; o processo normal já roda como `node`, sem capability efetiva.
+
+```bash
+sudo docker inspect $(sudo docker ps -q) \
+  --format "{{.Name}}: secopt={{.HostConfig.SecurityOpt}} capdrop={{.HostConfig.CapDrop}}"
+```
 
 ## 3.3 Dois usuários no banco de dados, com poderes diferentes
 
@@ -289,6 +397,8 @@ chmod 600 <caminho-do-arquivo>
 
 > **Achado real desta auditoria:** o arquivo de configuração do frontend estava em `644`, enquanto os outros três estavam corretamente em `600`. Naquele caso específico não havia segredo no arquivo (só configuração pública do site), então o risco era nulo — mas foi corrigido mesmo assim. O motivo de corrigir um problema "sem impacto" é evitar que a exceção vire hábito: no dia em que alguém acrescentar um segredo naquele arquivo, a permissão já estará certa.
 
+O mesmo vale para a pasta de backups: `700` na pasta e `600` nos arquivos, do usuário de serviço (o script de backup roda com `umask 077`). O conteúdo já é cifrado, mas um dump não é algo que outros usuários da máquina precisem listar. Para baixar um backup, o usuário administrativo copia com `sudo` (procedimento no `DEPLOY.md`).
+
 ---
 
 # Parte 4 — Manutenção: falhas conhecidas corrigidas
@@ -323,7 +433,11 @@ uname -r                              # o kernel em execução agora
 ls /boot/vmlinuz-* | sort -V | tail -1  # o kernel mais novo instalado
 ```
 
-Se forem diferentes, há uma atualização pendente de reinício. O sistema também costuma avisar no login. Reiniciar é seguro e rápido nesta topologia — os containers estão configurados com `restart: unless-stopped`, ou seja, o Docker os religa sozinho assim que o sistema volta:
+Se forem diferentes, há uma atualização pendente de reinício.
+
+> **Armadilha: um `upgrade` pode deixar o kernel novo para trás.** O kernel de número seguinte é um **pacote novo**, e o `apt-get upgrade` (o comando dos scripts de provisionamento e de muita automação) nunca instala pacote novo; além disso, o Ubuntu escalona algumas atualizações (*phased updates*). O sintoma é `apt list --upgradable` mostrando o meta-pacote do kernel (`linux-image-virtual` ou `linux-image-generic`, conforme a imagem) dia após dia. Instale explicitamente antes de reiniciar, com o nome que a lista mostrar: `sudo apt-get install --only-upgrade linux-image-virtual`.
+
+O sistema também costuma avisar no login. Reiniciar é rápido nesta topologia — os containers estão configurados com `restart: unless-stopped`, ou seja, o Docker os religa sozinho assim que o sistema volta:
 
 ```bash
 sudo reboot
@@ -335,6 +449,25 @@ A indisponibilidade é de menos de um minuto. Depois que voltar, confirme que tu
 uname -r                    # deve mostrar a versão nova
 docker compose ps           # todos os serviços de volta e saudáveis
 ```
+
+> **Armadilha real desta VPS: "saudável" não quer dizer "com dados".** O simulador IoT guarda os medidores virtuais só em memória, de propósito. Qualquer reinício dele (inclusive o da máquina inteira) apaga a lista de medidores: o container volta saudável, o backend continua conectado ao broker, e **nenhuma leitura chega**. Num reinício de manutenção isso passou despercebido e deixou um buraco de ~20 minutos nos gráficos, porque a conferência olhou os containers e não os dados.
+>
+> Depois de reiniciar a máquina (ou só o `simulator`), recrie os medidores e confira que as leituras voltaram. Rode como o usuário de serviço, dentro da pasta do projeto: os arquivos `.env` são `600` dele, e o usuário administrativo não os lê.
+>
+> ```bash
+> cd /opt/<projeto>
+> sudo -u <usuario-de-servico> ./deploy/seed-simulator-devices.sh
+> # depois de pelo menos 1 minuto completo, deve mostrar a quantidade de medidores da demo:
+> sudo -u <usuario-de-servico> docker compose --env-file deploy/.env exec -T postgres \
+>   sh -c 'psql -At -U "$POSTGRES_USER" -d "$POSTGRES_DB"' <<'SQL'
+> SELECT count(DISTINCT "meterId") FROM meter_readings
+> WHERE "minuteStart" > (now() AT TIME ZONE 'UTC') - interval '3 minutes';
+> SQL
+> ```
+>
+> **O seed não é idempotente.** Cada execução cria uma rede e todos os medidores de novo, e o simulador não recusa tópico repetido. Rodá-lo com os medidores ainda presentes põe dois emissores em cada tópico, e o backend soma a energia de ambos: o consumo gravado dobra e estraga gráficos, relatórios e metas da demo. Rode-o só logo depois de um reinício (a memória do simulador está vazia). Se a contagem vier baixa, **não repita o seed**: reinicie o simulador primeiro (`sudo -u <usuario-de-servico> docker compose --env-file deploy/.env restart simulator`) e aí rode o seed, uma vez. A contagem só vale depois de pelo menos 1 minuto completo; antes disso, um valor baixo é normal.
+>
+> O `deploy/update-production.sh` já recria os medidores quando ele mesmo reconstrói o simulador; o reinício manual não tem esse automatismo.
 
 ## 4.3 Backup cifrado — e por que a chave privada nunca vai para o servidor
 
@@ -376,6 +509,10 @@ O que os cabeçalhos fazem, em linguagem simples:
 - **`Strict-Transport-Security` (HSTS)** — instrui o navegador a **nunca mais** acessar este site sem criptografia, mesmo que o usuário digite `http://`. Fecha a janela de ataque que existe no primeiro redirecionamento.
 - **`Content-Security-Policy`** — limita o que a página pode carregar e executar, reduzindo drasticamente o impacto de uma injeção de código malicioso.
 - **`X-Content-Type-Options: nosniff`** — impede o navegador de "adivinhar" o tipo de um arquivo, truque usado para fazer um arquivo aparentemente inofensivo ser executado como script.
+- **`Referrer-Policy`** — quando o usuário clica num link para fora, o outro site recebe só o domínio de origem, não o caminho completo da página.
+- **`Permissions-Policy`** — desliga para a página recursos que a aplicação não usa (câmera, microfone, localização, pagamento, periféricos). Uma injeção de script não consegue pedi-los.
+
+> **Por que `/.env` respondia 200.** Num site de página única (SPA), todo caminho desconhecido devolve o `index.html` para o roteador do navegador decidir. Isso incluía `/.env` e `/.git/config`, que voltavam `200` com o HTML da aplicação, sem nenhum segredo, mas assustando qualquer varredura. O proxy agora responde `404` para todo caminho com segmento começando por ponto, exceto `/.well-known/`. Antes de tratar um `200` desses como vazamento, compare o corpo com o da página inicial: `diff <(curl -s https://<seu-dominio>/) <(curl -s https://<seu-dominio>/.env)`.
 
 ---
 
@@ -385,7 +522,7 @@ Configurar uma vez não basta — configurações se perdem em atualizações, m
 
 ```bash
 echo "=== 1. Acesso (SSH) — valores EFETIVOS ==="
-sudo sshd -T | grep -E "^(permitrootlogin|passwordauthentication|pubkeyauthentication|permitemptypasswords)"
+sudo sshd -T | grep -E "^(permitrootlogin|passwordauthentication|pubkeyauthentication|permitemptypasswords|allowusers|maxauthtries|x11forwarding|allowagentforwarding|allowtcpforwarding|clientaliveinterval)"
 
 echo "=== 2. Fail2ban — está enxergando o serviço certo? ==="
 sudo fail2ban-client status sshd
@@ -416,13 +553,34 @@ uname -r; ls /boot/vmlinuz-* | sort -V | tail -1
 
 echo "=== 10. Espaço em disco (disco cheio derruba tudo) ==="
 df -h /
+
+echo "=== 11. Fail2ban — reincidentes lendo o arquivo certo ==="
+sudo fail2ban-client status recidive | grep "File list"
+
+echo "=== 12. Rede do kernel (conferir depois de reiniciar) ==="
+sysctl -a 2>/dev/null | grep -E '\.(send_redirects|log_martians)'
+
+echo "=== 13. Containers sem ganho de privilégio ==="
+sudo docker inspect $(sudo docker ps -q) --format "{{.Name}}: {{.HostConfig.SecurityOpt}} {{.HostConfig.CapDrop}}"
+
+echo "=== 14. Dados chegando (container saudável não basta) ==="
+cd /opt/<projeto>   # o compose precisa da pasta do projeto
+sudo -u <usuario-de-servico> docker compose --env-file deploy/.env exec -T postgres \
+  sh -c 'psql -At -U "$POSTGRES_USER" -d "$POSTGRES_DB"' <<'SQL'
+SELECT count(DISTINCT "meterId") FROM meter_readings
+WHERE "minuteStart" > (now() AT TIME ZONE 'UTC') - interval '3 minutes';
+SQL
+
+echo "=== 15. Backups só legíveis pelo dono ==="
+sudo stat -c '%a %U' /opt/<projeto>/backups
+sudo find /opt/<projeto>/backups -type f ! -perm 600 -print   # não deve listar nada
 ```
 
 **Como ler o resultado** — cada item tem uma resposta certa:
 
 | # | Verificação | Resposta correta |
 |---|---|---|
-| 1 | SSH | `permitrootlogin no`, `passwordauthentication no`, `permitemptypasswords no` |
+| 1 | SSH | `permitrootlogin no`, `passwordauthentication no`, `permitemptypasswords no`, `allowusers <usuario>`, `maxauthtries 3`, `x11forwarding no`, `allowagentforwarding no`, `allowtcpforwarding local` |
 | 2 | Fail2ban | `Journal matches` apontando para o serviço que existe na máquina |
 | 3 | Firewall | `Status: active`, `deny (incoming)`, só 22/80/443 liberadas |
 | 4 | Portas | Nada em `0.0.0.0`/`[::]` além de 22, 80 e 443 |
@@ -433,6 +591,11 @@ df -h /
 | 8 | Atualizações | `enabled` e `active` |
 | 9 | Kernel | As duas versões iguais (senão, reiniciar) |
 | 10 | Disco | Uso confortável, com folga para logs e backups |
+| 11 | Reincidentes | `File list: /var/log/fail2ban.log` (não `No file is currently monitored`) |
+| 12 | Rede do kernel | `send_redirects = 0` em `all`, `default` e na interface pública (só `lo` pode ficar em `1`); `log_martians = 1`; tudo conferido também depois de reiniciar |
+| 13 | Containers | `no-new-privileges:true` em backend, simulador e proxy; `ALL` em `CapDrop` no simulador e no proxy |
+| 14 | Dados | A quantidade de medidores da demo, depois de pelo menos 1 minuto completo. Se vier menor ou `0`, **não rode o seed às cegas**: ele duplica os medidores existentes. Reinicie o `simulator` e rode o seed uma vez (item 4.2) |
+| 15 | Backups | Pasta `700` e a segunda linha vazia (nenhum arquivo fora de `600`) |
 
 E, do lado de fora da máquina, três confirmações que só fazem sentido pela internet:
 
@@ -531,15 +694,20 @@ O que está em vigor nesta VPS, e o que cada item entrega:
 | Acesso | `root` sem acesso direto | O alvo mais óbvio some do mapa |
 | Acesso | Somente chave SSH | Credencial inviável de adivinhar |
 | Acesso | Fail2ban com filtro validado | Insistência automatizada é banida |
+| Acesso | Reincidente banido por uma semana | Quem volta toda hora fica de fora |
+| Acesso | Um só usuário, poucas tentativas, sem encaminhamento de agente | Menos a fazer com uma conexão ou sessão |
 | Rede | Firewall negando por padrão | Superfície reduzida a três portas |
 | Rede | Banco e API sem porta pública | Não há caminho que contorne o proxy |
 | Rede | Monitoramento só por túnel SSH | Painel administrativo fora da internet |
 | Privilégio | Usuário de serviço sem shell | Sessão interativa indisponível |
 | Privilégio | Containers sem modo privilegiado | Isolamento preservado |
+| Privilégio | Sem ganho de privilégio e sem capabilities sobrando | Binário setuid não vira root |
+| Rede | Kernel sem ICMP redirect e registrando origem impossível | Rota forjada e pacote anômalo ficam visíveis |
 | Privilégio | Banco com dois usuários | Aplicação não altera estrutura do banco |
 | Privilégio | `.env` legível só pelo dono | Segredo não vaza entre usuários |
 | Manutenção | Atualizações automáticas | Falhas conhecidas fechadas sozinhas |
 | Manutenção | Backup cifrado, chave fora do servidor | Backup sobrevive ao comprometimento |
 | Transporte | TLS com renovação automática | Tráfego ilegível no caminho |
+| Transporte | Cabeçalhos de política e 404 para caminhos ocultos | Recurso do navegador e varredura sem resposta útil |
 
 Nenhuma dessas camadas é suficiente sozinha. Juntas, elevam o custo de um ataque muito acima do que um alvo desta natureza justifica — que é exatamente o objetivo realista de segurança para um projeto deste porte.

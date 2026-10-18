@@ -75,15 +75,22 @@ describe("LoginPage — renderização", () => {
     })
 
     it("anima o card 'Ao vivo' via useLiveTicker em vez de um valor congelado", async () => {
+        // O passo do ticker é aleatório e o valor é exibido com duas casas: um
+        // passo quase nulo deixaria o texto igual e o teste dependeria da sorte.
+        const randomSpy = vi.spyOn(Math, "random").mockReturnValue(1)
         renderWithProviders(<LoginPage />)
         await screen.findByLabelText(/e-mail/i)
 
         const liveKwh = screen.getByTestId("login-live-kwh")
         const initialValue = liveKwh.textContent
 
-        await waitFor(() => expect(liveKwh.textContent).not.toBe(initialValue), {
-            timeout: 3000,
-        })
+        try {
+            await waitFor(() => expect(liveKwh.textContent).not.toBe(initialValue), {
+                timeout: 3000,
+            })
+        } finally {
+            randomSpy.mockRestore()
+        }
     })
 })
 

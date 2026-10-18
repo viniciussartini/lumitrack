@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest"
-import { formatBucketLabel } from "@/lib/formatters/consumption"
+import { formatBucketLabel, formatCostBrl } from "@/lib/formatters/consumption"
 
 /**
  * bucketStart no formato REAL que o backend devolve: `Date` serializado por
@@ -11,6 +11,20 @@ import { formatBucketLabel } from "@/lib/formatters/consumption"
  * local, cancelando o erro em vez de expor.
  */
 const BUCKET = "2026-08-21T19:03:00.000Z"
+
+describe("formatCostBrl", () => {
+    it("formata o valor em reais", () => {
+        expect(formatCostBrl(12.5).replace(/\s/g, " ")).toBe("R$ 12,50")
+    })
+
+    it("custo ausente é '-', nunca R$ 0,00", () => {
+        expect(formatCostBrl(undefined)).toBe("-")
+    })
+
+    it("zero é um custo de verdade e aparece como R$ 0,00", () => {
+        expect(formatCostBrl(0).replace(/\s/g, " ")).toBe("R$ 0,00")
+    })
+})
 
 describe("formatBucketLabel", () => {
     it("bucket de minuto mostra dia, mês e o minuto cheio", () => {

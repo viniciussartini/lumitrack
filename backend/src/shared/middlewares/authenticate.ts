@@ -15,6 +15,9 @@ export interface AuthenticatedRequest extends Request {
         id: string
         email: string
         userType: string
+        // Sessão do token desta requisição, lida do banco (nunca do JWT):
+        // identifica "esta sessão" na lista de sessões ativas.
+        sessionId: string
         // RBAC mínimo — sempre lida do banco a cada requisição (ver
         // abaixo), nunca um claim do JWT, para que promover/rebaixar um
         // admin tenha efeito imediato sem exigir novo login.
@@ -75,7 +78,7 @@ export function createAuthenticateMiddleware(prisma: PrismaClient) {
 
             const payload = jwt.verify(token, env.JWT_SECRET) as Omit<
                 AuthenticatedRequest["user"],
-                "role" | "isDemo"
+                "role" | "isDemo" | "sessionId"
             >
             const storedToken = await authRepository.findActiveToken(hashToken(token))
 
@@ -111,6 +114,7 @@ export function createAuthenticateMiddleware(prisma: PrismaClient) {
             // payload do JWT — garante efeito imediato de promoção/rebaixamento.
             authenticatedReq.user = {
                 ...payload,
+                sessionId: storedToken.sessionId,
                 role: storedToken.user.role,
                 isDemo: DEMO_ACCOUNT_EMAILS.has(payload.email),
             }
