@@ -478,7 +478,7 @@ export default tseslint.config(
         },
     },
     {
-        // 105 linhas.
+        // 100 linhas.
         files: ["src/contexts/AuthContext.tsx"],
         rules: {
             "max-lines-per-function": [

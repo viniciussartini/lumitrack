@@ -1,9 +1,12 @@
 import { describe, it, expect, beforeEach, vi } from "vitest"
 import { act, renderHook, waitFor } from "@testing-library/react"
 import { MemoryRouter } from "react-router"
+import { toast } from "sonner"
 import { AuthProvider, useAuth } from "@/contexts/AuthContext"
 import { authService } from "@/services/auth.service"
 import { scheduleProactiveRefresh, cancelProactiveRefresh } from "@/lib/sessionRefresh"
+import { queryClient } from "@/lib/queryClient"
+import { storage, STORAGE_KEYS } from "@/lib/storage"
 import type { User } from "@/types/auth.types"
 
 // useNavigate precisa de um Router no contexto — MemoryRouter resolve isso.
@@ -55,6 +58,8 @@ const wrapper = ({ children }: { children: React.ReactNode }) => (
 
 beforeEach(() => {
     vi.clearAllMocks()
+    queryClient.clear()
+    localStorage.clear()
 })
 
 describe("AuthProvider — boot", () => {
@@ -317,6 +322,206 @@ describe("AuthProvider — refresh proativo", () => {
         })
 
         expect(vi.mocked(cancelProactiveRefresh)).toHaveBeenCalled()
+    })
+})
+
+describe("AuthProvider — isolamento entre sessões", () => {
+    const PROPERTIES_KEY = ["properties", "list", 1, 10] as const
+    const otherUser: User = { ...mockUser, id: "user-456", email: "outro@example.com" }
+
+    // Simula o que a conta anterior deixou no navegador: dados em cache do
+    // TanStack Query (compartilhado pela aba inteira) e a propriedade escolhida.
+    const leaveResiduesOfPreviousUser = (): void => {
+        queryClient.setQueryData(PROPERTIES_KEY, [{ id: "propriedade-da-conta-anterior" }])
+        storage.set(STORAGE_KEYS.SELECTED_PROPERTY, "propriedade-da-conta-anterior")
+    }
+
+    const expectNoResidues = (): void => {
+        expect(queryClient.getQueryData(PROPERTIES_KEY)).toBeUndefined()
+        expect(storage.get(STORAGE_KEYS.SELECTED_PROPERTY)).toBeNull()
+        // Os toasts da conta anterior mostram texto dela e sobrevivem à navegação.
+        expect(dismissSpy).toHaveBeenCalled()
+    }
+
+    const dismissSpy = vi.spyOn(toast, "dismiss")
+
+    beforeEach(() => {
+        dismissSpy.mockClear()
+    })
+
+    const renderUnauthenticated = async () => {
+        vi.mocked(authService.getCurrentUser).mockResolvedValue(null)
+        const rendered = renderHook(() => useAuth(), { wrapper })
+        await waitFor(() => expect(rendered.result.current.isLoading).toBe(false))
+        return rendered
+    }
+
+    it("logout descarta o cache e a propriedade selecionada", async () => {
+        vi.mocked(authService.getCurrentUser).mockResolvedValue(mockUser)
+        vi.mocked(authService.logout).mockResolvedValue(undefined)
+        const { result } = renderHook(() => useAuth(), { wrapper })
+        await waitFor(() => expect(result.current.isAuthenticated).toBe(true))
+        leaveResiduesOfPreviousUser()
+
+        await act(async () => {
+            await result.current.logout()
+        })
+
+        expectNoResidues()
+    })
+
+    it("sessão encerrada pelo servidor (lumitrack:unauthorized) descarta o cache", async () => {
+        vi.mocked(authService.getCurrentUser).mockResolvedValue(mockUser)
+        const { result } = renderHook(() => useAuth(), { wrapper })
+        await waitFor(() => expect(result.current.isAuthenticated).toBe(true))
+        leaveResiduesOfPreviousUser()
+
+        await act(async () => {
+            window.dispatchEvent(new CustomEvent("lumitrack:unauthorized"))
+        })
+
+        expectNoResidues()
+    })
+
+    it("login não herda o cache de uma sessão anterior que não passou pelo logout", async () => {
+        const { result } = await renderUnauthenticated()
+        leaveResiduesOfPreviousUser()
+        vi.mocked(authService.login).mockResolvedValue({ user: otherUser })
+
+        await act(async () => {
+            await result.current.login({ email: otherUser.email, password: "Senha@123" })
+        })
+
+        expectNoResidues()
+        expect(result.current.user?.id).toBe("user-456")
+    })
+
+    it("login de demonstração não herda o cache da conta anterior", async () => {
+        const { result } = await renderUnauthenticated()
+        leaveResiduesOfPreviousUser()
+        vi.mocked(authService.demoLogin).mockResolvedValue({ user: otherUser })
+
+        await act(async () => {
+            await result.current.demoLogin("commercial")
+        })
+
+        expectNoResidues()
+    })
+
+    it("login com MFA não herda o cache da conta anterior", async () => {
+        const { result } = await renderUnauthenticated()
+        leaveResiduesOfPreviousUser()
+        vi.mocked(authService.verifyMfaLogin).mockResolvedValue(otherUser)
+
+        await act(async () => {
+            await result.current.completeMfaLogin({ mfaToken: "token", code: "123456" })
+        })
+
+        expectNoResidues()
+    })
+
+    it("login automático do cadastro não herda o cache da conta anterior", async () => {
+        const { result } = await renderUnauthenticated()
+        leaveResiduesOfPreviousUser()
+        vi.mocked(authService.register).mockResolvedValue(otherUser)
+        vi.mocked(authService.login).mockResolvedValue({ user: otherUser })
+
+        await act(async () => {
+            await result.current.register({
+                email: otherUser.email,
+                password: "Senha@123",
+            } as Parameters<typeof result.current.register>[0])
+        })
+
+        expectNoResidues()
+        expect(result.current.user?.id).toBe("user-456")
+    })
+
+    it("login que exige MFA ainda não troca de usuário, então preserva o cache", async () => {
+        const { result } = await renderUnauthenticated()
+        leaveResiduesOfPreviousUser()
+        vi.mocked(authService.login).mockResolvedValue({ mfaRequired: true, mfaToken: "t" })
+
+        await act(async () => {
+            await result.current.login({ email: otherUser.email, password: "Senha@123" })
+        })
+
+        expect(queryClient.getQueryData(PROPERTIES_KEY)).toBeDefined()
+    })
+})
+
+describe("AuthProvider — troca de sessão em outra aba", () => {
+    const PROPERTIES_KEY = ["properties", "list", 1, 10] as const
+    const otherUser: User = { ...mockUser, id: "user-456", email: "outro@example.com" }
+
+    const otherTabChangedSession = async (): Promise<void> => {
+        await act(async () => {
+            window.dispatchEvent(
+                new StorageEvent("storage", { key: STORAGE_KEYS.SESSION_SIGNAL, newValue: "x" }),
+            )
+        })
+    }
+
+    const renderAuthenticated = async () => {
+        vi.mocked(authService.getCurrentUser).mockResolvedValueOnce(mockUser)
+        const rendered = renderHook(() => useAuth(), { wrapper })
+        await waitFor(() => expect(rendered.result.current.isAuthenticated).toBe(true))
+        queryClient.setQueryData(PROPERTIES_KEY, [{ id: "propriedade-do-usuario-antigo" }])
+        return rendered
+    }
+
+    it("outra aba entrou com outro usuário: esta aba descarta o cache e passa a usar o novo", async () => {
+        const { result } = await renderAuthenticated()
+        vi.mocked(authService.getCurrentUser).mockResolvedValue(otherUser)
+
+        await otherTabChangedSession()
+
+        await waitFor(() => expect(result.current.user?.id).toBe("user-456"))
+        expect(queryClient.getQueryData(PROPERTIES_KEY)).toBeUndefined()
+        expect(vi.mocked(scheduleProactiveRefresh)).toHaveBeenCalled()
+    })
+
+    it("outra aba saiu: esta aba descarta o cache e volta ao login", async () => {
+        const { result } = await renderAuthenticated()
+        vi.mocked(authService.getCurrentUser).mockResolvedValue(null)
+
+        await otherTabChangedSession()
+
+        await waitFor(() => expect(result.current.user).toBeNull())
+        expect(queryClient.getQueryData(PROPERTIES_KEY)).toBeUndefined()
+        expect(mockNavigate).toHaveBeenCalledWith("/login", { replace: true })
+    })
+
+    it("evento de storage de outra chave é ignorado", async () => {
+        const { result } = await renderAuthenticated()
+
+        await act(async () => {
+            window.dispatchEvent(
+                new StorageEvent("storage", { key: STORAGE_KEYS.THEME, newValue: "dark" }),
+            )
+        })
+
+        expect(result.current.user?.id).toBe("user-123")
+        expect(queryClient.getQueryData(PROPERTIES_KEY)).toBeDefined()
+    })
+
+    it("entrar nesta aba avisa as outras, e quem recebe o aviso não o repete", async () => {
+        vi.mocked(authService.getCurrentUser).mockResolvedValue(null)
+        const { result } = renderHook(() => useAuth(), { wrapper })
+        await waitFor(() => expect(result.current.isLoading).toBe(false))
+        vi.mocked(authService.login).mockResolvedValue({ user: otherUser })
+
+        await act(async () => {
+            await result.current.login({ email: otherUser.email, password: "Senha@123" })
+        })
+        const announced = storage.get(STORAGE_KEYS.SESSION_SIGNAL)
+        expect(announced).not.toBeNull()
+
+        vi.mocked(authService.getCurrentUser).mockResolvedValue(otherUser)
+        await otherTabChangedSession()
+        await waitFor(() => expect(vi.mocked(authService.getCurrentUser)).toHaveBeenCalledTimes(2))
+
+        expect(storage.get(STORAGE_KEYS.SESSION_SIGNAL)).toBe(announced)
     })
 })
 
