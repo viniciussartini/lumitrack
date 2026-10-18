@@ -4987,3 +4987,12 @@
 - **Arquivos principais:** `deploy/update-production.sh`, `backend/prisma/schema.prisma`, `backend/src/modules/auth/auth.service.test.ts`, `backend/src/shared/session/sessionOrigin.test.ts`, `.claude/docs/DEPLOY.md`, `.claude/project_context/08-convencoes-git.md`.
 - **Decisões/ADRs:** nenhuma.
 - **Notas:** os dois testes alterados passam (101 testes), com prettier, eslint e `prisma validate` limpos; o script passa em `bash -n` e não foi executado em produção. A exceção do `npm audit --omit=dev` no CI ficou sem registro de condição de saída: precisa de uma issue (depende de aprovação). O back-merge de `main` em `staging`, que resolve o conflito do PR, é do usuário e vai em commit separado depois deste.
+
+## [2026-10-18] docs: fluxo de hotfix no kit (branch de main, merge direto em main)
+
+- **Branch:** staging
+- **Tipo:** docs
+- **O quê:** o `08-convencoes-git.md` ganha a seção "Branch de hotfix": defeito já em produção nasce de `origin/main` (`fix/{N}-...`), o PR tem base `main` e é mesclado direto em `main` com merge commit, e o back-merge de `main` em `staging` é obrigatório logo depois; escopo mínimo (só a correção e o teste). A linha "Base" das convenções do PR cita o hotfix. A skill `criar-issues` passa a criar as branches de épico e de issue avulsa a partir de `staging` (antes dizia `main`) e documenta o comando do hotfix, com `**Hotfix:**` no corpo da issue; a `preparar-pr` escolhe a base (`staging`, ou `main` para promoção e hotfix) e lembra do back-merge.
+- **Arquivos principais:** `.claude/project_context/08-convencoes-git.md`, `.claude/skills/criar-issues/SKILL.md`, `.claude/skills/preparar-pr/SKILL.md`.
+- **Decisões/ADRs:** nenhuma ADR; a regra complementa a ADR-0012 (separação de ambientes).
+- **Notas:** a primeira aplicação é a issue #577 (cache de queries não limpo ao trocar de sessão), com a branch `fix/577-limpa-cache-ao-trocar-de-sessao` criada de `origin/main` e ainda sem commits. O hook que bloqueia commit, push e `gh pr merge` não foi alterado, então o merge do hotfix continua sendo feito pelo usuário.

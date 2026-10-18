@@ -121,7 +121,7 @@ O corpo abre com a linha `**Priority:** · **Size:**`.
 
 3. **Crie a branch do épico** (ver `08-convencoes-git.md`):
    ```bash
-   git checkout main && git pull
+   git checkout staging && git pull
    git checkout -b epic/{N}-{descricao-em-kebab-case}
    ```
    Depois, comente o nome da branch no épico e edite o corpo para registrá-la.
@@ -130,9 +130,17 @@ O corpo abre com a linha `**Priority:** · **Size:**`.
 
 Para issue individual aprovada que o usuário vai implementar em seguida:
 ```bash
-git checkout main && git pull
+git checkout staging && git pull
 git checkout -b {tipo}/{N}-{descricao-em-kebab-case}
 ```
+
+**Hotfix** (defeito já em produção que não pode esperar a promoção; ver "Branch de hotfix" no `08`): a base é `main`, não `staging`. Declare `**Hotfix:**` no corpo da issue e crie a branch com
+```bash
+git fetch origin
+git checkout -b fix/{N}-{descricao-em-kebab-case} origin/main
+git branch --unset-upstream   # não herdar origin/main como upstream
+```
+O PR dela tem base `main` e é mesclado direto em `main`; depois do merge, `main` volta para `staging` por back-merge.
 
 > **Política de git do kit:** criar branch é permitido (reversível, nada é publicado). **Commit, push e PR continuam manuais** — o hook `block-git-commit-push.sh` bloqueia mecanicamente. Pergunte antes de criar a branch se o usuário quer começar a implementação agora; se ele só está montando o backlog, apenas registre o nome sugerido no corpo da issue.
 

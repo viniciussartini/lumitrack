@@ -19,6 +19,15 @@ Formato: `<tipo>/<descricao-em-kebab-case>` — o `<tipo>` espelha os tipos de c
 - A descrição do PR do épico usa `Closes #42` (o épico) — as sub-issues já foram fechadas pelos commits.
 - **Risco a vigiar:** branch de vida longa. Se o épico passar de ~5 sub-issues ou de alguns dias, prefira quebrá-lo em épicos menores (a skill `criar-issues` já aplica essa trava ao propor o agrupamento).
 
+**Branch de hotfix** — correção urgente de algo que **já está em produção** (`main`) e não pode esperar a próxima promoção. É a única exceção à regra de que toda branch nasce de `staging`.
+
+- **Quando usar:** defeito observável em produção, ou falha de segurança em código já promovido. Correção de algo que só existe em `staging` não é hotfix: segue o fluxo normal.
+- **Formato:** `fix/<numero-da-issue>-<descricao-em-kebab-case>`, o mesmo de um `fix` comum. O que a distingue é a **base**: `git fetch origin && git checkout -b fix/{N}-... origin/main`. A issue declara no corpo `**Hotfix:**` e a base usada.
+- **PR e merge:** o PR tem **base `main`** (`gh pr create --base main`) e é mesclado **direto em `main`**, sem passar por `staging`, com "Create a merge commit". O CI roda igual. Depois do merge, na VPS: `sudo -u lumitrack ./deploy/update-production.sh`.
+- **Back-merge obrigatório:** logo depois do merge, `main` volta para `staging` (`git checkout staging && git merge origin/main`), para a correção chegar ao staging e a próxima promoção não nascer em conflito. Sem isso o hotfix vira divergência (foi o que aconteceu com o hotfix do Caddy, que levou a um PR de promoção em conflito).
+- **Escopo mínimo:** o hotfix leva só a correção e o teste dela. Documentação do kit, refatoração e melhorias vão pelo fluxo normal.
+- **Registro:** a entrada do `CHANGELOG.md` usa a branch do hotfix; o texto de commit é `fix: ...`.
+
 ## Vínculo commit/PR ↔ issue
 
 - Use `Closes #N` (ou `Fixes #N`) no rodapé do commit ou na descrição do PR para **fechar a issue automaticamente** no merge.
@@ -204,7 +213,7 @@ gh issue edit {N} --milestone "MVP"
 **Convenções do PR (estas sim moram aqui):**
 
 - **Título:** Conventional Commits, derivado do prefixo da branch — `feat/12-cadastro` → `feat: cadastro de tarefas`.
-- **Base:** `staging`, salvo o PR de promoção `staging` → `main` (ADR-0012) e o de sub-branch para branch de épico.
+- **Base:** `staging`, salvo o PR de promoção `staging` → `main` (ADR-0012), o de sub-branch para branch de épico e o de **hotfix**, que tem base `main`.
 - **Promoção `staging` → `main`:** mescle com **"Create a merge commit"**, nunca com squash (o squash recria a divergência entre as duas branches e o PR seguinte nasce em conflito). Todo hotfix que entrar direto em `main` volta para `staging` por back-merge antes da próxima promoção. Promova a cada entrega (milestone) ou a cada 2 ou 3 fases fechadas: um lote grande passa muito do teto de revisão e acumula migrações.
 - **Referência de issue:** `Closes #N` na seção "Issues relacionadas" — branch `epic/{N}-...` referencia o épico; `{tipo}/{N}-...` referencia a issue.
 - **Labels:** mesma taxonomia das issues (`tipo:`, `prioridade:`, `área:`), aplicadas ao PR quando úteis para o board.

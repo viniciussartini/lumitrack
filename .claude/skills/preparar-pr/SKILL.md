@@ -29,7 +29,7 @@ Resume o trabalho de uma branch, monta a descrição no padrão do kit e **cria 
 
 ## Montar a descrição
 
-1. Identifique a **branch base** (geralmente `main`). Se ambíguo, **pergunte**.
+1. Identifique a **branch base**: `staging` para feature, fix e épico; `main` para a promoção `staging` → `main` e para **hotfix** (branch `fix/` criada a partir de `main`, ver `08`). Se ambíguo, **pergunte**. Num hotfix, lembre o usuário do back-merge de `main` em `staging` depois do merge.
 2. Levante as mudanças:
    - `git log <base>..HEAD --oneline` — commits
    - `git diff --stat <base>..HEAD` — arquivos tocados
