@@ -2,8 +2,8 @@ import { createContext, useContext, useEffect, useState, type ReactNode } from "
 import { authService } from "@/services/auth.service"
 import { extractErrorMessage } from "@/services/api"
 import { authState } from "@/lib/authState"
-import { queryClient } from "@/lib/queryClient"
-import { storage, STORAGE_KEYS } from "@/lib/storage"
+import { announceSessionChange, discardSessionData } from "@/lib/sessionData"
+import { useSessionEvents } from "@/hooks/useSessionEvents"
 import { scheduleProactiveRefresh, cancelProactiveRefresh } from "@/lib/sessionRefresh"
 import type {
     DemoProfile,
@@ -37,20 +37,6 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined)
 
-/**
- * Descarta o que o navegador guardou em nome do usuário anterior: o cache do
- * TanStack Query e a propriedade escolhida no Painel. As chaves de query não
- * carregam o usuário e o cache vale 30 s (dados frescos) a 5 min (retidos),
- * então sem isto quem entra logo depois de outra conta vê, na primeira tela, os
- * dados da conta anterior. Chamado na saída, na sessão derrubada pelo servidor
- * e antes de gravar um usuário novo, que cobre a entrada sem saída explícita
- * (por exemplo, a sessão que expirou).
- */
-const discardSessionData = (): void => {
-    queryClient.clear()
-    storage.remove(STORAGE_KEYS.SELECTED_PROPERTY)
-}
-
 interface AuthProviderProps {
     children: ReactNode
 }
@@ -67,10 +53,12 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         setUser(newUser)
     }
 
-    // Toda troca do usuário da sessão (entrada ou saída) descarta o que o anterior deixou.
+    // Toda troca do usuário da sessão (entrada ou saída) descarta o que o anterior
+    // deixou aqui e avisa as outras abas, que compartilham os cookies.
     const replaceSessionUser = (newUser: User | null): void => {
         discardSessionData()
         updateUser(newUser)
+        announceSessionChange()
     }
 
     useEffect(() => {
@@ -86,18 +74,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         }
     }, [])
 
-    useEffect(() => {
-        const handleUnauthorized = () => {
-            cancelProactiveRefresh()
-            discardSessionData()
-            updateUser(null)
-            void navigate("/login", { replace: true })
-        }
-        window.addEventListener("lumitrack:unauthorized", handleUnauthorized)
-        return () => {
-            window.removeEventListener("lumitrack:unauthorized", handleUnauthorized)
-        }
-    }, [navigate])
+    useSessionEvents(updateUser, navigate)
 
     const login = async (input: LoginInput): Promise<LoginResult> => {
         try {
