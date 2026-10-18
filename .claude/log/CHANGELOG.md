@@ -4996,3 +4996,21 @@
 - **Arquivos principais:** `.claude/project_context/08-convencoes-git.md`, `.claude/skills/criar-issues/SKILL.md`, `.claude/skills/preparar-pr/SKILL.md`.
 - **Decisões/ADRs:** nenhuma ADR; a regra complementa a ADR-0012 (separação de ambientes).
 - **Notas:** a primeira aplicação é a issue #577 (cache de queries não limpo ao trocar de sessão), com a branch `fix/577-limpa-cache-ao-trocar-de-sessao` criada de `origin/main` e ainda sem commits. O hook que bloqueia commit, push e `gh pr merge` não foi alterado, então o merge do hotfix continua sendo feito pelo usuário.
+
+## [2026-10-18] fix: cache de queries e propriedade selecionada não sobrevivem à troca de sessão (hotfix)
+
+- **Branch:** fix/577-limpa-cache-ao-trocar-de-sessao
+- **Tipo:** fix
+- **O quê:** quem saía de uma conta e entrava em outra (por exemplo, da demo residencial para a comercial) via na primeira tela os dados da conta anterior, até alguma query remontar já vencida. O `queryClient` é único para a aba, o cache vale 30 s como fresco e 5 min como retido, e as chaves de query não carregam o usuário. O `AuthContext` não descartava nada na saída nem na entrada. Passa a chamar `discardSessionData` (`queryClient.clear()` e remoção da propriedade selecionada do `localStorage`) no logout, no evento `lumitrack:unauthorized` e antes de gravar um usuário novo em `login`, `demoLogin`, `completeMfaLogin` e no login automático do cadastro. O login que ainda exige MFA não troca de usuário e preserva o cache.
+- **Arquivos principais:** `frontend/src/contexts/AuthContext.tsx` e `frontend/src/contexts/AuthContext.test.tsx`.
+- **Decisões/ADRs:** nenhuma.
+- **Notas:** hotfix a partir de `main`, com PR de base `main` e back-merge posterior em `staging`. Seis testes novos de regressão (cinco falhavam antes da correção). Frontend: 166 arquivos e 1.498 testes passando, lint sem erro (o aviso de fast refresh em `useAuth` já existia), `tsc -b` e dependency-cruiser limpos. O e2e não foi rodado localmente (mocka a API; roda no CI). Não reproduzido em navegador: a causa vem de leitura do código e do comportamento descrito. O estado em tempo real já era zerado por usuário e não mudou.
+
+## [2026-10-18] fix: ajustes da revisão do hotfix de troca de sessão (toasts, outras abas, register)
+
+- **Branch:** fix/577-limpa-cache-ao-trocar-de-sessao
+- **Tipo:** fix
+- **O quê:** cinco sugestões da `revisao-codigo` sobre o PR do hotfix, aplicadas por decisão do usuário. (1) `discardSessionData` passou para `lib/sessionData.ts` e também chama `toast.dismiss()`: o `Toaster` é global e os avisos da conta anterior (texto de notificação dela) sobreviviam ao logout por até 10 s. (2) Troca de sessão em outra aba: o login e a saída gravam um sinal em `localStorage` (`lumitrack:session-signal`, só um valor que muda, sem dado do usuário); as outras abas o recebem pelo evento `storage`, descartam o cache e releem o usuário em `/auth/me` (voltam ao login se a sessão acabou) e não reenviam o aviso. A lógica de ouvir o servidor derrubando a sessão e as outras abas ficou no hook `useSessionEvents`, o que também tirou esse efeito de dentro do `AuthProvider`. (3) Teste do login automático do cadastro. (4) Comentário do catálogo do ESLint atualizado (`AuthProvider` com 100 linhas efetivas, antes 110). (5) JSDoc sem os valores de `staleTime` e `gcTime`.
+- **Arquivos principais:** `frontend/src/contexts/AuthContext.tsx`, `frontend/src/hooks/useSessionEvents.ts`, `frontend/src/lib/sessionData.ts`, `frontend/src/lib/storage.ts`, `frontend/eslint.config.js` e os testes (`AuthContext.test.tsx`, `ProfilePage.test.tsx`).
+- **Decisões/ADRs:** nenhuma.
+- **Notas:** 5 testes novos no `AuthContext` (register, mais quatro de outra aba e do sinal) e o `dismiss` no mock do `sonner` do `ProfilePage.test.tsx`, que quebrava com o `toast.dismiss()` novo. Verificação por mutação: tirar o `toast.dismiss`, o ouvinte de outras abas ou o envio do sinal derruba 6, 3 e 1 testes. Frontend: 166 arquivos e 1.503 testes passando, `tsc -b` e dependency-cruiser limpos, lint sem erro. O `prettier --check` do repositório inteiro acusa os dois `.md` de `src/legal` (anteriores a esta branch, fora do escopo). Não testado em navegador com duas abas reais.

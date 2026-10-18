@@ -2,6 +2,8 @@ import { createContext, useContext, useEffect, useState, type ReactNode } from "
 import { authService } from "@/services/auth.service"
 import { extractErrorMessage } from "@/services/api"
 import { authState } from "@/lib/authState"
+import { announceSessionChange, discardSessionData } from "@/lib/sessionData"
+import { useSessionEvents } from "@/hooks/useSessionEvents"
 import { scheduleProactiveRefresh, cancelProactiveRefresh } from "@/lib/sessionRefresh"
 import type {
     DemoProfile,
@@ -51,6 +53,14 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         setUser(newUser)
     }
 
+    // Toda troca do usuário da sessão (entrada ou saída) descarta o que o anterior
+    // deixou aqui e avisa as outras abas, que compartilham os cookies.
+    const replaceSessionUser = (newUser: User | null): void => {
+        discardSessionData()
+        updateUser(newUser)
+        announceSessionChange()
+    }
+
     useEffect(() => {
         const bootstrap = async () => {
             const currentUser = await authService.getCurrentUser()
@@ -64,23 +74,13 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         }
     }, [])
 
-    useEffect(() => {
-        const handleUnauthorized = () => {
-            cancelProactiveRefresh()
-            updateUser(null)
-            void navigate("/login", { replace: true })
-        }
-        window.addEventListener("lumitrack:unauthorized", handleUnauthorized)
-        return () => {
-            window.removeEventListener("lumitrack:unauthorized", handleUnauthorized)
-        }
-    }, [navigate])
+    useSessionEvents(updateUser, navigate)
 
     const login = async (input: LoginInput): Promise<LoginResult> => {
         try {
             const result = await authService.login(input)
             if (!result.mfaRequired) {
-                updateUser(result.user)
+                replaceSessionUser(result.user)
                 scheduleProactiveRefresh()
             }
             return result
@@ -93,7 +93,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         try {
             const result = await authService.demoLogin(profile)
             if (!result.mfaRequired) {
-                updateUser(result.user)
+                replaceSessionUser(result.user)
                 scheduleProactiveRefresh()
             }
             return result
@@ -105,7 +105,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     const completeMfaLogin = async (input: MfaLoginVerifyInput): Promise<void> => {
         try {
             const fullUser = await authService.verifyMfaLogin(input)
-            updateUser(fullUser)
+            replaceSessionUser(fullUser)
             scheduleProactiveRefresh()
         } catch (error) {
             throw new Error(extractErrorMessage(error), { cause: error })
@@ -115,7 +115,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     const logout = async (): Promise<void> => {
         cancelProactiveRefresh()
         await authService.logout()
-        updateUser(null)
+        replaceSessionUser(null)
     }
 
     const register = async (input: RegisterInput): Promise<void> => {
@@ -136,7 +136,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
             if (result.mfaRequired) {
                 throw new Error("POST_REGISTER_LOGIN_FAILED")
             }
-            updateUser(result.user)
+            replaceSessionUser(result.user)
         } catch {
             throw new Error("POST_REGISTER_LOGIN_FAILED")
         }
