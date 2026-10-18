@@ -299,7 +299,7 @@ object-src 'none';
 
 O único `<script>` inline (o anti-FOUC do tema) é liberado por **hash**, não por `'unsafe-inline'` — o Vite não transforma script inline não-module durante o build, então o hash é estável entre `index.html` e `dist/index.html`.
 
-**Nota técnica**: `frame-ancestors`, `base-uri` e `object-src` **não têm efeito via `<meta>`** — só via header HTTP. Por isso a mesma política também sai como header `Content-Security-Policy` nos dois ambientes: no `deploy/Caddyfile` (produção) e em `headers:` do `render.yaml` (staging, com a origem da API no `connect-src`). O navegador aplica a `<meta>` e o header juntos (interseção). O teste `src/config/securityHeaders.test.ts` trava as três cópias iguais e confere o hash contra o script inline; mudar o script exige recalcular o hash nos três lugares.
+**Nota técnica**: `frame-ancestors` **não tem efeito via `<meta>`** — só via header HTTP (as demais diretivas valem nos dois). Por isso a mesma política também sai como header `Content-Security-Policy` nos dois ambientes: no `deploy/Caddyfile` (produção) e em `headers:` do `render.yaml` (staging, com a origem da API no `connect-src`). O navegador aplica a `<meta>` e o header juntos (interseção). O teste `src/config/securityHeaders.test.ts` trava as três cópias iguais e confere o hash contra o script inline; mudar o script exige recalcular o hash nos três lugares.
 
 `style-src` mantém `'unsafe-inline'` porque o sonner injeta um `<style>` em runtime; é um risco residual aceito.
 

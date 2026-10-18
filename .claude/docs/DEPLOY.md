@@ -218,7 +218,7 @@ O rewrite `/api/*` do site estático **não sustenta conexão de longa duração
   1. **CSP do próprio `index.html`** (`connect-src 'self'`) bloqueia a conexão no navegador antes mesmo de CORS entrar em jogo (erro no console: "Refused to connect because it violates the document's Content Security Policy"). `VITE_CSP_CONNECT_EXTRA` (`render.yaml`) libera a origem da API especificamente.
   2. **Cookie de sessão nunca atravessa domínio** (a conexão passa a responder 401): o cookie foi definido pelo navegador para o domínio do site estático, não para o da API — `SameSite` não resolve isso (é o `Domain` do cookie, que nunca inclui o outro serviço; `Domain=.onrender.com` é rejeitado por ser sufixo público). A correção **não** é enfraquecer o cookie — é não depender dele nessa chamada: `POST /api/iot/stream-ticket` autentica normalmente (cookie, mesma origem, via rewrite) e emite um ticket de uso único de 30s; o SSE troca esse ticket pela conexão via query string (`?ticket=...`), sem cookie nenhum. Todo cookie da aplicação continua `sameSite: "lax"`, sem exceção.
 
-  Se você mudar o nome do serviço da API no Render, atualize as **duas** referências junto: `VITE_SSE_URL` e `VITE_CSP_CONNECT_EXTRA` (o destino do rewrite, item 5 do passo a passo, é o terceiro lugar de sempre).
+  Se você mudar o nome do serviço da API no Render, atualize as referências junto: `VITE_SSE_URL`, `VITE_CSP_CONNECT_EXTRA` e o `connect-src` da CSP em `headers:` do `render.yaml` (o teste `frontend/src/config/securityHeaders.test.ts` falha se esta última divergir de `VITE_CSP_CONNECT_EXTRA`), além do destino do rewrite (item 5 do passo a passo).
 
 ## Verificação ponta a ponta
 

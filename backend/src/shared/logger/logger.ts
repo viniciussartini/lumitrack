@@ -38,9 +38,14 @@ const transport = resolveTransport(env.NODE_ENV)
 // cobrem qualquer objeto logado com esses campos, independente da chave
 // raiz usada. `err.body` cobre o corpo que o body-parser anexa ao erro de
 // leitura (pode ter senha), caso algum caminho ainda logue esse erro.
+// `req.headers.referer` cobre o token que as páginas de redefinição de
+// senha e de confirmação de e-mail carregam na URL: as chamadas que elas
+// fazem à API saem com a URL da página no `Referer`, e ele iria inteiro
+// para a linha de log.
 export const logRedactPaths = [
     "req.headers.cookie",
     "req.headers.authorization",
+    "req.headers.referer",
     'res.headers["set-cookie"]',
     'req.headers["x-csrf-token"]',
     'req.headers["x-refresh-csrf-token"]',

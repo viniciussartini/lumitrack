@@ -55,7 +55,9 @@ const renderConnectExtra = (): string => {
 describe("CSP do index.html", () => {
     it("o hash libera exatamente o único script inline (anti-FOUC)", () => {
         const scripts = [
-            ...withoutHtmlComments(indexHtml).matchAll(/<script>([\s\S]*?)<\/script>/g),
+            ...withoutHtmlComments(indexHtml).matchAll(
+                /<script(?![^>]*\bsrc=)[^>]*>([\s\S]*?)<\/script>/g,
+            ),
         ]
         expect(scripts).toHaveLength(1)
 
@@ -93,6 +95,19 @@ describe("cabeçalhos de segurança do site estático do Render", () => {
         ["Permissions-Policy", "Permissions-Policy"],
     ])("%s é o mesmo do Caddy", (renderName, caddyName) => {
         expect(renderHeader(renderName)).toBe(caddyHeader(caddyName))
+    })
+})
+
+describe("Referrer-Policy", () => {
+    it("manda só a origem nos dois ambientes: a URL com token não sai nem para a própria API", () => {
+        expect(caddyHeader("Referrer-Policy")).toBe("strict-origin")
+        expect(renderHeader("Referrer-Policy")).toBe("strict-origin")
+    })
+})
+
+describe("CSP no Caddy", () => {
+    it("fica em diretiva própria com `?`, para a CSP mais restrita da API vencer em /api/*", () => {
+        expect(caddyfile).toMatch(/^\s*header \?Content-Security-Policy\s+"/m)
     })
 })
 

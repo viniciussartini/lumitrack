@@ -138,9 +138,14 @@ services:
           # lumitrack.app.br — troque junto com o registro definitivo.
           - key: VITE_PRIVACY_CONTACT_EMAIL
             value: contato@lumitrack.com.br
-      # Mesmo conjunto de cabeçalhos do deploy/Caddyfile (produção): o site
-      # estático do Render não emite nenhum por conta própria, e sem eles as
-      # telas poderiam ser enquadradas em iframe. A CSP repete a da <meta> de
+      # Mesmo conjunto de cabeçalhos do deploy/Caddyfile (produção), mais o
+      # X-Frame-Options, que só existe aqui como reforço para navegadores sem
+      # `frame-ancestors`: o site estático do Render não emite nenhum por
+      # conta própria, e sem eles as telas poderiam ser enquadradas em
+      # iframe. O Referrer-Policy é `strict-origin` porque as páginas de
+      # redefinição de senha e de confirmação de e-mail trazem o token na URL
+      # e o padrão do navegador a mandaria inteira no `Referer` das chamadas
+      # à API. A CSP repete a da <meta> de
       # frontend/index.html, com a origem da API no connect-src (a mesma de
       # VITE_CSP_CONNECT_EXTRA acima); um teste do frontend
       # (securityHeaders.test.ts) trava as cópias iguais. 'unsafe-inline' em
@@ -160,7 +165,7 @@ services:
             value: "nosniff"
           - path: /*
             name: Referrer-Policy
-            value: "strict-origin-when-cross-origin"
+            value: "strict-origin"
           - path: /*
             name: Permissions-Policy
             value: "camera=(), microphone=(), geolocation=(), payment=(), usb=(), serial=(), bluetooth=(), hid=()"
