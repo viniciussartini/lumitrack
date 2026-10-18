@@ -74,6 +74,33 @@ describe("pino-http — redação de dado sensível no log de requisição", () 
     })
 })
 
+describe("pino-http — o Referer não leva token de URL ao log", () => {
+    const RESET_TOKEN = "token-de-redefinicao-vivo-0123456789"
+
+    it("a página de redefinição chama a API com o token no Referer e ele não aparece no log", async () => {
+        const lines: string[] = []
+        const sink = new Writable({
+            write(chunk: Buffer, _encoding, callback) {
+                lines.push(chunk.toString())
+                callback()
+            },
+        })
+        const capturedLogger = pino(
+            { level: "info", redact: { paths: logRedactPaths, censor: "[REDACTED]" } },
+            sink,
+        )
+        const app = createApp({ prismaClient: prismaHttpTest, logger: capturedLogger })
+
+        await request(app)
+            .get("/api/auth/me")
+            .set("Referer", `https://app.example.com/reset-password?token=${RESET_TOKEN}`)
+
+        const output = lines.join("\n")
+        expect(output).toContain("/api/auth/me")
+        expect(output).not.toContain(RESET_TOKEN)
+    })
+})
+
 describe("corpo malformado — a senha do corpo nunca chega ao log", () => {
     const SECRET = "Segredo@123-corpo-malformado"
 

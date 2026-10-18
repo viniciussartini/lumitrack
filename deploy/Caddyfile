@@ -58,27 +58,42 @@
         # carregamento em vez de servir do cache local.
         @static path /assets/*
         header @static Cache-Control "public, max-age=31536000, immutable"
+
+        # Tudo fora de /assets/ (o index.html, que o fallback devolve para
+        # qualquer rota da SPA, e os arquivos públicos sem hash) revalida a
+        # cada carga: sem isto o navegador pode servir um index.html antigo
+        # que aponta para chunks de um deploy anterior, já removidos. O
+        # file_server responde 304 pelo ETag, então o custo é só a consulta.
+        @revalida not path /assets/*
+        header @revalida Cache-Control "no-cache"
     }
 
     header {
         Strict-Transport-Security "max-age=31536000; includeSubDomains"
-        # Superconjunto da CSP via <meta> de frontend/index.html — cobre só
-        # as 3 diretivas que uma <meta http-equiv="Content-Security-Policy">
-        # não tem efeito nenhum ao entregar (frame-ancestors, base-uri,
-        # object-src só valem via header HTTP; ver a nota técnica do gate #5
-        # de go-live na ADR-0008). script-src/style-src/img-src/connect-src
-        # continuam cobertos só pela <meta> — não duplicados aqui.
-        Content-Security-Policy "frame-ancestors 'none'; base-uri 'self'; object-src 'none'"
         X-Content-Type-Options "nosniff"
         -Server
     }
+
+    # Mesma política da <meta> de frontend/index.html, completa: só o
+    # `frame-ancestors` não vale via <meta>, e o resto vale junto com ela (o
+    # navegador aplica a interseção). O hash de script-src libera o único
+    # script inline (anti-FOUC) e precisa mudar junto com ele; o connect-src
+    # fica só com 'self', porque a origem extra do staging não se aplica
+    # aqui. Um teste do frontend (securityHeaders.test.ts) trava as três
+    # cópias iguais. Fica em diretiva própria com `?` (e não no bloco acima,
+    # que tem `-Server`) para a API manter a CSP mais restrita do helmet em
+    # /api/*, em vez de receber a do SPA por cima.
+    header ?Content-Security-Policy "default-src 'self'; script-src 'self' 'sha256-+up+7C+rtXMLX83AFmz9GUqo6C3J6ptqB1rNLtcKJRM='; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; object-src 'none'"
 
     # Cada cabeçalho com `?` fica na sua própria diretiva `header`: num mesmo
     # bloco, os campos com `?` viram uma condição conjunta e nenhum é aplicado
     # se qualquer um já existir. `?` só define quando a resposta ainda não traz
     # o cabeçalho: a API envia o próprio Referrer-Policy (helmet, no-referrer)
     # e ele vence, sem impedir o Permissions-Policy.
-    header ?Referrer-Policy "strict-origin-when-cross-origin"
+    # `strict-origin` (e não o default do navegador) porque as páginas de
+    # redefinição de senha e de confirmação de e-mail trazem o token na URL, e
+    # a política padrão mandaria a URL inteira no `Referer` das chamadas à API.
+    header ?Referrer-Policy "strict-origin"
     # A aplicação não usa câmera, microfone, localização, pagamento nem
     # periféricos; a área de transferência continua liberada (códigos de MFA).
     header ?Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=(), usb=(), serial=(), bluetooth=(), hid=()"

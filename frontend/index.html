@@ -11,10 +11,11 @@
         node -e "const fs=require('fs'),c=require('crypto');
         const m=fs.readFileSync('index.html','utf8').match(/<script>([\s\S]*?)<\/script>/);
         console.log('sha256-'+c.createHash('sha256').update(m[1],'utf8').digest('base64'))"
-      `frame-ancestors`/`base-uri`/`object-src` não têm efeito via <meta>
-      (só via header HTTP) — mantidos aqui documentando a intenção; o
-      reverse proxy de produção (ADR-0008) deve enviar o header equivalente
-      quando configurado.
+      `frame-ancestors` não tem efeito via <meta> (só via header HTTP) —
+      mantido aqui para a política ficar igual à dos headers: o
+      deploy/Caddyfile e o render.yaml enviam esta mesma CSP, e
+      src/config/securityHeaders.test.ts trava as três cópias iguais (o hash
+      muda nos três lugares ao mesmo tempo).
 
       %VITE_CSP_CONNECT_EXTRA% em connect-src — vazio por padrão (dev,
       self-hosted). Só a demo pública do Render (ADR-0010) define essa
