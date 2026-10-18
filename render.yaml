@@ -138,6 +138,32 @@ services:
           # lumitrack.app.br — troque junto com o registro definitivo.
           - key: VITE_PRIVACY_CONTACT_EMAIL
             value: contato@lumitrack.com.br
+      # Mesmo conjunto de cabeçalhos do deploy/Caddyfile (produção): o site
+      # estático do Render não emite nenhum por conta própria, e sem eles as
+      # telas poderiam ser enquadradas em iframe. A CSP repete a da <meta> de
+      # frontend/index.html, com a origem da API no connect-src (a mesma de
+      # VITE_CSP_CONNECT_EXTRA acima); um teste do frontend
+      # (securityHeaders.test.ts) trava as cópias iguais. 'unsafe-inline' em
+      # style-src fica porque o sonner injeta um <style> em runtime.
+      headers:
+          - path: /*
+            name: Content-Security-Policy
+            value: "default-src 'self'; script-src 'self' 'sha256-+up+7C+rtXMLX83AFmz9GUqo6C3J6ptqB1rNLtcKJRM='; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' https://lumitrack-api.onrender.com; frame-ancestors 'none'; base-uri 'none'; object-src 'none'"
+          - path: /*
+            name: X-Frame-Options
+            value: "DENY"
+          - path: /*
+            name: Strict-Transport-Security
+            value: "max-age=31536000; includeSubDomains"
+          - path: /*
+            name: X-Content-Type-Options
+            value: "nosniff"
+          - path: /*
+            name: Referrer-Policy
+            value: "strict-origin-when-cross-origin"
+          - path: /*
+            name: Permissions-Policy
+            value: "camera=(), microphone=(), geolocation=(), payment=(), usb=(), serial=(), bluetooth=(), hid=()"
       routes:
           # ATENÇÃO — esta é a peça central do desenho, e a única que precisa
           # ser editada à mão depois do primeiro deploy: troque o destino pela

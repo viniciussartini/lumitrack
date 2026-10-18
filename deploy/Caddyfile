@@ -58,17 +58,26 @@
         # carregamento em vez de servir do cache local.
         @static path /assets/*
         header @static Cache-Control "public, max-age=31536000, immutable"
+
+        # Tudo fora de /assets/ (o index.html, que o fallback devolve para
+        # qualquer rota da SPA, e os arquivos públicos sem hash) revalida a
+        # cada carga: sem isto o navegador pode servir um index.html antigo
+        # que aponta para chunks de um deploy anterior, já removidos. O
+        # file_server responde 304 pelo ETag, então o custo é só a consulta.
+        @revalida not path /assets/*
+        header @revalida Cache-Control "no-cache"
     }
 
     header {
         Strict-Transport-Security "max-age=31536000; includeSubDomains"
-        # Superconjunto da CSP via <meta> de frontend/index.html — cobre só
-        # as 3 diretivas que uma <meta http-equiv="Content-Security-Policy">
-        # não tem efeito nenhum ao entregar (frame-ancestors, base-uri,
-        # object-src só valem via header HTTP; ver a nota técnica do gate #5
-        # de go-live na ADR-0008). script-src/style-src/img-src/connect-src
-        # continuam cobertos só pela <meta> — não duplicados aqui.
-        Content-Security-Policy "frame-ancestors 'none'; base-uri 'self'; object-src 'none'"
+        # Mesma política da <meta> de frontend/index.html, agora completa:
+        # frame-ancestors, base-uri e object-src só valem via header HTTP, e
+        # o resto vale junto com a <meta> (o navegador aplica a interseção).
+        # O hash de script-src libera o único script inline (anti-FOUC) e
+        # precisa mudar junto com ele; o connect-src fica só com 'self',
+        # porque a origem extra do staging não se aplica aqui. Um teste do
+        # frontend (securityHeaders.test.ts) trava as três cópias iguais.
+        Content-Security-Policy "default-src 'self'; script-src 'self' 'sha256-+up+7C+rtXMLX83AFmz9GUqo6C3J6ptqB1rNLtcKJRM='; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; object-src 'none'"
         X-Content-Type-Options "nosniff"
         -Server
     }
