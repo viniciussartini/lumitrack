@@ -108,11 +108,11 @@ describe("custo da classificação do user-agent", () => {
 
 describe("maskIp", () => {
     it("IPv4 mantém os dois primeiros octetos", () => {
-        expect(maskIp("189.45.12.34")).toBe("189.45.xx.xx")
+        expect(maskIp("203.0.113.34")).toBe("203.0.xx.xx")
     })
 
     it("IPv4 mapeado em IPv6 é tratado como IPv4", () => {
-        expect(maskIp("::ffff:189.45.12.34")).toBe("189.45.xx.xx")
+        expect(maskIp("::ffff:203.0.113.34")).toBe("203.0.xx.xx")
     })
 
     it("IPv6 mantém só os dois primeiros grupos, sem zeros à esquerda", () => {
@@ -125,7 +125,7 @@ describe("maskIp", () => {
     })
 
     it("nunca devolve o endereço completo", () => {
-        expect(maskIp("189.45.12.34")).not.toContain("12")
+        expect(maskIp("203.0.113.34")).not.toContain("113")
         expect(maskIp("2804:14c:1234:5678::1")).not.toContain("1234")
     })
 

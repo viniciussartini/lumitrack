@@ -491,6 +491,8 @@ Essa mensagem de erro é o resultado *correto* — confirma que o usuário de ru
 
 **Nota para migrações futuras contra o banco já em produção (não se aplica ao primeiro deploy, com o banco vazio):** o Prisma Migrate usa `CREATE INDEX` simples, não `CREATE INDEX CONCURRENTLY` — a criação toma lock `SHARE` na tabela, bloqueando escrita por alguns instantes. Em tabelas pequenas isso é imperceptível; numa tabela grande com ingestão contínua (`meter_readings`, alimentada pelo `MinuteRollupScheduler` a cada minuto), planeje a janela: o flush que cair durante a criação do índice falha, mas é reprocessado automaticamente no próximo minuto (`MinuteRollupScheduler` devolve o balde ao buffer em caso de erro) — sem perda de dado, só um erro pontual no log.
 
+**Migrações sobre `meter_readings` ou sobre as tabelas de token:** o `ALTER TABLE` pede lock exclusivo e, sem `lock_timeout`, espera atrás de qualquer consulta longa em curso (o expurgo de retenção chega a 120 s), e a ingestão inteira fica na fila atrás dele. Abra o arquivo da migração com `SET lock_timeout = '5s';` e, se der timeout, repita a aplicação fora de um expurgo. Adicionar coluna anulável sem default só altera o catálogo; um default volátil (como `gen_random_uuid()`) reescreve a tabela inteira sob o mesmo lock.
+
 **7.2 — Buildar o frontend.**
 
 O frontend é um site estático (HTML/CSS/JS puro depois de compilado) — não roda como container próprio, o Caddy só serve os arquivos direto de uma pasta (`frontend/dist`). Como a VPS não tem Node.js instalado no sistema (só dentro dos containers), o build roda dentro de um container Node **descartável**, criado só para essa tarefa:
@@ -747,7 +749,19 @@ docker rm -f lumitrack-restore-test
 rm lumitrack-<timestamp>.sql.gz.age
 ```
 
+## Atualizar a produção depois de uma promoção
+
+Vale para o Caminho B, a cada merge de `staging` em `main` (o equivalente do Caminho A é "Atualizar o staging depois de um merge").
+
+1. **Mescle o PR de promoção com "Create a merge commit"**, nunca com squash: o squash recria a divergência entre `main` e `staging` na promoção seguinte. Se algum hotfix entrou direto em `main`, faça o back-merge de `main` em `staging` antes de promover.
+2. **Backup e migrações antes do código (opcional, mas recomendado quando o lote tem muitas migrações).** `sudo -u lumitrack ./deploy/backup-postgres.sh`, depois aplique as migrações pendentes com o usuário administrativo do banco (a mesma chamada do passo 7.1). Migração aditiva convive com o backend antigo; o `update-production.sh` repete a aplicação como no-op.
+3. **Rode o script de atualização**, como o usuário de serviço: `sudo -u lumitrack ./deploy/update-production.sh`. Ele exige a branch `main` e um fast-forward, reconstrói o que mudou, recria o Caddy quando o `Caddyfile` ou o frontend mudam (garantindo a leitura dos arquivos pelo Caddy) e recria os medidores do simulador sempre que o contêiner dele é recriado.
+4. **Catálogos novos não chegam sozinhos.** O script **não** roda o seed. Se a promoção trouxe tabelas de catálogo (tarifas do Grupo A e da Tarifa Branca, PLD, janela de ponta das distribuidoras), rode uma vez: `docker compose --env-file deploy/.env exec --user root backend npm run db:seed`. É idempotente (`upsert`), **mas regrava a bandeira tarifária vigente como verde**; confira a bandeira depois, ou aguarde o ciclo seguinte da sincronização com a ANEEL. Sem o catálogo, as contas do Grupo A, da Tarifa Branca e a comparação ACR × ACL falham fechado.
+5. **Verifique:** `docker compose --env-file deploy/.env ps` com tudo saudável, `/health` em 200, login de demonstração, uma leitura recente no Painel e `docker compose logs backend --tail 15 | grep Conectado` com as 11 linhas dos medidores.
+
 ## Rollback
+
+Depois de uma promoção que traz o código novo, **o caminho de volta é corrigir para frente**. Os valores novos de `audit_action` (`REPORT_GENERATE`, `SESSION_REVOKE`, `REVOKED_TOKEN_USE`) e as propriedades do Grupo A com `billingClass` nulo não são lidos pelo backend antigo, então voltar só a aplicação deixa de ser seguro assim que o código novo grava. Reverter a aplicação vale apenas antes de qualquer gravação nova.
 
 `prisma migrate deploy` é **forward-only** — não existe `migrate down` automático. Reverter código sem reverter uma migração aplicada é seguro só se a migração for aditiva (nova coluna/tabela); reverter uma migração destrutiva exige uma migração de correção nova, não um `git checkout` do schema antigo.
 

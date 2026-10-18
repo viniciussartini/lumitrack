@@ -88,7 +88,7 @@ enum TargetType {
 // B1 residencial, B2 rural, B3 demais (comércio/serviços/pequena indústria).
 // Exclusivo do Grupo B — Grupo A usa TariffSubgroup (ver abaixo), definido por
 // tensão de fornecimento, não por classe de uso (ADR-0019 separa os dois
-// conceitos que este enum conflacionava antes da Fase 19).
+// conceitos que este enum conflacionava antes da modelagem do Grupo A).
 enum BillingClass {
   B1
   B2
@@ -484,7 +484,7 @@ model TariffEnergyRate {
 }
 
 // Catálogo de tarifa de DEMANDA do Grupo A. `post` nulo representa
-// demanda única (Horária Verde); Azul (Fase 20) popula PEAK/OFF_PEAK
+// demanda única (Horária Verde); Azul popula PEAK/OFF_PEAK
 // sem exigir migração nova — a coluna já comporta as duas formas.
 // Nota 1: o Postgres trata cada NULL como distinto em índice único, então o
 // `@@unique` abaixo não impede duas linhas com post nulo para a mesma
@@ -492,14 +492,16 @@ model TariffEnergyRate {
 // PARCIAL (`WHERE post IS NULL`, migração `grupo_a_indice_unico_demanda_unica`)
 // — o Prisma não tem sintaxe para índice parcial no schema, então ele só
 // existe na migração SQL, sem representação aqui (drift consciente e
-// documentado, não esquecido).
+// documentado, não esquecido). Se um `prisma migrate dev` propuser um
+// `DROP INDEX "tariff_demand_rates_single_demand_key"`, recuse: o índice é
+// a única garantia de unicidade da demanda única.
 // Nota 2: por causa da Nota 1, o Prisma **recusa em runtime** usar `post:
 // null` numa cláusula where de chave composta (`upsert`/`findUnique` via
 // `distributorId_subgroup_modality_post`) — "Argument `post` must not be
 // null". Gravar/ler a linha de demanda única da Verde exige `findFirst` +
 // create/update manual (ver `seedGroupATariffCatalog` em `prisma/seed.ts`),
 // não `upsert`. O `@@unique` continua útil para as linhas com post
-// preenchido (Azul, Fase 20).
+// preenchido (Azul).
 model TariffDemandRate {
   id            String         @id @default(uuid())
   distributorId String

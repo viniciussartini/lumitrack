@@ -1124,8 +1124,8 @@ describe("AuthService", () => {
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
         const firefoxMac =
             "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:121.0) Gecko/20100101 Firefox/121.0"
-        const contextA = { ipAddress: "189.45.12.34", userAgent: chromeWindows }
-        const contextB = { ipAddress: "201.17.88.9", userAgent: firefoxMac }
+        const contextA = { ipAddress: "203.0.113.34", userAgent: chromeWindows }
+        const contextB = { ipAddress: "198.51.100.9", userAgent: firefoxMac }
 
         async function createUser() {
             const { UserService } = await import("@/modules/user/user.service.js")
@@ -1164,9 +1164,9 @@ describe("AuthService", () => {
             })
 
             expect(refresh.deviceLabel).toBe("Chrome · Windows")
-            expect(refresh.origin).toBe("189.45.xx.xx")
+            expect(refresh.origin).toBe("203.0.xx.xx")
             const stored = JSON.stringify(refresh)
-            expect(stored).not.toContain("189.45.12.34")
+            expect(stored).not.toContain("203.0.113.34")
             expect(stored).not.toContain("AppleWebKit")
         })
 
@@ -1180,7 +1180,7 @@ describe("AuthService", () => {
             })
 
             expect(auth.deviceLabel).toBe("Firefox · macOS")
-            expect(auth.origin).toBe("201.17.xx.xx")
+            expect(auth.origin).toBe("198.51.xx.xx")
         })
 
         it("sem contexto da requisição, dispositivo e origem ficam nulos (nunca inventados)", async () => {
@@ -1227,7 +1227,7 @@ describe("AuthService", () => {
             expect(after.sessionId).toBe(before.sessionId)
             expect(newAuth.sessionId).toBe(before.sessionId)
             expect(after.deviceLabel).toBe("Firefox · macOS")
-            expect(after.origin).toBe("201.17.xx.xx")
+            expect(after.origin).toBe("198.51.xx.xx")
         })
 
         it("dentro da janela de graça, o token emitido continua na mesma sessão", async () => {
@@ -1265,7 +1265,7 @@ describe("AuthService", () => {
             expect(replaced.deviceLabel).toBeNull()
             expect(replaced.origin).toBeNull()
             expect(current.deviceLabel).toBe("Firefox · macOS")
-            expect(current.origin).toBe("201.17.xx.xx")
+            expect(current.origin).toBe("198.51.xx.xx")
         })
 
         it("o logout revoga todos os refresh tokens vigentes da sessão, inclusive o da janela de graça", async () => {
